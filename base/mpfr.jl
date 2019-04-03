@@ -25,8 +25,12 @@ import .Base.GMP: ClongMax, CulongMax, CdoubleMax, Limb
 
 import .Base.FastMath.sincos_fast
 
-version() = VersionNumber(unsafe_string(ccall((:mpfr_get_version,:libmpfr), Ptr{Cchar}, ())))
-patches() = split(unsafe_string(ccall((:mpfr_get_patches,:libmpfr), Ptr{Cchar}, ())),' ')
+function version()
+    VersionNumber(unsafe_string(ccall((:mpfr_get_version, :libmpfr), Ptr{Cchar}, ())))
+end
+function patches()
+    split(unsafe_string(ccall((:mpfr_get_patches, :libmpfr), Ptr{Cchar}, ())), ' ')
+end
 
 function __init__()
     try
@@ -56,11 +60,21 @@ This is for internal use, and ensures that `ROUNDING_MODE[]` is type-stable.
     MPFRRoundFaithful
 end
 
-convert(::Type{MPFRRoundingMode}, ::RoundingMode{:Nearest})  = MPFRRoundNearest
-convert(::Type{MPFRRoundingMode}, ::RoundingMode{:ToZero})   = MPFRRoundToZero
-convert(::Type{MPFRRoundingMode}, ::RoundingMode{:Up})       = MPFRRoundUp
-convert(::Type{MPFRRoundingMode}, ::RoundingMode{:Down})     = MPFRRoundDown
-convert(::Type{MPFRRoundingMode}, ::RoundingMode{:FromZero}) = MPFRRoundFromZero
+function convert(::Type{MPFRRoundingMode}, ::RoundingMode{:Nearest})
+    MPFRRoundNearest
+end
+function convert(::Type{MPFRRoundingMode}, ::RoundingMode{:ToZero})
+    MPFRRoundToZero
+end
+function convert(::Type{MPFRRoundingMode}, ::RoundingMode{:Up})
+    MPFRRoundUp
+end
+function convert(::Type{MPFRRoundingMode}, ::RoundingMode{:Down})
+    MPFRRoundDown
+end
+function convert(::Type{MPFRRoundingMode}, ::RoundingMode{:FromZero})
+    MPFRRoundFromZero
+end
 
 function convert(::Type{RoundingMode}, r::MPFRRoundingMode)
     if r == MPFRRoundNearest
@@ -118,16 +132,26 @@ mutable struct BigFloat <: AbstractFloat
     end
 end
 
-rounding_raw(::Type{BigFloat}) = ROUNDING_MODE[]
-setrounding_raw(::Type{BigFloat}, r::MPFRRoundingMode) = ROUNDING_MODE[]=r
+function rounding_raw(::Type{BigFloat})
+    ROUNDING_MODE[]
+end
+function setrounding_raw(::Type{BigFloat}, r::MPFRRoundingMode)
+    ROUNDING_MODE[] = r
+end
 
-rounding(::Type{BigFloat}) = convert(RoundingMode, rounding_raw(BigFloat))
-setrounding(::Type{BigFloat}, r::RoundingMode) = setrounding_raw(BigFloat, convert(MPFRRoundingMode, r))
+function rounding(::Type{BigFloat})
+    convert(RoundingMode, rounding_raw(BigFloat))
+end
+function setrounding(::Type{BigFloat}, r::RoundingMode)
+    setrounding_raw(BigFloat, convert(MPFRRoundingMode, r))
+end
 
 
 # overload the definition of unsafe_convert to ensure that `x.d` is assigned
 # it may have been dropped in the event that the BigFloat was serialized
-Base.unsafe_convert(::Type{Ref{BigFloat}}, x::Ptr{BigFloat}) = x
+function Base.unsafe_convert(::Type{Ref{BigFloat}}, x::Ptr{BigFloat})
+    x
+end
 @inline function Base.unsafe_convert(::Type{Ref{BigFloat}}, x::Ref{BigFloat})
     x = x[]
     if x.d == C_NULL
@@ -177,8 +201,12 @@ julia> BigFloat("2.1", RoundUp, precision=128)
 """
 BigFloat(x, r::RoundingMode)
 
-widen(::Type{Float64}) = BigFloat
-widen(::Type{BigFloat}) = BigFloat
+function widen(::Type{Float64})
+    BigFloat
+end
+function widen(::Type{BigFloat})
+    BigFloat
+end
 
 function BigFloat(x::BigFloat, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     if precision == MPFR.precision(x)
@@ -218,16 +246,20 @@ function BigFloat(x::BigInt, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Int
     return z
 end
 
-BigFloat(x::Integer, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[]) =
+function BigFloat(x::Integer, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     BigFloat(BigInt(x), r; precision=precision)
+end
 
-BigFloat(x::Union{Bool,Int8,Int16,Int32}, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[]) =
+function BigFloat(x::Union{Bool, Int8, Int16, Int32}, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     BigFloat(convert(Clong, x), r; precision=precision)
-BigFloat(x::Union{UInt8,UInt16,UInt32}, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[]) =
+end
+function BigFloat(x::Union{UInt8, UInt16, UInt32}, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     BigFloat(convert(Culong, x), r; precision=precision)
+end
 
-BigFloat(x::Union{Float16,Float32}, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[]) =
+function BigFloat(x::Union{Float16, Float32}, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     BigFloat(Float64(x), r; precision=precision)
+end
 
 function BigFloat(x::Rational, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     setprecision(BigFloat, precision) do
@@ -244,18 +276,27 @@ function tryparse(::Type{BigFloat}, s::AbstractString; base::Integer=0, precisio
     err == 0 ? z : nothing
 end
 
-BigFloat(x::AbstractString, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[]) =
+function BigFloat(x::AbstractString, r::MPFRRoundingMode=ROUNDING_MODE[]; precision::Integer=DEFAULT_PRECISION[])
     parse(BigFloat, x; precision=precision, rounding=r)
+end
 
-Rational(x::BigFloat) = convert(Rational{BigInt}, x)
-AbstractFloat(x::BigInt) = BigFloat(x)
+function Rational(x::BigFloat)
+    convert(Rational{BigInt}, x)
+end
+function AbstractFloat(x::BigInt)
+    BigFloat(x)
+end
 
-float(::Type{BigInt}) = BigFloat
+function float(::Type{BigInt})
+    BigFloat
+end
 
-BigFloat(x::Real, r::RoundingMode; precision::Integer=DEFAULT_PRECISION[]) =
+function BigFloat(x::Real, r::RoundingMode; precision::Integer=DEFAULT_PRECISION[])
     BigFloat(x, convert(MPFRRoundingMode, r); precision=precision)
-BigFloat(x::AbstractString, r::RoundingMode; precision::Integer=DEFAULT_PRECISION[]) =
+end
+function BigFloat(x::AbstractString, r::RoundingMode; precision::Integer=DEFAULT_PRECISION[])
     BigFloat(x, convert(MPFRRoundingMode, r); precision=precision)
+end
 
 ## BigFloat -> Integer
 """
@@ -286,10 +327,16 @@ function unsafe_cast(::Type{BigInt}, x::BigFloat, r::MPFRRoundingMode)
     ccall((:mpfr_get_z, :libmpfr), Int32, (Ref{BigInt}, Ref{BigFloat}, MPFRRoundingMode), z, x, r)
     return z
 end
-unsafe_cast(::Type{Int128}, x::BigFloat, r::MPFRRoundingMode) = Int128(unsafe_cast(BigInt, x, r))
-unsafe_cast(::Type{UInt128}, x::BigFloat, r::MPFRRoundingMode) = UInt128(unsafe_cast(BigInt, x, r))
+function unsafe_cast(::Type{Int128}, x::BigFloat, r::MPFRRoundingMode)
+    Int128(unsafe_cast(BigInt, x, r))
+end
+function unsafe_cast(::Type{UInt128}, x::BigFloat, r::MPFRRoundingMode)
+    UInt128(unsafe_cast(BigInt, x, r))
+end
 
-unsafe_trunc(::Type{T}, x::BigFloat) where {T<:Integer} = unsafe_cast(T, x, RoundToZero)
+function unsafe_trunc(::Type{T}, x::BigFloat) where T <: Integer
+    unsafe_cast(T, x, RoundToZero)
+end
 
 function trunc(::Type{T}, x::BigFloat) where T<:Union{Signed,Unsigned}
     (typemin(T) <= x <= typemax(T)) || throw(InexactError(:trunc, T, x))
@@ -309,16 +356,32 @@ function round(::Type{T}, x::BigFloat) where T<:Union{Signed,Unsigned}
     unsafe_cast(T, x, ROUNDING_MODE[])
 end
 
-trunc(::Type{BigInt}, x::BigFloat) = unsafe_cast(BigInt, x, RoundToZero)
-floor(::Type{BigInt}, x::BigFloat) = unsafe_cast(BigInt, x, RoundDown)
-ceil(::Type{BigInt}, x::BigFloat) = unsafe_cast(BigInt, x, RoundUp)
-round(::Type{BigInt}, x::BigFloat) = unsafe_cast(BigInt, x, ROUNDING_MODE[])
+function trunc(::Type{BigInt}, x::BigFloat)
+    unsafe_cast(BigInt, x, RoundToZero)
+end
+function floor(::Type{BigInt}, x::BigFloat)
+    unsafe_cast(BigInt, x, RoundDown)
+end
+function ceil(::Type{BigInt}, x::BigFloat)
+    unsafe_cast(BigInt, x, RoundUp)
+end
+function round(::Type{BigInt}, x::BigFloat)
+    unsafe_cast(BigInt, x, ROUNDING_MODE[])
+end
 
 # convert/round/trunc/floor/ceil(Integer, x) should return a BigInt
-trunc(::Type{Integer}, x::BigFloat) = trunc(BigInt, x)
-floor(::Type{Integer}, x::BigFloat) = floor(BigInt, x)
-ceil(::Type{Integer}, x::BigFloat) = ceil(BigInt, x)
-round(::Type{Integer}, x::BigFloat) = round(BigInt, x)
+function trunc(::Type{Integer}, x::BigFloat)
+    trunc(BigInt, x)
+end
+function floor(::Type{Integer}, x::BigFloat)
+    floor(BigInt, x)
+end
+function ceil(::Type{Integer}, x::BigFloat)
+    ceil(BigInt, x)
+end
+function round(::Type{Integer}, x::BigFloat)
+    round(BigInt, x)
+end
 
 function Bool(x::BigFloat)
     iszero(x) && return false
@@ -336,26 +399,50 @@ function (::Type{T})(x::BigFloat) where T<:Integer
 end
 
 ## BigFloat -> AbstractFloat
-_cpynansgn(x::AbstractFloat, y::BigFloat) = isnan(x) && signbit(x) != signbit(y) ? -x : x
+function _cpynansgn(x::AbstractFloat, y::BigFloat)
+    if isnan(x) && signbit(x) != signbit(y)
+        -x
+    else
+        x
+    end
+end
 
-Float64(x::BigFloat, r::MPFRRoundingMode=ROUNDING_MODE[]) =
-    _cpynansgn(ccall((:mpfr_get_d,:libmpfr), Float64, (Ref{BigFloat}, MPFRRoundingMode), x, r), x)
-Float64(x::BigFloat, r::RoundingMode) = Float64(x, convert(MPFRRoundingMode, r))
+function Float64(x::BigFloat, r::MPFRRoundingMode=ROUNDING_MODE[])
+    _cpynansgn(ccall((:mpfr_get_d, :libmpfr), Float64, (Ref{BigFloat}, MPFRRoundingMode), x, r), x)
+end
+function Float64(x::BigFloat, r::RoundingMode)
+    Float64(x, convert(MPFRRoundingMode, r))
+end
 
-Float32(x::BigFloat, r::MPFRRoundingMode=ROUNDING_MODE[]) =
-    _cpynansgn(ccall((:mpfr_get_flt,:libmpfr), Float32, (Ref{BigFloat}, MPFRRoundingMode), x, r), x)
-Float32(x::BigFloat, r::RoundingMode) = Float32(x, convert(MPFRRoundingMode, r))
+function Float32(x::BigFloat, r::MPFRRoundingMode=ROUNDING_MODE[])
+    _cpynansgn(ccall((:mpfr_get_flt, :libmpfr), Float32, (Ref{BigFloat}, MPFRRoundingMode), x, r), x)
+end
+function Float32(x::BigFloat, r::RoundingMode)
+    Float32(x, convert(MPFRRoundingMode, r))
+end
 
 # TODO: avoid double rounding
-Float16(x::BigFloat) = Float16(Float32(x))
+function Float16(x::BigFloat)
+    Float16(Float32(x))
+end
 
-promote_rule(::Type{BigFloat}, ::Type{<:Real}) = BigFloat
-promote_rule(::Type{BigInt}, ::Type{<:AbstractFloat}) = BigFloat
-promote_rule(::Type{BigFloat}, ::Type{<:AbstractFloat}) = BigFloat
+function promote_rule(::Type{BigFloat}, ::Type{<:Real})
+    BigFloat
+end
+function promote_rule(::Type{BigInt}, ::Type{<:AbstractFloat})
+    BigFloat
+end
+function promote_rule(::Type{BigFloat}, ::Type{<:AbstractFloat})
+    BigFloat
+end
 
-big(::Type{<:AbstractFloat}) = BigFloat
+function big(::Type{<:AbstractFloat})
+    BigFloat
+end
 
-big(x::AbstractFloat) = convert(BigFloat, x)
+function big(x::AbstractFloat)
+    convert(BigFloat, x)
+end
 
 function (::Type{Rational{BigInt}})(x::AbstractFloat)
     isnan(x) && return zero(BigInt) // zero(BigInt)
@@ -470,7 +557,9 @@ function -(c::BigInt, x::BigFloat)
     return z
 end
 
-inv(x::BigFloat) = one(Clong) / x # faster than fallback one(x)/x
+function inv(x::BigFloat)
+    one(Clong) / x
+end # faster than fallback one(x)/x
 
 function fma(x::BigFloat, y::BigFloat, z::BigFloat)
     r = BigFloat()
@@ -579,7 +668,9 @@ function sqrt(x::BigFloat)
     return z
 end
 
-sqrt(x::BigInt) = sqrt(BigFloat(x))
+function sqrt(x::BigInt)
+    sqrt(BigFloat(x))
+end
 
 function ^(x::BigFloat, y::BigFloat)
     z = BigFloat()
@@ -605,8 +696,20 @@ function ^(x::BigFloat, y::BigInt)
     return z
 end
 
-^(x::BigFloat, y::Integer)  = typemin(Clong)  <= y <= typemax(Clong)  ? x^Clong(y)  : x^BigInt(y)
-^(x::BigFloat, y::Unsigned) = typemin(Culong) <= y <= typemax(Culong) ? x^Culong(y) : x^BigInt(y)
+function ^(x::BigFloat, y::Integer)
+    if typemin(Clong) <= y <= typemax(Clong)
+        x ^ Clong(y)
+    else
+        x ^ BigInt(y)
+    end
+end
+function ^(x::BigFloat, y::Unsigned)
+    if typemin(Culong) <= y <= typemax(Culong)
+        x ^ Culong(y)
+    else
+        x ^ BigInt(y)
+    end
+end
 
 for f in (:exp, :exp2, :exp10, :expm1, :cosh, :sinh, :tanh, :sech, :csch, :coth, :cbrt)
     @eval function $f(x::BigFloat)
@@ -622,7 +725,9 @@ function sincos_fast(v::BigFloat)
     ccall((:mpfr_sin_cos, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, MPFRRoundingMode), s, c, v, ROUNDING_MODE[])
     return (s, c)
 end
-sincos(v::BigFloat) = sincos_fast(v)
+function sincos(v::BigFloat)
+    sincos_fast(v)
+end
 
 # return log(2)
 function big_ln2()
@@ -641,9 +746,15 @@ function ldexp(x::BigFloat, n::Culong)
     ccall((:mpfr_mul_2ui, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}, Culong, MPFRRoundingMode), z, x, n, ROUNDING_MODE[])
     return z
 end
-ldexp(x::BigFloat, n::ClongMax) = ldexp(x, convert(Clong, n))
-ldexp(x::BigFloat, n::CulongMax) = ldexp(x, convert(Culong, n))
-ldexp(x::BigFloat, n::Integer) = x * exp2(BigFloat(n))
+function ldexp(x::BigFloat, n::ClongMax)
+    ldexp(x, convert(Clong, n))
+end
+function ldexp(x::BigFloat, n::CulongMax)
+    ldexp(x, convert(Culong, n))
+end
+function ldexp(x::BigFloat, n::Integer)
+    x * exp2(BigFloat(n))
+end
 
 function factorial(x::BigFloat)
     if x < 0 || !isinteger(x)
@@ -720,7 +831,9 @@ function rem(x::BigFloat, y::BigFloat, ::RoundingMode{:Nearest})
 end
 
 # TODO: use a higher-precision BigFloat(pi) here?
-rem2pi(x::BigFloat, r::RoundingMode) = rem(x, 2*BigFloat(pi), r)
+function rem2pi(x::BigFloat, r::RoundingMode)
+    rem(x, 2 * BigFloat(pi), r)
+end
 
 function sum(arr::AbstractArray{BigFloat})
     z = BigFloat(0)
@@ -751,11 +864,21 @@ function atan(y::BigFloat, x::BigFloat)
 end
 
 # Utility functions
-==(x::BigFloat, y::BigFloat) = ccall((:mpfr_equal_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
-<=(x::BigFloat, y::BigFloat) = ccall((:mpfr_lessequal_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
->=(x::BigFloat, y::BigFloat) = ccall((:mpfr_greaterequal_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
-<(x::BigFloat, y::BigFloat) = ccall((:mpfr_less_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
->(x::BigFloat, y::BigFloat) = ccall((:mpfr_greater_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
+function ==(x::BigFloat, y::BigFloat)
+    ccall((:mpfr_equal_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
+end
+function <=(x::BigFloat, y::BigFloat)
+    ccall((:mpfr_lessequal_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
+end
+function >=(x::BigFloat, y::BigFloat)
+    ccall((:mpfr_greaterequal_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
+end
+function <(x::BigFloat, y::BigFloat)
+    ccall((:mpfr_less_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
+end
+function >(x::BigFloat, y::BigFloat)
+    ccall((:mpfr_greater_p, :libmpfr), Int32, (Ref{BigFloat}, Ref{BigFloat}), x, y) != 0
+end
 
 function cmp(x::BigFloat, y::BigInt)
     isnan(x) && return 1
@@ -769,32 +892,64 @@ function cmp(x::BigFloat, y::CulongMax)
     isnan(x) && return 1
     ccall((:mpfr_cmp_ui, :libmpfr), Int32, (Ref{BigFloat}, Culong), x, y)
 end
-cmp(x::BigFloat, y::Integer) = cmp(x,big(y))
-cmp(x::Integer, y::BigFloat) = -cmp(y,x)
+function cmp(x::BigFloat, y::Integer)
+    cmp(x, big(y))
+end
+function cmp(x::Integer, y::BigFloat)
+    -(cmp(y, x))
+end
 
 function cmp(x::BigFloat, y::CdoubleMax)
     isnan(x) && return isnan(y) ? 0 : 1
     isnan(y) && return -1
     ccall((:mpfr_cmp_d, :libmpfr), Int32, (Ref{BigFloat}, Cdouble), x, y)
 end
-cmp(x::CdoubleMax, y::BigFloat) = -cmp(y,x)
+function cmp(x::CdoubleMax, y::BigFloat)
+    -(cmp(y, x))
+end
 
-==(x::BigFloat, y::Integer)    = !isnan(x) && cmp(x,y) == 0
-==(x::Integer, y::BigFloat)    = y == x
-==(x::BigFloat, y::CdoubleMax) = !isnan(x) && !isnan(y) && cmp(x,y) == 0
-==(x::CdoubleMax, y::BigFloat) = y == x
+function ==(x::BigFloat, y::Integer)
+    !(isnan(x)) && cmp(x, y) == 0
+end
+function ==(x::Integer, y::BigFloat)
+    y == x
+end
+function ==(x::BigFloat, y::CdoubleMax)
+    !(isnan(x)) && (!(isnan(y)) && cmp(x, y) == 0)
+end
+function ==(x::CdoubleMax, y::BigFloat)
+    y == x
+end
 
-<(x::BigFloat, y::Integer)    = !isnan(x) && cmp(x,y) < 0
-<(x::Integer, y::BigFloat)    = !isnan(y) && cmp(y,x) > 0
-<(x::BigFloat, y::CdoubleMax) = !isnan(x) && !isnan(y) && cmp(x,y) < 0
-<(x::CdoubleMax, y::BigFloat) = !isnan(x) && !isnan(y) && cmp(y,x) > 0
+function <(x::BigFloat, y::Integer)
+    !(isnan(x)) && cmp(x, y) < 0
+end
+function <(x::Integer, y::BigFloat)
+    !(isnan(y)) && cmp(y, x) > 0
+end
+function <(x::BigFloat, y::CdoubleMax)
+    !(isnan(x)) && (!(isnan(y)) && cmp(x, y) < 0)
+end
+function <(x::CdoubleMax, y::BigFloat)
+    !(isnan(x)) && (!(isnan(y)) && cmp(y, x) > 0)
+end
 
-<=(x::BigFloat, y::Integer)    = !isnan(x) && cmp(x,y) <= 0
-<=(x::Integer, y::BigFloat)    = !isnan(y) && cmp(y,x) >= 0
-<=(x::BigFloat, y::CdoubleMax) = !isnan(x) && !isnan(y) && cmp(x,y) <= 0
-<=(x::CdoubleMax, y::BigFloat) = !isnan(x) && !isnan(y) && cmp(y,x) >= 0
+function <=(x::BigFloat, y::Integer)
+    !(isnan(x)) && cmp(x, y) <= 0
+end
+function <=(x::Integer, y::BigFloat)
+    !(isnan(y)) && cmp(y, x) >= 0
+end
+function <=(x::BigFloat, y::CdoubleMax)
+    !(isnan(x)) && (!(isnan(y)) && cmp(x, y) <= 0)
+end
+function <=(x::CdoubleMax, y::BigFloat)
+    !(isnan(x)) && (!(isnan(y)) && cmp(y, x) >= 0)
+end
 
-signbit(x::BigFloat) = ccall((:mpfr_signbit, :libmpfr), Int32, (Ref{BigFloat},), x) != 0
+function signbit(x::BigFloat)
+    ccall((:mpfr_signbit, :libmpfr), Int32, (Ref{BigFloat},), x) != 0
+end
 
 function precision(x::BigFloat)  # precision of an object of type BigFloat
     return ccall((:mpfr_get_prec, :libmpfr), Clong, (Ref{BigFloat},), x)
@@ -820,10 +975,16 @@ function setprecision(::Type{BigFloat}, precision::Integer)
     return precision
 end
 
-setprecision(precision::Integer) = setprecision(BigFloat, precision)
+function setprecision(precision::Integer)
+    setprecision(BigFloat, precision)
+end
 
-maxintfloat(x::BigFloat) = BigFloat(2)^precision(x)
-maxintfloat(::Type{BigFloat}) = BigFloat(2)^precision(BigFloat)
+function maxintfloat(x::BigFloat)
+    BigFloat(2) ^ precision(x)
+end
+function maxintfloat(::Type{BigFloat})
+    BigFloat(2) ^ precision(BigFloat)
+end
 
 function copysign(x::BigFloat, y::BigFloat)
     z = BigFloat()
@@ -881,10 +1042,16 @@ function isnan(x::BigFloat)
     return ccall((:mpfr_nan_p, :libmpfr), Int32, (Ref{BigFloat},), x) != 0
 end
 
-isfinite(x::BigFloat) = !isinf(x) && !isnan(x)
+function isfinite(x::BigFloat)
+    !(isinf(x)) && !(isnan(x))
+end
 
-iszero(x::BigFloat) = x == Clong(0)
-isone(x::BigFloat) = x == Clong(1)
+function iszero(x::BigFloat)
+    x == Clong(0)
+end
+function isone(x::BigFloat)
+    x == Clong(1)
+end
 
 @eval typemax(::Type{BigFloat}) = $(BigFloat(Inf))
 @eval typemin(::Type{BigFloat}) = $(BigFloat(-Inf))
@@ -905,10 +1072,16 @@ function prevfloat(x::BigFloat)
     return z
 end
 
-eps(::Type{BigFloat}) = nextfloat(BigFloat(1)) - BigFloat(1)
+function eps(::Type{BigFloat})
+    nextfloat(BigFloat(1)) - BigFloat(1)
+end
 
-floatmin(::Type{BigFloat}) = nextfloat(zero(BigFloat))
-floatmax(::Type{BigFloat}) = prevfloat(BigFloat(Inf))
+function floatmin(::Type{BigFloat})
+    nextfloat(zero(BigFloat))
+end
+function floatmax(::Type{BigFloat})
+    prevfloat(BigFloat(Inf))
+end
 
 """
     setprecision(f::Function, [T=BigFloat,] precision::Integer)
@@ -933,7 +1106,9 @@ function setprecision(f::Function, ::Type{T}, prec::Integer) where T
     end
 end
 
-setprecision(f::Function, prec::Integer) = setprecision(f, BigFloat, prec)
+function setprecision(f::Function, prec::Integer)
+    setprecision(f, BigFloat, prec)
+end
 
 function string_mpfr(x::BigFloat, fmt::String)
     buf = Base.StringVector(0)
@@ -991,12 +1166,20 @@ function _string(x::BigFloat, fmt::String)::String
     isfinite(x) || return string(Float64(x))
     _prettify_bigfloat(string_mpfr(x, fmt))
 end
-_string(x::BigFloat) = _string(x, "%.Re")
-_string(x::BigFloat, k::Integer) = _string(x, "%.$(k)Re")
+function _string(x::BigFloat)
+    _string(x, "%.Re")
+end
+function _string(x::BigFloat, k::Integer)
+    _string(x, "%.$(k)Re")
+end
 
-string(b::BigFloat) = _string(b)
+function string(b::BigFloat)
+    _string(b)
+end
 
-print(io::IO, b::BigFloat) = print(io, string(b))
+function print(io::IO, b::BigFloat)
+    print(io, string(b))
+end
 function show(io::IO, b::BigFloat)
     if get(io, :compact, false)
         print(io, _string(b, 5))
@@ -1006,16 +1189,32 @@ function show(io::IO, b::BigFloat)
 end
 
 # get/set exponent min/max
-get_emax() = ccall((:mpfr_get_emax, :libmpfr), Clong, ())
-get_emax_min() = ccall((:mpfr_get_emax_min, :libmpfr), Clong, ())
-get_emax_max() = ccall((:mpfr_get_emax_max, :libmpfr), Clong, ())
+function get_emax()
+    ccall((:mpfr_get_emax, :libmpfr), Clong, ())
+end
+function get_emax_min()
+    ccall((:mpfr_get_emax_min, :libmpfr), Clong, ())
+end
+function get_emax_max()
+    ccall((:mpfr_get_emax_max, :libmpfr), Clong, ())
+end
 
-get_emin() = ccall((:mpfr_get_emin, :libmpfr), Clong, ())
-get_emin_min() = ccall((:mpfr_get_emin_min, :libmpfr), Clong, ())
-get_emin_max() = ccall((:mpfr_get_emin_max, :libmpfr), Clong, ())
+function get_emin()
+    ccall((:mpfr_get_emin, :libmpfr), Clong, ())
+end
+function get_emin_min()
+    ccall((:mpfr_get_emin_min, :libmpfr), Clong, ())
+end
+function get_emin_max()
+    ccall((:mpfr_get_emin_max, :libmpfr), Clong, ())
+end
 
-set_emax!(x) = ccall((:mpfr_set_emax, :libmpfr), Cvoid, (Clong,), x)
-set_emin!(x) = ccall((:mpfr_set_emin, :libmpfr), Cvoid, (Clong,), x)
+function set_emax!(x)
+    ccall((:mpfr_set_emax, :libmpfr), Cvoid, (Clong,), x)
+end
+function set_emin!(x)
+    ccall((:mpfr_set_emin, :libmpfr), Cvoid, (Clong,), x)
+end
 
 function Base.deepcopy_internal(x::BigFloat, stackdict::IdDict)
     haskey(stackdict, x) && return stackdict[x]

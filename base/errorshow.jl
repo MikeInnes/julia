@@ -87,9 +87,13 @@ end
 function showerror(io::IO, ex::LoadError, bt; backtrace=true)
     print(io, "Error while loading expression starting at ", ex.file, ":", ex.line)
 end
-showerror(io::IO, ex::LoadError) = showerror(io, ex, [])
+function showerror(io::IO, ex::LoadError)
+    showerror(io, ex, [])
+end
 
-showerror(io::IO, ex::InitError) = print(io, "InitError during initialization of module ", ex.mod)
+function showerror(io::IO, ex::InitError)
+    print(io, "InitError during initialization of module ", ex.mod)
+end
 
 function showerror(io::IO, ex::DomainError)
     if isa(ex.val, AbstractArray)
@@ -121,10 +125,18 @@ function showerror(io::IO, ex::SystemError)
     end
 end
 
-showerror(io::IO, ::DivideError) = print(io, "DivideError: integer division error")
-showerror(io::IO, ::StackOverflowError) = print(io, "StackOverflowError:")
-showerror(io::IO, ::UndefRefError) = print(io, "UndefRefError: access to undefined reference")
-showerror(io::IO, ::EOFError) = print(io, "EOFError: read end of file")
+function showerror(io::IO, ::DivideError)
+    print(io, "DivideError: integer division error")
+end
+function showerror(io::IO, ::StackOverflowError)
+    print(io, "StackOverflowError:")
+end
+function showerror(io::IO, ::UndefRefError)
+    print(io, "UndefRefError: access to undefined reference")
+end
+function showerror(io::IO, ::EOFError)
+    print(io, "EOFError: read end of file")
+end
 function showerror(io::IO, ex::ErrorException)
     print(io, ex.msg)
     if ex.msg == "type String has no field data"
@@ -132,16 +144,27 @@ function showerror(io::IO, ex::ErrorException)
         print(io, "Use `codeunits(str)` instead.")
     end
 end
-showerror(io::IO, ex::KeyError) = (print(io, "KeyError: key ");
-                                   show(io, ex.key);
-                                   print(io, " not found"))
-showerror(io::IO, ex::InterruptException) = print(io, "InterruptException:")
-showerror(io::IO, ex::ArgumentError) = print(io, "ArgumentError: ", ex.msg)
-showerror(io::IO, ex::AssertionError) = print(io, "AssertionError: ", ex.msg)
-showerror(io::IO, ex::OverflowError) = print(io, "OverflowError: ", ex.msg)
+function showerror(io::IO, ex::KeyError)
+    print(io, "KeyError: key ")
+    show(io, ex.key)
+    print(io, " not found")
+end
+function showerror(io::IO, ex::InterruptException)
+    print(io, "InterruptException:")
+end
+function showerror(io::IO, ex::ArgumentError)
+    print(io, "ArgumentError: ", ex.msg)
+end
+function showerror(io::IO, ex::AssertionError)
+    print(io, "AssertionError: ", ex.msg)
+end
+function showerror(io::IO, ex::OverflowError)
+    print(io, "OverflowError: ", ex.msg)
+end
 
-showerror(io::IO, ex::UndefKeywordError) =
+function showerror(io::IO, ex::UndefKeywordError)
     print(io, "UndefKeywordError: keyword argument $(ex.var) not assigned")
+end
 
 function showerror(io::IO, ex::UndefVarError)
     if ex.var in [:UTF16String, :UTF32String, :WString, :utf16, :utf32, :wstring, :RepString]
@@ -160,7 +183,9 @@ function showerror(io::IO, ex::InexactError)
     print(io, ex.val, ')')
 end
 
-typesof(args...) = Tuple{Any[ Core.Typeof(a) for a in args ]...}
+function typesof(args...)
+    Tuple{Any[Core.Typeof(a) for a = args]...}
+end
 
 function showerror(io::IO, ex::MethodError)
     # ex.args is a tuple type if it was thrown from `invoke` and is
@@ -264,8 +289,12 @@ function showerror(io::IO, ex::MethodError)
     end
 end
 
-striptype(::Type{T}) where {T} = T
-striptype(::Any) = nothing
+function striptype(::Type{T}) where T
+    T
+end
+function striptype(::Any)
+    nothing
+end
 
 function showerror_ambiguous(io::IO, meth, f, args)
     print(io, "MethodError: ", f, "(")

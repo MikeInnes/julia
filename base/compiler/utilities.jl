@@ -36,13 +36,17 @@ function contains_is(itr, @nospecialize(x))
     return false
 end
 
-anymap(f::Function, a::Array{Any,1}) = Any[ f(a[i]) for i in 1:length(a) ]
+function anymap(f::Function, a::Array{Any, 1})
+    Any[f(a[i]) for i = 1:length(a)]
+end
 
 ###########
 # scoping #
 ###########
 
-_topmod(m::Module) = ccall(:jl_base_relative_to, Any, (Any,), m)::Module
+function _topmod(m::Module)
+    ccall(:jl_base_relative_to, Any, (Any,), m)::Module
+end
 
 function istopfunction(@nospecialize(f), name::Symbol)
     tn = typeof(f).name
@@ -59,9 +63,13 @@ end
 
 # Meta expression head, these generally can't be deleted even when they are
 # in a dead branch but can be ignored when analyzing uses/liveness.
-is_meta_expr_head(head::Symbol) = (head === :inbounds || head === :boundscheck || head === :meta || head === :loopinfo)
+function is_meta_expr_head(head::Symbol)
+    head === :inbounds || (head === :boundscheck || (head === :meta || head === :loopinfo))
+end
 
-sym_isless(a::Symbol, b::Symbol) = ccall(:strcmp, Int32, (Ptr{UInt8}, Ptr{UInt8}), a, b) < 0
+function sym_isless(a::Symbol, b::Symbol)
+    ccall(:strcmp, Int32, (Ptr{UInt8}, Ptr{UInt8}), a, b) < 0
+end
 
 function is_self_quoting(@nospecialize(x))
     return isa(x,Number) || isa(x,AbstractString) || isa(x,Tuple) || isa(x,Type) ||
@@ -150,7 +158,9 @@ function method_for_inference_heuristics(method::Method, @nospecialize(sig), spa
     return nothing
 end
 
-argextype(@nospecialize(x), state) = argextype(x, state.src, state.sptypes, state.slottypes)
+function argextype(@nospecialize(x), state)
+    argextype(x, state.src, state.sptypes, state.slottypes)
+end
 
 const empty_slottypes = Any[]
 
@@ -224,8 +234,12 @@ end
 # options #
 ###########
 
-inlining_enabled() = (JLOptions().can_inline == 1)
-coverage_enabled() = (JLOptions().code_coverage != 0)
+function inlining_enabled()
+    (JLOptions()).can_inline == 1
+end
+function coverage_enabled()
+    (JLOptions()).code_coverage != 0
+end
 function inbounds_option()
     opt_check_bounds = JLOptions().check_bounds
     opt_check_bounds == 0 && return :default

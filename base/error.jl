@@ -49,7 +49,9 @@ Throw an object without changing the current exception backtrace. The default ar
 the current exception (if called within a `catch` block).
 """
 rethrow() = ccall(:jl_rethrow, Bottom, ())
-rethrow(e) = ccall(:jl_rethrow_other, Bottom, (Any,), e)
+function rethrow(e)
+    ccall(:jl_rethrow_other, Bottom, (Any,), e)
+end
 
 struct InterpreterIP
     code::Union{CodeInfo,Core.MethodInstance,Nothing}
@@ -217,8 +219,12 @@ function iterate(ebo::ExponentialBackOff, state= (ebo.n, min(ebo.first_delay, eb
     next_delay = min(ebo.max_delay, state[2] * ebo.factor * (1.0 - ebo.jitter + (rand(Float64) * 2.0 * ebo.jitter)))
     (curr_delay, (next_n, next_delay))
 end
-length(ebo::ExponentialBackOff) = ebo.n
-eltype(::Type{ExponentialBackOff}) = Float64
+function length(ebo::ExponentialBackOff)
+    ebo.n
+end
+function eltype(::Type{ExponentialBackOff})
+    Float64
+end
 
 """
     retry(f;  delays=ExponentialBackOff(), check=nothing) -> Function

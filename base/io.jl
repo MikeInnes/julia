@@ -23,12 +23,20 @@ struct SystemError <: Exception
     SystemError(p::AbstractString) = new(p, Libc.errno())
 end
 
-lock(::IO) = nothing
-unlock(::IO) = nothing
-reseteof(x::IO) = nothing
+function lock(::IO)
+    nothing
+end
+function unlock(::IO)
+    nothing
+end
+function reseteof(x::IO)
+    nothing
+end
 
 const SZ_UNBUFFERED_IO = 65536
-buffer_writes(x::IO, bufsize=SZ_UNBUFFERED_IO) = x
+function buffer_writes(x::IO, bufsize=SZ_UNBUFFERED_IO)
+    x
+end
 
 """
     isopen(object) -> Bool
@@ -192,8 +200,12 @@ Base.RefValue{MyStruct}(MyStruct(42.0))
 """
 function write end
 
-read(s::IO, ::Type{UInt8}) = error(typeof(s)," does not support byte I/O")
-write(s::IO, x::UInt8) = error(typeof(s)," does not support byte I/O")
+function read(s::IO, ::Type{UInt8})
+    error(typeof(s), " does not support byte I/O")
+end
+function write(s::IO, x::UInt8)
+    error(typeof(s), " does not support byte I/O")
+end
 
 """
     unsafe_write(io::IO, ref, nbytes::UInt)
@@ -234,19 +246,43 @@ abstract type AbstractPipe <: IO end
 function pipe_reader end
 function pipe_writer end
 
-write(io::AbstractPipe, byte::UInt8) = write(pipe_writer(io), byte)
-unsafe_write(io::AbstractPipe, p::Ptr{UInt8}, nb::UInt) = unsafe_write(pipe_writer(io), p, nb)
-buffer_writes(io::AbstractPipe, args...) = buffer_writes(pipe_writer(io), args...)
-flush(io::AbstractPipe) = flush(pipe_writer(io))
+function write(io::AbstractPipe, byte::UInt8)
+    write(pipe_writer(io), byte)
+end
+function unsafe_write(io::AbstractPipe, p::Ptr{UInt8}, nb::UInt)
+    unsafe_write(pipe_writer(io), p, nb)
+end
+function buffer_writes(io::AbstractPipe, args...)
+    buffer_writes(pipe_writer(io), args...)
+end
+function flush(io::AbstractPipe)
+    flush(pipe_writer(io))
+end
 
-read(io::AbstractPipe, byte::Type{UInt8}) = read(pipe_reader(io), byte)
-unsafe_read(io::AbstractPipe, p::Ptr{UInt8}, nb::UInt) = unsafe_read(pipe_reader(io), p, nb)
-read(io::AbstractPipe) = read(pipe_reader(io))
-readuntil(io::AbstractPipe, arg::UInt8; kw...) = readuntil(pipe_reader(io), arg; kw...)
-readuntil(io::AbstractPipe, arg::AbstractChar; kw...) = readuntil(pipe_reader(io), arg; kw...)
-readuntil(io::AbstractPipe, arg::AbstractString; kw...) = readuntil(pipe_reader(io), arg; kw...)
-readuntil(io::AbstractPipe, arg::AbstractVector; kw...) = readuntil(pipe_reader(io), arg; kw...)
-readuntil_vector!(io::AbstractPipe, target::AbstractVector, keep::Bool, out) = readuntil_vector!(pipe_reader(io), target, keep, out)
+function read(io::AbstractPipe, byte::Type{UInt8})
+    read(pipe_reader(io), byte)
+end
+function unsafe_read(io::AbstractPipe, p::Ptr{UInt8}, nb::UInt)
+    unsafe_read(pipe_reader(io), p, nb)
+end
+function read(io::AbstractPipe)
+    read(pipe_reader(io))
+end
+function readuntil(io::AbstractPipe, arg::UInt8; kw...)
+    readuntil(pipe_reader(io), arg; kw...)
+end
+function readuntil(io::AbstractPipe, arg::AbstractChar; kw...)
+    readuntil(pipe_reader(io), arg; kw...)
+end
+function readuntil(io::AbstractPipe, arg::AbstractString; kw...)
+    readuntil(pipe_reader(io), arg; kw...)
+end
+function readuntil(io::AbstractPipe, arg::AbstractVector; kw...)
+    readuntil(pipe_reader(io), arg; kw...)
+end
+function readuntil_vector!(io::AbstractPipe, target::AbstractVector, keep::Bool, out)
+    readuntil_vector!(pipe_reader(io), target, keep, out)
+end
 
 for f in (
         # peek/mark interface
@@ -256,12 +292,26 @@ for f in (
     @eval $(f)(io::AbstractPipe) = $(f)(pipe_reader(io))
 end
 
-iswritable(io::AbstractPipe) = iswritable(pipe_writer(io))
-isopen(io::AbstractPipe) = isopen(pipe_writer(io)) || isopen(pipe_reader(io))
-close(io::AbstractPipe) = (close(pipe_writer(io)); close(pipe_reader(io)))
-wait_readnb(io::AbstractPipe, nb::Int) = wait_readnb(pipe_reader(io), nb)
-wait_readbyte(io::AbstractPipe, byte::UInt8) = wait_readbyte(pipe_reader(io), byte)
-wait_close(io::AbstractPipe) = (wait_close(pipe_writer(io)); wait_close(pipe_reader(io)))
+function iswritable(io::AbstractPipe)
+    iswritable(pipe_writer(io))
+end
+function isopen(io::AbstractPipe)
+    isopen(pipe_writer(io)) || isopen(pipe_reader(io))
+end
+function close(io::AbstractPipe)
+    close(pipe_writer(io))
+    close(pipe_reader(io))
+end
+function wait_readnb(io::AbstractPipe, nb::Int)
+    wait_readnb(pipe_reader(io), nb)
+end
+function wait_readbyte(io::AbstractPipe, byte::UInt8)
+    wait_readbyte(pipe_reader(io), byte)
+end
+function wait_close(io::AbstractPipe)
+    wait_close(pipe_writer(io))
+    wait_close(pipe_reader(io))
+end
 
 """
     bytesavailable(io)
@@ -288,12 +338,18 @@ it is always safe to read one byte after seeing `eof` return `false`. `eof` will
 is closed.
 """
 eof(io::AbstractPipe) = eof(pipe_reader(io))
-reseteof(io::AbstractPipe) = reseteof(pipe_reader(io))
+function reseteof(io::AbstractPipe)
+    reseteof(pipe_reader(io))
+end
 
 
 # Exception-safe wrappers (io = open(); try f(io) finally close(io))
 
-write(filename::AbstractString, a1, args...) = open(io->write(io, a1, args...), filename, "w")
+function write(filename::AbstractString, a1, args...)
+    open((io->begin
+                write(io, a1, args...)
+            end), filename, "w")
+end
 
 """
     read(filename::AbstractString, args...)
@@ -307,7 +363,11 @@ Read the entire contents of a file as a string.
 """
 read(filename::AbstractString, args...) = open(io->read(io, args...), filename)
 
-read(filename::AbstractString, ::Type{T}) where {T} = open(io->read(io, T), filename)
+function read(filename::AbstractString, ::Type{T}) where T
+    open((io->begin
+                read(io, T)
+            end), filename)
+end
 
 """
     read!(stream::IO, array::Union{Array, BitArray})
@@ -317,7 +377,11 @@ Read binary data from an I/O stream or file, filling in `array`.
 """
 function read! end
 
-read!(filename::AbstractString, a) = open(io->read!(io, a), filename)
+function read!(filename::AbstractString, a)
+    open((io->begin
+                read!(io, a)
+            end), filename)
+end
 
 """
     readuntil(stream::IO, delim; keep::Bool = false)
@@ -424,7 +488,9 @@ function readlines(filename::AbstractString; kw...)
         readlines(f; kw...)
     end
 end
-readlines(s=stdin; kw...) = collect(eachline(s; kw...))
+function readlines(s=stdin; kw...)
+    collect(eachline(s; kw...))
+end
 
 ## byte-order mark, ntoh & hton ##
 
@@ -508,7 +574,9 @@ isreadonly(s) = isreadable(s) && !iswritable(s)
 
 ## binary I/O ##
 
-write(io::IO, x) = throw(MethodError(write, (io, x)))
+function write(io::IO, x)
+    throw(MethodError(write, (io, x)))
+end
 function write(io::IO, x1, xs...)
     written::Int = write(io, x1)
     for x in xs
@@ -519,15 +587,25 @@ end
 
 @noinline unsafe_write(s::IO, p::Ref{T}, n::Integer) where {T} =
     unsafe_write(s, unsafe_convert(Ref{T}, p)::Ptr, n) # mark noinline to ensure ref is gc-rooted somewhere (by the caller)
-unsafe_write(s::IO, p::Ptr, n::Integer) = unsafe_write(s, convert(Ptr{UInt8}, p), convert(UInt, n))
-write(s::IO, x::Ref{T}) where {T} = unsafe_write(s, x, Core.sizeof(T))
-write(s::IO, x::Int8) = write(s, reinterpret(UInt8, x))
+function unsafe_write(s::IO, p::Ptr, n::Integer)
+    unsafe_write(s, convert(Ptr{UInt8}, p), convert(UInt, n))
+end
+function write(s::IO, x::Ref{T}) where T
+    unsafe_write(s, x, Core.sizeof(T))
+end
+function write(s::IO, x::Int8)
+    write(s, reinterpret(UInt8, x))
+end
 function write(s::IO, x::Union{Int16,UInt16,Int32,UInt32,Int64,UInt64,Int128,UInt128,Float16,Float32,Float64})
     return write(s, Ref(x))
 end
 
-write(s::IO, x::Bool) = write(s, UInt8(x))
-write(to::IO, p::Ptr) = write(to, convert(UInt, p))
+function write(s::IO, x::Bool)
+    write(s, UInt8(x))
+end
+function write(to::IO, p::Ptr)
+    write(to, convert(UInt, p))
+end
 
 function write(s::IO, A::AbstractArray)
     if !isbitstype(eltype(A))
@@ -595,16 +673,27 @@ function write(to::IO, from::IO)
 end
 
 @noinline unsafe_read(s::IO, p::Ref{T}, n::Integer) where {T} = unsafe_read(s, unsafe_convert(Ref{T}, p)::Ptr, n) # mark noinline to ensure ref is gc-rooted somewhere (by the caller)
-unsafe_read(s::IO, p::Ptr, n::Integer) = unsafe_read(s, convert(Ptr{UInt8}, p), convert(UInt, n))
-read!(s::IO, x::Ref{T}) where {T} = (unsafe_read(s, x, Core.sizeof(T)); x)
+function unsafe_read(s::IO, p::Ptr, n::Integer)
+    unsafe_read(s, convert(Ptr{UInt8}, p), convert(UInt, n))
+end
+function read!(s::IO, x::Ref{T}) where T
+    unsafe_read(s, x, Core.sizeof(T))
+    x
+end
 
-read(s::IO, ::Type{Int8}) = reinterpret(Int8, read(s, UInt8))
+function read(s::IO, ::Type{Int8})
+    reinterpret(Int8, read(s, UInt8))
+end
 function read(s::IO, T::Union{Type{Int16},Type{UInt16},Type{Int32},Type{UInt32},Type{Int64},Type{UInt64},Type{Int128},Type{UInt128},Type{Float16},Type{Float32},Type{Float64}})
     return read!(s, Ref{T}(0))[]::T
 end
 
-read(s::IO, ::Type{Bool}) = (read(s, UInt8) != 0)
-read(s::IO, ::Type{Ptr{T}}) where {T} = convert(Ptr{T}, read(s, UInt))
+function read(s::IO, ::Type{Bool})
+    read(s, UInt8) != 0
+end
+function read(s::IO, ::Type{Ptr{T}}) where T
+    convert(Ptr{T}, read(s, UInt))
+end
 
 function read!(s::IO, a::Array{UInt8})
     GC.@preserve a unsafe_read(s, pointer(a), sizeof(a))
@@ -642,7 +731,9 @@ end
 
 # readuntil_string is useful below since it has
 # an optimized method for s::IOStream
-readuntil_string(s::IO, delim::UInt8, keep::Bool) = String(readuntil(s, delim, keep=keep))
+function readuntil_string(s::IO, delim::UInt8, keep::Bool)
+    String(readuntil(s, delim, keep=keep))
+end
 
 function readuntil(s::IO, delim::AbstractChar; keep::Bool=false)
     if delim ≤ '\x7f'
@@ -842,8 +933,12 @@ function read(s::IO, nb::Integer = typemax(Int))
     return resize!(b, nr)
 end
 
-read(s::IO, ::Type{String}) = String(read(s))
-read(s::IO, T::Type) = error("The IO stream does not support reading objects of type $T.")
+function read(s::IO, ::Type{String})
+    String(read(s))
+end
+function read(s::IO, T::Type)
+    error("The IO stream does not support reading objects of type $(T).")
+end
 
 ## high-level iterator interfaces ##
 
@@ -894,9 +989,13 @@ function iterate(itr::EachLine, state=nothing)
     (readline(itr.stream, keep=itr.keep), nothing)
 end
 
-eltype(::Type{<:EachLine}) = String
+function eltype(::Type{<:EachLine})
+    String
+end
 
-IteratorSize(::Type{<:EachLine}) = SizeUnknown()
+function IteratorSize(::Type{<:EachLine})
+    SizeUnknown()
+end
 
 # IOStream Marking
 # Note that these functions expect that io.mark exists for
@@ -1035,4 +1134,8 @@ function countlines(io::IO; eol::AbstractChar='\n')
     nl
 end
 
-countlines(f::AbstractString; eol::AbstractChar = '\n') = open(io->countlines(io, eol = eol), f)::Int
+function countlines(f::AbstractString; eol::AbstractChar='\n')
+    open((io->begin
+                    countlines(io, eol=eol)
+                end), f)::Int
+end

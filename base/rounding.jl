@@ -102,10 +102,18 @@ Rounds to nearest integer, with ties rounded toward positive infinity (Java/Java
 """
 const RoundNearestTiesUp = RoundingMode{:NearestTiesUp}()
 
-to_fenv(::RoundingMode{:Nearest}) = JL_FE_TONEAREST
-to_fenv(::RoundingMode{:ToZero}) = JL_FE_TOWARDZERO
-to_fenv(::RoundingMode{:Up}) = JL_FE_UPWARD
-to_fenv(::RoundingMode{:Down}) = JL_FE_DOWNWARD
+function to_fenv(::RoundingMode{:Nearest})
+    JL_FE_TONEAREST
+end
+function to_fenv(::RoundingMode{:ToZero})
+    JL_FE_TOWARDZERO
+end
+function to_fenv(::RoundingMode{:Up})
+    JL_FE_UPWARD
+end
+function to_fenv(::RoundingMode{:Down})
+    JL_FE_DOWNWARD
+end
 
 function from_fenv(r::Integer)
     if r == JL_FE_TONEAREST
@@ -145,10 +153,16 @@ See [`RoundingMode`](@ref) for available modes.
 """
 :rounding
 
-setrounding_raw(::Type{<:Union{Float32,Float64}}, i::Integer) = ccall(:fesetround, Int32, (Int32,), i)
-rounding_raw(::Type{<:Union{Float32,Float64}}) = ccall(:fegetround, Int32, ())
+function setrounding_raw(::Type{<:Union{Float32, Float64}}, i::Integer)
+    ccall(:fesetround, Int32, (Int32,), i)
+end
+function rounding_raw(::Type{<:Union{Float32, Float64}})
+    ccall(:fegetround, Int32, ())
+end
 
-rounding(::Type{T}) where {T<:Union{Float32,Float64}} = from_fenv(rounding_raw(T))
+function rounding(::Type{T}) where T <: Union{Float32, Float64}
+    from_fenv(rounding_raw(T))
+end
 
 """
     setrounding(f::Function, T, mode)
@@ -191,9 +205,13 @@ end
 # Assumes conversion is performed by rounding to nearest value.
 
 # To avoid ambiguous dispatch with methods in mpfr.jl:
-(::Type{T})(x::Real, r::RoundingMode) where {T<:AbstractFloat} = _convert_rounding(T,x,r)
+function (::Type{T})(x::Real, r::RoundingMode) where T <: AbstractFloat
+    _convert_rounding(T, x, r)
+end
 
-_convert_rounding(::Type{T}, x::Real, r::RoundingMode{:Nearest}) where {T<:AbstractFloat} = convert(T,x)
+function _convert_rounding(::Type{T}, x::Real, r::RoundingMode{:Nearest}) where T <: AbstractFloat
+    convert(T, x)
+end
 function _convert_rounding(::Type{T}, x::Real, r::RoundingMode{:Down}) where T<:AbstractFloat
     y = convert(T,x)
     y > x ? prevfloat(y) : y

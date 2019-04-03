@@ -67,7 +67,9 @@ mutable struct Atomic{T<:AtomicTypes}
     Atomic{T}(value) where {T<:AtomicTypes} = new(value)
 end
 
-Atomic() = Atomic{Int}()
+function Atomic()
+    Atomic{Int}()
+end
 
 """
     Threads.atomic_cas!(x::Atomic{T}, cmp::T, newval::T) where T
@@ -314,8 +316,12 @@ julia> x[]
 """
 function atomic_min! end
 
-unsafe_convert(::Type{Ptr{T}}, x::Atomic{T}) where {T} = convert(Ptr{T}, pointer_from_objref(x))
-setindex!(x::Atomic{T}, v) where {T} = setindex!(x, convert(T, v))
+function unsafe_convert(::Type{Ptr{T}}, x::Atomic{T}) where T
+    convert(Ptr{T}, pointer_from_objref(x))
+end
+function setindex!(x::Atomic{T}, v) where T
+    setindex!(x, convert(T, v))
+end
 
 const llvmtypes = IdDict{Any,String}(
     Bool => "i8",  # julia represents bools with 8-bits for now. # TODO: is this okay?
@@ -328,13 +334,23 @@ const llvmtypes = IdDict{Any,String}(
     Float32 => "float",
     Float64 => "double",
 )
-inttype(::Type{T}) where {T<:Integer} = T
-inttype(::Type{Float16}) = Int16
-inttype(::Type{Float32}) = Int32
-inttype(::Type{Float64}) = Int64
+function inttype(::Type{T}) where T <: Integer
+    T
+end
+function inttype(::Type{Float16})
+    Int16
+end
+function inttype(::Type{Float32})
+    Int32
+end
+function inttype(::Type{Float64})
+    Int64
+end
 
 
-gc_alignment(::Type{T}) where {T} = ccall(:jl_alignment, Cint, (Csize_t,), sizeof(T))
+function gc_alignment(::Type{T}) where T
+    ccall(:jl_alignment, Cint, (Csize_t,), sizeof(T))
+end
 
 # All atomic operations have acquire and/or release semantics, depending on
 # whether the load or store values. Most of the time, this is what one wants

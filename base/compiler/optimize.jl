@@ -99,7 +99,9 @@ const TOP_TUPLE = GlobalRef(Core, :tuple)
 # logic #
 #########
 
-_topmod(sv::OptimizationState) = _topmod(sv.mod)
+function _topmod(sv::OptimizationState)
+    _topmod(sv.mod)
+end
 
 function update_valid_age!(min_valid::UInt, max_valid::UInt, sv::OptimizationState)
     sv.min_valid = max(sv.min_valid, min_valid)
@@ -111,7 +113,9 @@ function update_valid_age!(min_valid::UInt, max_valid::UInt, sv::OptimizationSta
     nothing
 end
 
-update_valid_age!(li::MethodInstance, sv::OptimizationState) = update_valid_age!(min_world(li), max_world(li), sv)
+function update_valid_age!(li::MethodInstance, sv::OptimizationState)
+    update_valid_age!(min_world(li), max_world(li), sv)
+end
 
 function add_backedge!(li::MethodInstance, caller::OptimizationState)
     isa(caller.linfo.def, Method) || return # don't add backedges to toplevel exprs
@@ -264,15 +268,21 @@ function is_pure_intrinsic_infer(f::IntrinsicFunction)
 end
 
 # whether `f` is effect free if nothrow
-intrinsic_effect_free_if_nothrow(f) = f === Intrinsics.pointerref || is_pure_intrinsic_infer(f)
+function intrinsic_effect_free_if_nothrow(f)
+    f === Intrinsics.pointerref || is_pure_intrinsic_infer(f)
+end
 
 ## Computing the cost of a function body
 
 # saturating sum (inputs are nonnegative), prevents overflow with typemax(Int) below
-plus_saturate(x::Int, y::Int) = max(x, y, x+y)
+function plus_saturate(x::Int, y::Int)
+    max(x, y, x + y)
+end
 
 # known return type
-isknowntype(@nospecialize T) = (T === Union{}) || isconcretetype(T)
+function isknowntype(@nospecialize(T))
+    T === Union{} || isconcretetype(T)
+end
 
 function statement_cost(ex::Expr, line::Int, src::CodeInfo, sptypes::Vector{Any}, slottypes::Vector{Any}, params::Params)
     head = ex.head

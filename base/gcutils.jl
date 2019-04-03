@@ -1,8 +1,14 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-==(w::WeakRef, v::WeakRef) = isequal(w.value, v.value)
-==(w::WeakRef, v) = isequal(w.value, v)
-==(w, v::WeakRef) = isequal(w, v.value)
+function ==(w::WeakRef, v::WeakRef)
+    isequal(w.value, v.value)
+end
+function ==(w::WeakRef, v)
+    isequal(w.value, v)
+end
+function ==(w, v::WeakRef)
+    isequal(w, v.value)
+end
 
 """
     finalizer(f, x)

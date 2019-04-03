@@ -136,9 +136,9 @@ mutable struct CPUinfo
     cpu_times!irq::UInt64
     CPUinfo(model,speed,u,n,s,id,ir)=new(model,speed,u,n,s,id,ir)
 end
-CPUinfo(info::UV_cpu_info_t) = CPUinfo(unsafe_string(info.model), info.speed,
-    info.cpu_times!user, info.cpu_times!nice, info.cpu_times!sys,
-    info.cpu_times!idle, info.cpu_times!irq)
+function CPUinfo(info::UV_cpu_info_t)
+    CPUinfo(unsafe_string(info.model), info.speed, info.cpu_times!user, info.cpu_times!nice, info.cpu_times!sys, info.cpu_times!idle, info.cpu_times!irq)
+end
 
 function _show_cpuinfo(io::IO, info::Sys.CPUinfo, header::Bool=true, prefix::AbstractString="    ")
     tck = SC_CLK_TCK
@@ -161,7 +161,9 @@ function _show_cpuinfo(io::IO, info::Sys.CPUinfo, header::Bool=true, prefix::Abs
     end
 end
 
-show(io::IO, info::CPUinfo) = _show_cpuinfo(io, info, true, "    ")
+function show(io::IO, info::CPUinfo)
+    _show_cpuinfo(io, info, true, "    ")
+end
 
 function _cpu_summary(io::IO, cpu::AbstractVector{CPUinfo}, i, j)
     if j-i < 9
@@ -444,7 +446,9 @@ function isexecutable(path::String)
         ccall(:access, Cint, (Ptr{UInt8}, Cint), path, X_OK) == 0
     end
 end
-isexecutable(path::AbstractString) = isexecutable(String(path))
+function isexecutable(path::AbstractString)
+    isexecutable(String(path))
+end
 
 """
     Sys.which(program_name::String)
@@ -508,6 +512,8 @@ function which(program_name::String)
     # If we couldn't find anything, don't return anything
     nothing
 end
-which(program_name::AbstractString) = which(String(program_name))
+function which(program_name::AbstractString)
+    which(String(program_name))
+end
 
 end # module Sys

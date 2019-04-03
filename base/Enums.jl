@@ -14,18 +14,34 @@ The abstract supertype of all enumerated types defined with [`@enum`](@ref).
 """
 abstract type Enum{T<:Integer} end
 
-basetype(::Type{<:Enum{T}}) where {T<:Integer} = T
+function basetype(::Type{<:Enum{T}}) where T <: Integer
+    T
+end
 
-(::Type{T})(x::Enum{T2}) where {T<:Integer,T2<:Integer} = T(bitcast(T2, x))::T
-Base.cconvert(::Type{T}, x::Enum{T2}) where {T<:Integer,T2<:Integer} = T(x)
-Base.write(io::IO, x::Enum{T}) where {T<:Integer} = write(io, T(x))
-Base.read(io::IO, ::Type{T}) where {T<:Enum} = T(read(io, basetype(T)))
+function (::Type{T})(x::Enum{T2}) where {T <: Integer, T2 <: Integer}
+    T(bitcast(T2, x))::T
+end
+function Base.cconvert(::Type{T}, x::Enum{T2}) where {T <: Integer, T2 <: Integer}
+    T(x)
+end
+function Base.write(io::IO, x::Enum{T}) where T <: Integer
+    write(io, T(x))
+end
+function Base.read(io::IO, ::Type{T}) where T <: Enum
+    T(read(io, basetype(T)))
+end
 
-Base.isless(x::T, y::T) where {T<:Enum} = isless(basetype(T)(x), basetype(T)(y))
+function Base.isless(x::T, y::T) where T <: Enum
+    isless((basetype(T))(x), (basetype(T))(y))
+end
 
-Base.Symbol(x::Enum) = namemap(typeof(x))[Integer(x)]::Symbol
+function Base.Symbol(x::Enum)
+    (namemap(typeof(x)))[Integer(x)]::Symbol
+end
 
-Base.print(io::IO, x::Enum) = print(io, Symbol(x))
+function Base.print(io::IO, x::Enum)
+    print(io, Symbol(x))
+end
 
 function Base.show(io::IO, x::Enum)
     sym = Symbol(x)
@@ -70,7 +86,9 @@ function membershiptest(expr, values)
 end
 
 # give Enum types scalar behavior in broadcasting
-Base.broadcastable(x::Enum) = Ref(x)
+function Base.broadcastable(x::Enum)
+    Ref(x)
+end
 
 @noinline enum_argument_error(typename, x) = throw(ArgumentError(string("invalid value for Enum $(typename): $x")))
 

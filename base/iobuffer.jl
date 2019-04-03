@@ -28,7 +28,9 @@ function GenericIOBuffer(data::T, readable::Bool, writable::Bool, seekable::Bool
 end
 
 # allocate Vector{UInt8}s for IOBuffer storage that can efficiently become Strings
-StringVector(n::Integer) = unsafe_wrap(Vector{UInt8}, _string_n(n))
+function StringVector(n::Integer)
+    unsafe_wrap(Vector{UInt8}, _string_n(n))
+end
 
 # IOBuffers behave like Files. They are typically readable and writable. They are seekable. (They can be appendable).
 
@@ -135,7 +137,11 @@ optionally specifying a size beyond which the underlying `Array` may not be grow
 """
 PipeBuffer(data::Vector{UInt8}=UInt8[]; maxsize::Int = typemax(Int)) =
     GenericIOBuffer(data,true,true,false,true,maxsize)
-PipeBuffer(maxsize::Integer) = (x = PipeBuffer(StringVector(maxsize), maxsize = maxsize); x.size=0; x)
+function PipeBuffer(maxsize::Integer)
+    x = PipeBuffer(StringVector(maxsize), maxsize=maxsize)
+    x.size = 0
+    x
+end
 
 function copy(b::GenericIOBuffer)
     ret = typeof(b)(b.writable ? copy(b.data) : b.data,
@@ -145,15 +151,13 @@ function copy(b::GenericIOBuffer)
     return ret
 end
 
-show(io::IO, b::GenericIOBuffer) = print(io, "IOBuffer(data=UInt8[...], ",
-                                      "readable=", b.readable, ", ",
-                                      "writable=", b.writable, ", ",
-                                      "seekable=", b.seekable, ", ",
-                                      "append=",   b.append, ", ",
-                                      "size=",     b.size, ", ",
-                                      "maxsize=",  b.maxsize == typemax(Int) ? "Inf" : b.maxsize, ", ",
-                                      "ptr=",      b.ptr, ", ",
-                                      "mark=",     b.mark, ")")
+function show(io::IO, b::GenericIOBuffer)
+    print(io, "IOBuffer(data=UInt8[...], ", "readable=", b.readable, ", ", "writable=", b.writable, ", ", "seekable=", b.seekable, ", ", "append=", b.append, ", ", "size=", b.size, ", ", "maxsize=", if b.maxsize == typemax(Int)
+            "Inf"
+        else
+            b.maxsize
+        end, ", ", "ptr=", b.ptr, ", ", "mark=", b.mark, ")")
+end
 
 function unsafe_read(from::GenericIOBuffer, p::Ptr{UInt8}, nb::UInt)
     from.readable || throw(ArgumentError("read failed, IOBuffer is not readable"))
@@ -219,16 +223,26 @@ function peek(from::GenericIOBuffer)
     return from.data[from.ptr]
 end
 
-read(from::GenericIOBuffer, ::Type{Ptr{T}}) where {T} = convert(Ptr{T}, read(from, UInt))
+function read(from::GenericIOBuffer, ::Type{Ptr{T}}) where T
+    convert(Ptr{T}, read(from, UInt))
+end
 
-isreadable(io::GenericIOBuffer) = io.readable
-iswritable(io::GenericIOBuffer) = io.writable
+function isreadable(io::GenericIOBuffer)
+    io.readable
+end
+function iswritable(io::GenericIOBuffer)
+    io.writable
+end
 
 # TODO: GenericIOBuffer is not iterable, so doesn't really have a length.
 # This should maybe be sizeof() instead.
 #length(io::GenericIOBuffer) = (io.seekable ? io.size : bytesavailable(io))
-bytesavailable(io::GenericIOBuffer) = io.size - io.ptr + 1
-position(io::GenericIOBuffer) = io.ptr-1
+function bytesavailable(io::GenericIOBuffer)
+    (io.size - io.ptr) + 1
+end
+function position(io::GenericIOBuffer)
+    io.ptr - 1
+end
 
 function skip(io::GenericIOBuffer, n::Integer)
     seekto = io.ptr + n
@@ -322,7 +336,9 @@ end
     return io
 end
 
-eof(io::GenericIOBuffer) = (io.ptr-1 == io.size)
+function eof(io::GenericIOBuffer)
+    io.ptr - 1 == io.size
+end
 
 @noinline function close(io::GenericIOBuffer{T}) where T
     io.readable = false
@@ -338,7 +354,9 @@ eof(io::GenericIOBuffer) = (io.ptr-1 == io.size)
     nothing
 end
 
-isopen(io::GenericIOBuffer) = io.readable || io.writable || io.seekable || bytesavailable(io) > 0
+function isopen(io::GenericIOBuffer)
+    io.readable || (io.writable || (io.seekable || bytesavailable(io) > 0))
+end
 
 """
     take!(b::IOBuffer)
@@ -447,7 +465,9 @@ end
     return sizeof(UInt8)
 end
 
-readbytes!(io::GenericIOBuffer, b::Array{UInt8}, nb=length(b)) = readbytes!(io, b, Int(nb))
+function readbytes!(io::GenericIOBuffer, b::Array{UInt8}, nb=length(b))
+    readbytes!(io, b, Int(nb))
+end
 function readbytes!(io::GenericIOBuffer, b::Array{UInt8}, nb::Int)
     nr = min(nb, bytesavailable(io))
     if length(b) < nr
@@ -456,9 +476,15 @@ function readbytes!(io::GenericIOBuffer, b::Array{UInt8}, nb::Int)
     read_sub(io, b, 1, nr)
     return nr
 end
-read(io::GenericIOBuffer) = read!(io,StringVector(bytesavailable(io)))
-readavailable(io::GenericIOBuffer) = read(io)
-read(io::GenericIOBuffer, nb::Integer) = read!(io,StringVector(min(nb, bytesavailable(io))))
+function read(io::GenericIOBuffer)
+    read!(io, StringVector(bytesavailable(io)))
+end
+function readavailable(io::GenericIOBuffer)
+    read(io)
+end
+function read(io::GenericIOBuffer, nb::Integer)
+    read!(io, StringVector(min(nb, bytesavailable(io))))
+end
 
 function occursin(delim::UInt8, buf::IOBuffer)
     p = pointer(buf.data, buf.ptr)
@@ -513,4 +539,6 @@ function _crc32c(io::IOBuffer, nb::Integer, crc::UInt32=0x00000000)
     io.ptr += n
     return crc
 end
-_crc32c(io::IOBuffer, crc::UInt32=0x00000000) = _crc32c(io, bytesavailable(io), crc)
+function _crc32c(io::IOBuffer, crc::UInt32=0x00000000)
+    _crc32c(io, bytesavailable(io), crc)
+end

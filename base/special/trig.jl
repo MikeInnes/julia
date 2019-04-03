@@ -50,7 +50,9 @@ function sin(x::T) where T<:Union{Float32, Float64}
         return -cos_kernel(y)
     end
 end
-sin(x::Real) = sin(float(x))
+function sin(x::Real)
+    sin(float(x))
+end
 
 # Coefficients in 13th order polynomial approximation on [0; π/4]
 #     sin(x) ≈ x + S1*x³ + S2*x⁵ + S3*x⁷ + S4*x⁹ + S5*x¹¹ + S6*x¹³
@@ -121,7 +123,9 @@ function cos(x::T) where T<:Union{Float32, Float64}
         end
     end
 end
-cos(x::Real) = cos(float(x))
+function cos(x::Real)
+    cos(float(x))
+end
 
 const DC1 = 4.16666666666666019037e-02
 const DC2 = -1.38888888888741095749e-03
@@ -152,7 +156,9 @@ end
 end
 
 # cos_kernels accepting values from rem_pio2 in the Float32 case
-cos_kernel(x::Float32) = cos_kernel(DoubleFloat32(x))
+function cos_kernel(x::Float32)
+    cos_kernel(DoubleFloat32(x))
+end
 @inline function cos_kernel(y::DoubleFloat32)
     C0 = -0.499999997251031
     C1 = 0.04166662332373906
@@ -198,10 +204,16 @@ function sincos(x::T) where T<:Union{Float32, Float64}
     end
 end
 
-_sincos(x::AbstractFloat) = sincos(x)
-_sincos(x) = (sin(x), cos(x))
+function _sincos(x::AbstractFloat)
+    sincos(x)
+end
+function _sincos(x)
+    (sin(x), cos(x))
+end
 
-sincos(x) = _sincos(float(x))
+function sincos(x)
+    _sincos(float(x))
+end
 
 
 
@@ -230,7 +242,9 @@ function tan(x::T) where T<:Union{Float32, Float64}
         return tan_kernel(y,-1)
     end
 end
-tan(x::Real) = tan(float(x))
+function tan(x::Real)
+    tan(float(x))
+end
 
 @inline tan_kernel(y::Float64) = tan_kernel(DoubleFloat64(y, 0.0), 1)
 @inline function tan_kernel(y::DoubleFloat64, k)
@@ -352,40 +366,43 @@ end
 end
 
 # fallback methods
-sin_kernel(x::Real) = sin(x)
-cos_kernel(x::Real) = cos(x)
-tan_kernel(x::Real) = tan(x)
-sincos_kernel(x::Real) = sincos(x)
+function sin_kernel(x::Real)
+    sin(x)
+end
+function cos_kernel(x::Real)
+    cos(x)
+end
+function tan_kernel(x::Real)
+    tan(x)
+end
+function sincos_kernel(x::Real)
+    sincos(x)
+end
 
 # Inverse trigonometric functions
 # asin methods
-ASIN_X_MIN_THRESHOLD(::Type{Float32}) = 2.0f0^-12
-ASIN_X_MIN_THRESHOLD(::Type{Float64}) = sqrt(eps(Float64))
+function ASIN_X_MIN_THRESHOLD(::Type{Float32})
+    2.0f0 ^ -12
+end
+function ASIN_X_MIN_THRESHOLD(::Type{Float64})
+    sqrt(eps(Float64))
+end
 
-arc_p(t::Float64) =
-    t*@horner(t,
-    1.66666666666666657415e-01,
-    -3.25565818622400915405e-01,
-    2.01212532134862925881e-01,
-    -4.00555345006794114027e-02,
-    7.91534994289814532176e-04,
-    3.47933107596021167570e-05)
+function arc_p(t::Float64)
+    t * @horner(t, 0.16666666666666666, -0.3255658186224009, 0.20121253213486293, -0.04005553450067941, 0.0007915349942898145, 3.479331075960212e-5)
+end
 
-arc_q(z::Float64) =
-    @horner(z,
-    1.0,
-    -2.40339491173441421878e+00,
-    2.02094576023350569471e+00,
-    -6.88283971605453293030e-01,
-    7.70381505559019352791e-02)
+function arc_q(z::Float64)
+    @horner z 1.0 -2.403394911734414 2.0209457602335057 -0.6882839716054533 0.07703815055590194
+end
 
-arc_p(t::Float32) =
-    t*@horner(t,
-    1.6666586697f-01,
-    -4.2743422091f-02,
-    -8.6563630030f-03)
+function arc_p(t::Float32)
+    t * @horner(t, 0.16666587f0, -0.042743422f0, -0.008656363f0)
+end
 
-arc_q(t::Float32) = @horner(t, 1.0f0, -7.0662963390f-01)
+function arc_q(t::Float32)
+    @horner t 1.0f0 -0.70662963f0
+end
 
 @inline arc_tRt(t) = arc_p(t)/arc_q(t)
 
@@ -449,49 +466,88 @@ function asin(x::T) where T<:Union{Float32, Float64}
     t = (T(1.0) - absx)/2
     return asin_kernel(t, x)
 end
-asin(x::Real) = asin(float(x))
+function asin(x::Real)
+    asin(float(x))
+end
 
 # atan methods
-ATAN_1_O_2_HI(::Type{Float64}) = 4.63647609000806093515e-01 # atan(0.5).hi
-ATAN_2_O_2_HI(::Type{Float64}) = 7.85398163397448278999e-01 # atan(1.0).hi
-ATAN_3_O_2_HI(::Type{Float64}) = 9.82793723247329054082e-01 # atan(1.5).hi
-ATAN_INF_HI(::Type{Float64}) = 1.57079632679489655800e+00 # atan(Inf).hi
+function ATAN_1_O_2_HI(::Type{Float64})
+    0.4636476090008061
+end # atan(0.5).hi
+function ATAN_2_O_2_HI(::Type{Float64})
+    0.7853981633974483
+end # atan(1.0).hi
+function ATAN_3_O_2_HI(::Type{Float64})
+    0.982793723247329
+end # atan(1.5).hi
+function ATAN_INF_HI(::Type{Float64})
+    1.5707963267948966
+end # atan(Inf).hi
 
-ATAN_1_O_2_HI(::Type{Float32}) = 4.6364760399f-01 # atan(0.5).hi
-ATAN_2_O_2_HI(::Type{Float32}) = 7.8539812565f-01 # atan(1.0).hi
-ATAN_3_O_2_HI(::Type{Float32}) = 9.8279368877f-01 # atan(1.5).hi
-ATAN_INF_HI(::Type{Float32}) = 1.5707962513f+00 # atan(Inf).hi
+function ATAN_1_O_2_HI(::Type{Float32})
+    0.4636476f0
+end # atan(0.5).hi
+function ATAN_2_O_2_HI(::Type{Float32})
+    0.7853981f0
+end # atan(1.0).hi
+function ATAN_3_O_2_HI(::Type{Float32})
+    0.9827937f0
+end # atan(1.5).hi
+function ATAN_INF_HI(::Type{Float32})
+    1.5707963f0
+end # atan(Inf).hi
 
-ATAN_1_O_2_LO(::Type{Float64}) = 2.26987774529616870924e-17 # atan(0.5).lo
-ATAN_2_O_2_LO(::Type{Float64}) = 3.06161699786838301793e-17 # atan(1.0).lo
-ATAN_3_O_2_LO(::Type{Float64}) = 1.39033110312309984516e-17 # atan(1.5).lo
-ATAN_INF_LO(::Type{Float64}) = 6.12323399573676603587e-17 # atan(Inf).lo
+function ATAN_1_O_2_LO(::Type{Float64})
+    2.2698777452961687e-17
+end # atan(0.5).lo
+function ATAN_2_O_2_LO(::Type{Float64})
+    3.061616997868383e-17
+end # atan(1.0).lo
+function ATAN_3_O_2_LO(::Type{Float64})
+    1.3903311031230998e-17
+end # atan(1.5).lo
+function ATAN_INF_LO(::Type{Float64})
+    6.123233995736766e-17
+end # atan(Inf).lo
 
-ATAN_1_O_2_LO(::Type{Float32}) = 5.0121582440f-09  # atan(0.5).lo
-ATAN_2_O_2_LO(::Type{Float32}) = 3.7748947079f-08  # atan(1.0).lo
-ATAN_3_O_2_LO(::Type{Float32}) = 3.4473217170f-08  # atan(1.5).lo
-ATAN_INF_LO(::Type{Float32}) = 7.5497894159f-08  # atan(Inf).lo
+function ATAN_1_O_2_LO(::Type{Float32})
+    5.0121582f-9
+end  # atan(0.5).lo
+function ATAN_2_O_2_LO(::Type{Float32})
+    3.7748947f-8
+end  # atan(1.0).lo
+function ATAN_3_O_2_LO(::Type{Float32})
+    3.4473217f-8
+end  # atan(1.5).lo
+function ATAN_INF_LO(::Type{Float32})
+    7.5497894f-8
+end  # atan(Inf).lo
 
-ATAN_LARGE_X(::Type{Float64}) = 2.0^66 # seems too large? 2.0^60 gives the same
-ATAN_SMALL_X(::Type{Float64}) = 2.0^-27
-ATAN_LARGE_X(::Type{Float32}) = 2.0f0^26
-ATAN_SMALL_X(::Type{Float32}) = 2.0f0^-12
+function ATAN_LARGE_X(::Type{Float64})
+    2.0 ^ 66
+end # seems too large? 2.0^60 gives the same
+function ATAN_SMALL_X(::Type{Float64})
+    2.0 ^ -27
+end
+function ATAN_LARGE_X(::Type{Float32})
+    2.0f0 ^ 26
+end
+function ATAN_SMALL_X(::Type{Float32})
+    2.0f0 ^ -12
+end
 
-atan_p(z::Float64, w::Float64) = z*@horner(w,
-     3.33333333333329318027e-01,
-     1.42857142725034663711e-01,
-     9.09088713343650656196e-02,
-     6.66107313738753120669e-02,
-     4.97687799461593236017e-02,
-     1.62858201153657823623e-02)
-atan_q(w::Float64) = w*@horner(w,
-     -1.99999999998764832476e-01,
-     -1.11111104054623557880e-01,
-     -7.69187620504482999495e-02,
-     -5.83357013379057348645e-02,
-     -3.65315727442169155270e-02)
-atan_p(z::Float32, w::Float32) = z*@horner(w, 3.3333328366f-01,  1.4253635705f-01, 6.1687607318f-02)
-atan_q(w::Float32) = w*@horner(w, -1.9999158382f-01, -1.0648017377f-01)
+function atan_p(z::Float64, w::Float64)
+    z * @horner(w, 0.3333333333333293, 0.14285714272503466, 0.09090887133436507, 0.06661073137387531, 0.049768779946159324, 0.016285820115365782)
+end
+function atan_q(w::Float64)
+    w * @horner(w, -0.19999999999876483, -0.11111110405462356, -0.0769187620504483, -0.058335701337905735, -0.036531572744216916)
+end
+function atan_p(z::Float32, w::Float32)
+    z * @horner(w, 0.33333328f0, 0.14253636f0, 0.061687607f0)
+end
+function atan_q(w::Float32)
+    w * @horner(w, -0.19999158f0, -0.106480174f0)
+end
 @inline function atan_pq(x)
     x² = x*x
     x⁴ = x²*x²
@@ -499,7 +555,9 @@ atan_q(w::Float32) = w*@horner(w, -1.9999158382f-01, -1.0648017377f-01)
     atan_p(x², x⁴), atan_q(x⁴)
 end
 
-atan(x::Real) = atan(float(x))
+function atan(x::Real)
+    atan(float(x))
+end
 function atan(x::T) where T<:Union{Float32, Float64}
     # Method
     #   1. Reduce x to positive by atan(x) = -atan(-x).
@@ -556,13 +614,25 @@ function atan(x::T) where T<:Union{Float32, Float64}
     copysign(z, xsign)
 end
 # atan2 methods
-ATAN2_PI_LO(::Type{Float32}) = -8.7422776573f-08
-ATAN2_RATIO_BIT_SHIFT(::Type{Float32}) = 23
-ATAN2_RATIO_THRESHOLD(::Type{Float32}) = 26
+function ATAN2_PI_LO(::Type{Float32})
+    -8.742278f-8
+end
+function ATAN2_RATIO_BIT_SHIFT(::Type{Float32})
+    23
+end
+function ATAN2_RATIO_THRESHOLD(::Type{Float32})
+    26
+end
 
-ATAN2_PI_LO(::Type{Float64}) = 1.2246467991473531772E-16
-ATAN2_RATIO_BIT_SHIFT(::Type{Float64}) = 20
-ATAN2_RATIO_THRESHOLD(::Type{Float64}) = 60
+function ATAN2_PI_LO(::Type{Float64})
+    1.2246467991473532e-16
+end
+function ATAN2_RATIO_BIT_SHIFT(::Type{Float64})
+    20
+end
+function ATAN2_RATIO_THRESHOLD(::Type{Float64})
+    60
+end
 
 function atan(y::T, x::T) where T<:Union{Float32, Float64}
     # Method :
@@ -657,14 +727,30 @@ function atan(y::T, x::T) where T<:Union{Float32, Float64}
     end
 end
 # acos methods
-ACOS_X_MIN_THRESHOLD(::Type{Float32}) = 2.0f0^-26
-ACOS_X_MIN_THRESHOLD(::Type{Float64}) = 2.0^-57
-PIO2_HI(::Type{Float32}) = 1.5707962513f+00
-PIO2_LO(::Type{Float32}) = 7.5497894159f-08
-PIO2_HI(::Type{Float64}) = 1.57079632679489655800e+00
-PIO2_LO(::Type{Float64}) = 6.12323399573676603587e-17
-ACOS_PI(::Type{Float32}) = 3.1415925026f+00
-ACOS_PI(::Type{Float64}) = 3.14159265358979311600e+00
+function ACOS_X_MIN_THRESHOLD(::Type{Float32})
+    2.0f0 ^ -26
+end
+function ACOS_X_MIN_THRESHOLD(::Type{Float64})
+    2.0 ^ -57
+end
+function PIO2_HI(::Type{Float32})
+    1.5707963f0
+end
+function PIO2_LO(::Type{Float32})
+    7.5497894f-8
+end
+function PIO2_HI(::Type{Float64})
+    1.5707963267948966
+end
+function PIO2_LO(::Type{Float64})
+    6.123233995736766e-17
+end
+function ACOS_PI(::Type{Float32})
+    3.1415925f0
+end
+function ACOS_PI(::Type{Float64})
+    3.141592653589793
+end
 @inline ACOS_CORRECT_LOWWORD(::Type{Float32}, x) = reinterpret(Float32, (reinterpret(UInt32, x) & 0xfffff000))
 @inline ACOS_CORRECT_LOWWORD(::Type{Float64}, x) = reinterpret(Float64, (reinterpret(UInt64, x) >> 32) << 32)
 
@@ -723,7 +809,9 @@ function acos(x::T) where T <: Union{Float32, Float64}
         return T(2.0)*(df + (zRz*s + c))
     end
 end
-acos(x::Real) = acos(float(x))
+function acos(x::Real)
+    acos(float(x))
+end
 
 # multiply in extended precision
 function mulpi_ext(x::Float64)
@@ -739,9 +827,15 @@ function mulpi_ext(x::Float64)
 
     DoubleFloat64(y_hi,y_lo)
 end
-mulpi_ext(x::Float32) = DoubleFloat32(pi*Float64(x))
-mulpi_ext(x::Rational) = mulpi_ext(float(x))
-mulpi_ext(x::Real) = pi*x # Fallback
+function mulpi_ext(x::Float32)
+    DoubleFloat32(pi * Float64(x))
+end
+function mulpi_ext(x::Rational)
+    mulpi_ext(float(x))
+end
+function mulpi_ext(x::Real)
+    pi * x
+end # Fallback
 
 """
     sinpi(x)
@@ -860,10 +954,26 @@ function cospi(x::T) where T<:Union{Integer,Rational}
     end
 end
 
-sinpi(x::Integer) = x >= 0 ? zero(float(x)) : -zero(float(x))
-cospi(x::Integer) = isodd(x) ? -one(float(x)) : one(float(x))
-sinpi(x::Real) = sinpi(float(x))
-cospi(x::Real) = cospi(float(x))
+function sinpi(x::Integer)
+    if x >= 0
+        zero(float(x))
+    else
+        -(zero(float(x)))
+    end
+end
+function cospi(x::Integer)
+    if isodd(x)
+        -(one(float(x)))
+    else
+        one(float(x))
+    end
+end
+function sinpi(x::Real)
+    sinpi(float(x))
+end
+function cospi(x::Real)
+    cospi(float(x))
+end
 
 function sinpi(z::Complex{T}) where T
     F = float(T)
@@ -938,10 +1048,34 @@ end
 Compute ``\\sin(\\pi x) / (\\pi x)`` if ``x \\neq 0``, and ``1`` if ``x = 0``.
 """
 sinc(x::Number) = x==0 ? one(x)  : oftype(x,sinpi(x)/(pi*x))
-sinc(x::Integer) = x==0 ? one(x) : zero(x)
-sinc(x::Complex{<:AbstractFloat}) = x==0 ? one(x) : oftype(x, sinpi(x)/(pi*x))
-sinc(x::Complex) = sinc(float(x))
-sinc(x::Real) = x==0 ? one(x) : isinf(x) ? zero(x) : sinpi(x)/(pi*x)
+function sinc(x::Integer)
+    if x == 0
+        one(x)
+    else
+        zero(x)
+    end
+end
+function sinc(x::Complex{<:AbstractFloat})
+    if x == 0
+        one(x)
+    else
+        oftype(x, sinpi(x) / (pi * x))
+    end
+end
+function sinc(x::Complex)
+    sinc(float(x))
+end
+function sinc(x::Real)
+    if x == 0
+        one(x)
+    else
+        if isinf(x)
+            zero(x)
+        else
+            sinpi(x) / (pi * x)
+        end
+    end
+end
 
 """
     cosc(x)
@@ -950,10 +1084,26 @@ Compute ``\\cos(\\pi x) / x - \\sin(\\pi x) / (\\pi x^2)`` if ``x \\neq 0``, and
 ``x = 0``. This is the derivative of `sinc(x)`.
 """
 cosc(x::Number) = x==0 ? zero(x) : oftype(x,(cospi(x)-sinpi(x)/(pi*x))/x)
-cosc(x::Integer) = cosc(float(x))
-cosc(x::Complex{<:AbstractFloat}) = x==0 ? zero(x) : oftype(x,(cospi(x)-sinpi(x)/(pi*x))/x)
-cosc(x::Complex) = cosc(float(x))
-cosc(x::Real) = x==0 || isinf(x) ? zero(x) : (cospi(x)-sinpi(x)/(pi*x))/x
+function cosc(x::Integer)
+    cosc(float(x))
+end
+function cosc(x::Complex{<:AbstractFloat})
+    if x == 0
+        zero(x)
+    else
+        oftype(x, (cospi(x) - sinpi(x) / (pi * x)) / x)
+    end
+end
+function cosc(x::Complex)
+    cosc(float(x))
+end
+function cosc(x::Real)
+    if x == 0 || isinf(x)
+        zero(x)
+    else
+        (cospi(x) - sinpi(x) / (pi * x)) / x
+    end
+end
 
 for (finv, f, finvh, fh, finvd, fd, fn) in ((:sec, :cos, :sech, :cosh, :secd, :cosd, "secant"),
                                             (:csc, :sin, :csch, :sinh, :cscd, :sind, "cosecant"),
@@ -1011,8 +1161,12 @@ function deg2rad_ext(x::Float64)
 
     DoubleFloat64(y_hi,y_lo)
 end
-deg2rad_ext(x::Float32) = DoubleFloat32(deg2rad(Float64(x)))
-deg2rad_ext(x::Real) = deg2rad(x) # Fallback
+function deg2rad_ext(x::Float32)
+    DoubleFloat32(deg2rad(Float64(x)))
+end
+function deg2rad_ext(x::Real)
+    deg2rad(x)
+end # Fallback
 
 function sind(x::Real)
     if isinf(x)
@@ -1071,7 +1225,9 @@ function cosd(x::Real)
     end
 end
 
-tand(x::Real) = sind(x) / cosd(x)
+function tand(x::Real)
+    sind(x) / cosd(x)
+end
 
 for (fd, f, fn) in ((:sind, :sin, "sine"), (:cosd, :cos, "cosine"), (:tand, :tan, "tangent"))
     name = string(fd)
@@ -1100,4 +1256,6 @@ end
 Compute the inverse tangent of `y` or `y/x`, respectively, where the output is in degrees.
 """
 atand(y)    = rad2deg(atan(y))
-atand(y, x) = rad2deg(atan(y,x))
+function atand(y, x)
+    rad2deg(atan(y, x))
+end

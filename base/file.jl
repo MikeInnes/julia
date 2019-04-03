@@ -75,7 +75,9 @@ julia> pwd()
 function cd(dir::AbstractString)
     uv_error("chdir $dir", ccall(:uv_chdir, Cint, (Cstring,), dir))
 end
-cd() = cd(homedir())
+function cd()
+    cd(homedir())
+end
 
 if Sys.iswindows()
     function cd(f::Function, dir::AbstractString)
@@ -641,7 +643,9 @@ function readdir(path::AbstractString)
     return entries
 end
 
-readdir() = readdir(".")
+function readdir()
+    readdir(".")
+end
 
 """
     walkdir(dir; topdown=true, follow_symlinks=false, onerror=throw)

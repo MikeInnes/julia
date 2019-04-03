@@ -124,7 +124,9 @@ function make_fastmath(symb::Symbol)
     end
     :(Base.FastMath.$fast_symb)
 end
-make_fastmath(expr) = expr
+function make_fastmath(expr)
+    expr
+end
 
 """
     @fastmath expr
@@ -156,33 +158,63 @@ end
 
 const FloatTypes = Union{Float32,Float64}
 
-sub_fast(x::FloatTypes) = neg_float_fast(x)
+function sub_fast(x::FloatTypes)
+    neg_float_fast(x)
+end
 
-add_fast(x::T, y::T) where {T<:FloatTypes} = add_float_fast(x, y)
-sub_fast(x::T, y::T) where {T<:FloatTypes} = sub_float_fast(x, y)
-mul_fast(x::T, y::T) where {T<:FloatTypes} = mul_float_fast(x, y)
-div_fast(x::T, y::T) where {T<:FloatTypes} = div_float_fast(x, y)
-rem_fast(x::T, y::T) where {T<:FloatTypes} = rem_float_fast(x, y)
+function add_fast(x::T, y::T) where T <: FloatTypes
+    add_float_fast(x, y)
+end
+function sub_fast(x::T, y::T) where T <: FloatTypes
+    sub_float_fast(x, y)
+end
+function mul_fast(x::T, y::T) where T <: FloatTypes
+    mul_float_fast(x, y)
+end
+function div_fast(x::T, y::T) where T <: FloatTypes
+    div_float_fast(x, y)
+end
+function rem_fast(x::T, y::T) where T <: FloatTypes
+    rem_float_fast(x, y)
+end
 
-add_fast(x::T, y::T, zs::T...) where {T<:FloatTypes} =
+function add_fast(x::T, y::T, zs::T...) where T <: FloatTypes
     add_fast(add_fast(x, y), zs...)
-mul_fast(x::T, y::T, zs::T...) where {T<:FloatTypes} =
+end
+function mul_fast(x::T, y::T, zs::T...) where T <: FloatTypes
     mul_fast(mul_fast(x, y), zs...)
+end
 
 @fastmath begin
     cmp_fast(x::T, y::T) where {T<:FloatTypes} = ifelse(x==y, 0, ifelse(x<y, -1, +1))
     log_fast(b::T, x::T) where {T<:FloatTypes} = log_fast(x)/log_fast(b)
 end
 
-eq_fast(x::T, y::T) where {T<:FloatTypes} = eq_float_fast(x, y)
-ne_fast(x::T, y::T) where {T<:FloatTypes} = ne_float_fast(x, y)
-lt_fast(x::T, y::T) where {T<:FloatTypes} = lt_float_fast(x, y)
-le_fast(x::T, y::T) where {T<:FloatTypes} = le_float_fast(x, y)
+function eq_fast(x::T, y::T) where T <: FloatTypes
+    eq_float_fast(x, y)
+end
+function ne_fast(x::T, y::T) where T <: FloatTypes
+    ne_float_fast(x, y)
+end
+function lt_fast(x::T, y::T) where T <: FloatTypes
+    lt_float_fast(x, y)
+end
+function le_fast(x::T, y::T) where T <: FloatTypes
+    le_float_fast(x, y)
+end
 
-isinf_fast(x) = false
-isfinite_fast(x) = true
-isnan_fast(x) = false
-issubnormal_fast(x) = false
+function isinf_fast(x)
+    false
+end
+function isfinite_fast(x)
+    true
+end
+function isnan_fast(x)
+    false
+end
+function issubnormal_fast(x)
+    false
+end
 
 # complex numbers
 
@@ -263,12 +295,20 @@ end
 
 # builtins
 
-pow_fast(x::Float32, y::Integer) = ccall("llvm.powi.f32", llvmcall, Float32, (Float32, Int32), x, y)
-pow_fast(x::Float64, y::Integer) = ccall("llvm.powi.f64", llvmcall, Float64, (Float64, Int32), x, y)
-pow_fast(x::FloatTypes, ::Val{p}) where {p} = pow_fast(x, p) # inlines already via llvm.powi
+function pow_fast(x::Float32, y::Integer)
+    ccall("llvm.powi.f32", llvmcall, Float32, (Float32, Int32), x, y)
+end
+function pow_fast(x::Float64, y::Integer)
+    ccall("llvm.powi.f64", llvmcall, Float64, (Float64, Int32), x, y)
+end
+function pow_fast(x::FloatTypes, ::Val{p}) where p
+    pow_fast(x, p)
+end # inlines already via llvm.powi
 @inline pow_fast(x, v::Val) = Base.literal_pow(^, x, v)
 
-sqrt_fast(x::FloatTypes) = sqrt_llvm(x)
+function sqrt_fast(x::FloatTypes)
+    sqrt_llvm(x)
+end
 
 # libm
 
@@ -286,20 +326,30 @@ for f in (:acosh, :asinh, :atanh, :cbrt,
     end
 end
 
-pow_fast(x::Float32, y::Float32) =
-    ccall(("powf",libm), Float32, (Float32,Float32), x, y)
-pow_fast(x::Float64, y::Float64) =
-    ccall(("pow",libm), Float64, (Float64,Float64), x, y)
+function pow_fast(x::Float32, y::Float32)
+    ccall(("powf", libm), Float32, (Float32, Float32), x, y)
+end
+function pow_fast(x::Float64, y::Float64)
+    ccall(("pow", libm), Float64, (Float64, Float64), x, y)
+end
 
-sincos_fast(v::FloatTypes) = sincos(v)
+function sincos_fast(v::FloatTypes)
+    sincos(v)
+end
 
 @inline function sincos_fast(v::Float16)
     s, c = sincos_fast(Float32(v))
     return Float16(s), Float16(c)
 end
-sincos_fast(v::AbstractFloat) = (sin_fast(v), cos_fast(v))
-sincos_fast(v::Real) = sincos_fast(float(v)::AbstractFloat)
-sincos_fast(v) = (sin_fast(v), cos_fast(v))
+function sincos_fast(v::AbstractFloat)
+    (sin_fast(v), cos_fast(v))
+end
+function sincos_fast(v::Real)
+    sincos_fast(float(v)::AbstractFloat)
+end
+function sincos_fast(v)
+    (sin_fast(v), cos_fast(v))
+end
 
 @fastmath begin
     hypot_fast(x::T, y::T) where {T<:FloatTypes} = sqrt(x*x + y*y)

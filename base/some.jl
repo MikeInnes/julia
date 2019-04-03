@@ -12,16 +12,32 @@ struct Some{T}
     value::T
 end
 
-promote_rule(::Type{Some{T}}, ::Type{Some{S}}) where {T, S<:T} = Some{T}
-promote_rule(::Type{Some{T}}, ::Type{Nothing}) where {T} = Union{Some{T}, Nothing}
+function promote_rule(::Type{Some{T}}, ::Type{Some{S}}) where {T, S <: T}
+    Some{T}
+end
+function promote_rule(::Type{Some{T}}, ::Type{Nothing}) where T
+    Union{Some{T}, Nothing}
+end
 
-convert(::Type{Some{T}}, x::Some) where {T} = Some{T}(convert(T, x.value))
-convert(::Type{Union{Some{T}, Nothing}}, x::Some) where {T} = convert(Some{T}, x)
+function convert(::Type{Some{T}}, x::Some) where T
+    Some{T}(convert(T, x.value))
+end
+function convert(::Type{Union{Some{T}, Nothing}}, x::Some) where T
+    convert(Some{T}, x)
+end
 
-convert(::Type{Union{T, Nothing}}, x::Union{T, Nothing}) where {T} = x
-convert(::Type{Union{T, Nothing}}, x::Any) where {T} = convert(T, x)
-convert(::Type{Nothing}, x::Nothing) = nothing
-convert(::Type{Nothing}, x::Any) = throw(MethodError(convert, (Nothing, x)))
+function convert(::Type{Union{T, Nothing}}, x::Union{T, Nothing}) where T
+    x
+end
+function convert(::Type{Union{T, Nothing}}, x::Any) where T
+    convert(T, x)
+end
+function convert(::Type{Nothing}, x::Nothing)
+    nothing
+end
+function convert(::Type{Nothing}, x::Any)
+    throw(MethodError(convert, (Nothing, x)))
+end
 
 function show(io::IO, x::Some)
     if get(io, :typeinfo, Any) == typeof(x)
@@ -39,7 +55,9 @@ end
 Throw an error if `x === nothing`, and return `x` if not.
 """
 notnothing(x::Any) = x
-notnothing(::Nothing) = throw(ArgumentError("nothing passed to notnothing"))
+function notnothing(::Nothing)
+    throw(ArgumentError("nothing passed to notnothing"))
+end
 
 """
     isnothing(x)
@@ -50,7 +68,9 @@ Return `true` if `x === nothing`, and return `false` if not.
     This function requires at least Julia 1.1.
 """
 isnothing(::Any) = false
-isnothing(::Nothing) = true
+function isnothing(::Nothing)
+    true
+end
 
 
 """
@@ -77,7 +97,15 @@ ERROR: ArgumentError: No value arguments present
 """
 function something end
 
-something() = throw(ArgumentError("No value arguments present"))
-something(x::Nothing, y...) = something(y...)
-something(x::Some, y...) = x.value
-something(x::Any, y...) = x
+function something()
+    throw(ArgumentError("No value arguments present"))
+end
+function something(x::Nothing, y...)
+    something(y...)
+end
+function something(x::Some, y...)
+    x.value
+end
+function something(x::Any, y...)
+    x
+end

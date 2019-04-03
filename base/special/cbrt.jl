@@ -32,7 +32,13 @@ julia> cbrt(big(-27))
 ```
 """
 cbrt(x::Real) = cbrt(float(x))
-cbrt(x::AbstractFloat) = x < 0 ? -(-x)^(1//3) : x^(1//3)
+function cbrt(x::AbstractFloat)
+    if x < 0
+        -((-x) ^ (1 // 3))
+    else
+        x ^ (1 // 3)
+    end
+end
 
 """
     _approx_cbrt(x)

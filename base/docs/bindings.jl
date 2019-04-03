@@ -14,18 +14,28 @@ struct Binding
     end
 end
 
-bindingexpr(x) = Expr(:call, Binding, splitexpr(x)...)
+function bindingexpr(x)
+    Expr(:call, Binding, splitexpr(x)...)
+end
 
-defined(b::Binding) = isdefined(b.mod, b.var)
-resolve(b::Binding) = getfield(b.mod, b.var)
+function defined(b::Binding)
+    isdefined(b.mod, b.var)
+end
+function resolve(b::Binding)
+    getfield(b.mod, b.var)
+end
 
 function splitexpr(x::Expr)
     isexpr(x, :macrocall) ? splitexpr(x.args[1]) :
     isexpr(x, :.)         ? (x.args[1], x.args[2]) :
     error("Invalid @var syntax `$x`.")
 end
-splitexpr(s::Symbol) = Expr(:macrocall, getfield(Base, Symbol("@__MODULE__")), nothing), quot(s)
-splitexpr(other)     = error("Invalid @var syntax `$other`.")
+function splitexpr(s::Symbol)
+    (Expr(:macrocall, getfield(Base, Symbol("@__MODULE__")), nothing), quot(s))
+end
+function splitexpr(other)
+    error("Invalid @var syntax `$(other)`.")
+end
 
 macro var(x)
     esc(bindingexpr(x))
@@ -39,8 +49,28 @@ function Base.show(io::IO, b::Binding)
     end
 end
 
-aliasof(b::Binding)     = defined(b) ? (a = aliasof(resolve(b), b); defined(a) ? a : b) : b
-aliasof(d::DataType, b) = Binding(d.name.module, d.name.name)
-aliasof(λ::Function, b) = (m = typeof(λ).name.mt; Binding(m.module, m.name))
-aliasof(m::Module,   b) = Binding(m, nameof(m))
-aliasof(other,       b) = b
+function aliasof(b::Binding)
+    if defined(b)
+        a = aliasof(resolve(b), b)
+        if defined(a)
+            a
+        else
+            b
+        end
+    else
+        b
+    end
+end
+function aliasof(d::DataType, b)
+    Binding((d.name).module, (d.name).name)
+end
+function aliasof(λ::Function, b)
+    m = ((typeof(λ)).name).mt
+    Binding(m.module, m.name)
+end
+function aliasof(m::Module, b)
+    Binding(m, nameof(m))
+end
+function aliasof(other, b)
+    b
+end

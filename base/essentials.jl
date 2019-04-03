@@ -163,9 +163,15 @@ true
 """
 function convert end
 
-convert(::Type{Any}, @nospecialize(x)) = x
-convert(::Type{T}, x::T) where {T} = x
-convert(::Type{Type}, x::Type) = x # the ssair optimizer is strongly dependent on this method existing to avoid over-specialization
+function convert(::Type{Any}, @nospecialize(x))
+    x
+end
+function convert(::Type{T}, x::T) where T
+    x
+end
+function convert(::Type{Type}, x::Type)
+    x
+end # the ssair optimizer is strongly dependent on this method existing to avoid over-specialization
                                    # in the absence of inlining-enabled
                                    # (due to fields typed as `Type`, which is generally a bad idea)
 
@@ -182,7 +188,9 @@ macro eval(mod, ex)
     :(Core.eval($(esc(mod)), $(Expr(:quote,ex))))
 end
 
-argtail(x, rest...) = rest
+function argtail(x, rest...)
+    rest
+end
 
 """
     tail(x::Tuple)::Tuple
@@ -199,9 +207,14 @@ ERROR: ArgumentError: Cannot call tail on an empty tuple.
 ```
 """
 tail(x::Tuple) = argtail(x...)
-tail(::Tuple{}) = throw(ArgumentError("Cannot call tail on an empty tuple."))
+function tail(::Tuple{})
+    throw(ArgumentError("Cannot call tail on an empty tuple."))
+end
 
-tuple_type_head(T::Type) = (@_pure_meta; fieldtype(T::Type{<:Tuple}, 1))
+function tuple_type_head(T::Type)
+    @_pure_meta
+    fieldtype(T::Type{<:Tuple}, 1)
+end
 
 function tuple_type_tail(T::Type)
     @_pure_meta
@@ -218,7 +231,9 @@ function tuple_type_tail(T::Type)
     end
 end
 
-tuple_type_cons(::Type, ::Type{Union{}}) = Union{}
+function tuple_type_cons(::Type, ::Type{Union{}})
+    Union{}
+end
 function tuple_type_cons(::Type{S}, ::Type{T}) where T<:Tuple where S
     @_pure_meta
     Tuple{S, T.parameters...}
@@ -283,38 +298,61 @@ function unconstrain_vararg_length(@nospecialize(va))
     return rewrap_unionall(Vararg{T}, va)
 end
 
-typename(a) = error("typename does not apply to this type")
-typename(a::DataType) = a.name
+function typename(a)
+    error("typename does not apply to this type")
+end
+function typename(a::DataType)
+    a.name
+end
 function typename(a::Union)
     ta = typename(a.a)
     tb = typename(a.b)
     ta === tb || error("typename does not apply to unions whose components have different typenames")
     return tb
 end
-typename(union::UnionAll) = typename(union.body)
+function typename(union::UnionAll)
+    typename(union.body)
+end
 
 const AtLeast1 = Tuple{Any, Vararg{Any}}
 
 # converting to empty tuple type
-convert(::Type{Tuple{}}, ::Tuple{}) = ()
-convert(::Type{Tuple{}}, x::AtLeast1) = throw(MethodError(convert, (Tuple{}, x)))
+function convert(::Type{Tuple{}}, ::Tuple{})
+    ()
+end
+function convert(::Type{Tuple{}}, x::AtLeast1)
+    throw(MethodError(convert, (Tuple{}, x)))
+end
 
 # converting to tuple types with at least one element
-convert(::Type{T}, x::T) where {T<:AtLeast1} = x
-convert(::Type{T}, x::AtLeast1) where {T<:AtLeast1} =
+function convert(::Type{T}, x::T) where T <: AtLeast1
+    x
+end
+function convert(::Type{T}, x::AtLeast1) where T <: AtLeast1
     (convert(tuple_type_head(T), x[1]), convert(tuple_type_tail(T), tail(x))...)
+end
 
 # converting to Vararg tuple types
-convert(::Type{Tuple{Vararg{V}}}, x::Tuple{Vararg{V}}) where {V} = x
-convert(T::Type{Tuple{Vararg{V}}}, x::Tuple) where {V} =
+function convert(::Type{Tuple{Vararg{V}}}, x::Tuple{Vararg{V}}) where V
+    x
+end
+function convert(T::Type{Tuple{Vararg{V}}}, x::Tuple) where V
     (convert(tuple_type_head(T), x[1]), convert(T, tail(x))...)
+end
 
 # used for splatting in `new`
-convert_prefix(::Type{Tuple{}}, x::Tuple) = x
-convert_prefix(::Type{<:AtLeast1}, x::Tuple{}) = x
-convert_prefix(::Type{T}, x::T) where {T<:AtLeast1} = x
-convert_prefix(::Type{T}, x::AtLeast1) where {T<:AtLeast1} =
+function convert_prefix(::Type{Tuple{}}, x::Tuple)
+    x
+end
+function convert_prefix(::Type{<:AtLeast1}, x::Tuple{})
+    x
+end
+function convert_prefix(::Type{T}, x::T) where T <: AtLeast1
+    x
+end
+function convert_prefix(::Type{T}, x::AtLeast1) where T <: AtLeast1
     (convert(tuple_type_head(T), x[1]), convert_prefix(tuple_type_tail(T), tail(x))...)
+end
 
 # TODO: the following definitions are equivalent (behaviorally) to the above method
 # I think they may be faster / more efficient for inference,
@@ -369,8 +407,12 @@ julia> oftype(y, x)
 """
 oftype(x, y) = convert(typeof(x), y)
 
-unsigned(x::Int) = reinterpret(UInt, x)
-signed(x::UInt) = reinterpret(Int, x)
+function unsigned(x::Int)
+    reinterpret(UInt, x)
+end
+function signed(x::UInt)
+    reinterpret(Int, x)
+end
 
 """
     cconvert(T,x)
@@ -388,11 +430,21 @@ Neither `convert` nor `cconvert` should take a Julia object and turn it into a `
 """
 function cconvert end
 
-cconvert(T::Type, x) = convert(T, x) # do the conversion eagerly in most cases
-cconvert(::Type{<:Ptr}, x) = x # but defer the conversion to Ptr to unsafe_convert
-unsafe_convert(::Type{T}, x::T) where {T} = x # unsafe_convert (like convert) defaults to assuming the convert occurred
-unsafe_convert(::Type{T}, x::T) where {T<:Ptr} = x  # to resolve ambiguity with the next method
-unsafe_convert(::Type{P}, x::Ptr) where {P<:Ptr} = convert(P, x)
+function cconvert(T::Type, x)
+    convert(T, x)
+end # do the conversion eagerly in most cases
+function cconvert(::Type{<:Ptr}, x)
+    x
+end # but defer the conversion to Ptr to unsafe_convert
+function unsafe_convert(::Type{T}, x::T) where T
+    x
+end # unsafe_convert (like convert) defaults to assuming the convert occurred
+function unsafe_convert(::Type{T}, x::T) where T <: Ptr
+    x
+end  # to resolve ambiguity with the next method
+function unsafe_convert(::Type{P}, x::Ptr) where P <: Ptr
+    convert(P, x)
+end
 
 """
     reinterpret(type, A)
@@ -415,8 +467,12 @@ julia> reinterpret(Float32, UInt32[1 2 3 4 5])
 ```
 """
 reinterpret(::Type{T}, x) where {T} = bitcast(T, x)
-reinterpret(::Type{Unsigned}, x::Float16) = reinterpret(UInt16,x)
-reinterpret(::Type{Signed}, x::Float16) = reinterpret(Int16,x)
+function reinterpret(::Type{Unsigned}, x::Float16)
+    reinterpret(UInt16, x)
+end
+function reinterpret(::Type{Signed}, x::Float16)
+    reinterpret(Int16, x)
+end
 
 """
     sizeof(T::DataType)
@@ -599,14 +655,38 @@ function length(v::SimpleVector)
     @_gc_preserve_end t
     return l
 end
-firstindex(v::SimpleVector) = 1
-lastindex(v::SimpleVector) = length(v)
-iterate(v::SimpleVector, i=1) = (length(v) < i ? nothing : (v[i], i + 1))
-eltype(::Type{SimpleVector}) = Any
-keys(v::SimpleVector) = OneTo(length(v))
-isempty(v::SimpleVector) = (length(v) == 0)
-axes(v::SimpleVector) = (OneTo(length(v)),)
-axes(v::SimpleVector, d::Integer) = d <= 1 ? axes(v)[d] : OneTo(1)
+function firstindex(v::SimpleVector)
+    1
+end
+function lastindex(v::SimpleVector)
+    length(v)
+end
+function iterate(v::SimpleVector, i=1)
+    if length(v) < i
+        nothing
+    else
+        (v[i], i + 1)
+    end
+end
+function eltype(::Type{SimpleVector})
+    Any
+end
+function keys(v::SimpleVector)
+    OneTo(length(v))
+end
+function isempty(v::SimpleVector)
+    length(v) == 0
+end
+function axes(v::SimpleVector)
+    (OneTo(length(v)),)
+end
+function axes(v::SimpleVector, d::Integer)
+    if d <= 1
+        (axes(v))[d]
+    else
+        OneTo(1)
+    end
+end
 
 function ==(v1::SimpleVector, v2::SimpleVector)
     length(v1)==length(v2) || return false
@@ -616,9 +696,13 @@ function ==(v1::SimpleVector, v2::SimpleVector)
     return true
 end
 
-map(f, v::SimpleVector) = Any[ f(v[i]) for i = 1:length(v) ]
+function map(f, v::SimpleVector)
+    Any[f(v[i]) for i = 1:length(v)]
+end
 
-getindex(v::SimpleVector, I::AbstractArray) = Core.svec(Any[ v[i] for i in I ]...)
+function getindex(v::SimpleVector, I::AbstractArray)
+    Core.svec(Any[v[i] for i = I]...)
+end
 
 """
     isassigned(array, i) -> Bool
@@ -773,7 +857,10 @@ julia> f(Val(true))
 struct Val{x}
 end
 
-Val(x) = (@_pure_meta; Val{x}())
+function Val(x)
+    @_pure_meta
+    Val{x}()
+end
 
 """
     invokelatest(f, args...; kwargs...)
@@ -859,7 +946,9 @@ const missing = Missing()
 Indicate whether `x` is [`missing`](@ref).
 """
 ismissing(::Any) = false
-ismissing(::Missing) = true
+function ismissing(::Missing)
+    true
+end
 
 function popfirst! end
 function peek end

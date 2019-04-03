@@ -49,7 +49,9 @@ else
     ccall(:jl_throw, Cvoid, (Any,), "Option structure mismatch")
 end
 
-JLOptions() = unsafe_load(cglobal(:jl_options, JLOptions))
+function JLOptions()
+    unsafe_load(cglobal(:jl_options, JLOptions))
+end
 
 function show(io::IO, opt::JLOptions)
     print(io, "JLOptions(")

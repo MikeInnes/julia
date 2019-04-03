@@ -89,12 +89,24 @@ function instanceof_tfunc(@nospecialize(t))
     end
     return Any, false
 end
-bitcast_tfunc(@nospecialize(t), @nospecialize(x)) = instanceof_tfunc(t)[1]
-math_tfunc(@nospecialize(x)) = widenconst(x)
-math_tfunc(@nospecialize(x), @nospecialize(y)) = widenconst(x)
-math_tfunc(@nospecialize(x), @nospecialize(y), @nospecialize(z)) = widenconst(x)
-fptoui_tfunc(@nospecialize(t), @nospecialize(x)) = bitcast_tfunc(t, x)
-fptosi_tfunc(@nospecialize(t), @nospecialize(x)) = bitcast_tfunc(t, x)
+function bitcast_tfunc(@nospecialize(t), @nospecialize(x))
+    (instanceof_tfunc(t))[1]
+end
+function math_tfunc(@nospecialize(x))
+    widenconst(x)
+end
+function math_tfunc(@nospecialize(x), @nospecialize(y))
+    widenconst(x)
+end
+function math_tfunc(@nospecialize(x), @nospecialize(y), @nospecialize(z))
+    widenconst(x)
+end
+function fptoui_tfunc(@nospecialize(t), @nospecialize(x))
+    bitcast_tfunc(t, x)
+end
+function fptosi_tfunc(@nospecialize(t), @nospecialize(x))
+    bitcast_tfunc(t, x)
+end
 
     ## conversion ##
 add_tfunc(bitcast, 2, 2, bitcast_tfunc, 1)
@@ -159,7 +171,9 @@ add_tfunc(trunc_llvm, 1, 1, math_tfunc, 10)
 add_tfunc(rint_llvm, 1, 1, math_tfunc, 10)
 add_tfunc(sqrt_llvm, 1, 1, math_tfunc, 20)
     ## same-type comparisons ##
-cmp_tfunc(@nospecialize(x), @nospecialize(y)) = Bool
+function cmp_tfunc(@nospecialize(x), @nospecialize(y))
+    Bool
+end
 add_tfunc(eq_int, 2, 2, cmp_tfunc, 1)
 add_tfunc(ne_int, 2, 2, cmp_tfunc, 1)
 add_tfunc(slt_int, 2, 2, cmp_tfunc, 1)
@@ -178,7 +192,9 @@ add_tfunc(lt_float_fast, 2, 2, cmp_tfunc, 1)
 add_tfunc(le_float_fast, 2, 2, cmp_tfunc, 1)
 
     ## checked arithmetic ##
-chk_tfunc(@nospecialize(x), @nospecialize(y)) = Tuple{widenconst(x), Bool}
+function chk_tfunc(@nospecialize(x), @nospecialize(y))
+    Tuple{widenconst(x), Bool}
+end
 add_tfunc(checked_sadd_int, 2, 2, chk_tfunc, 10)
 add_tfunc(checked_uadd_int, 2, 2, chk_tfunc, 10)
 add_tfunc(checked_ssub_int, 2, 2, chk_tfunc, 10)
@@ -188,9 +204,23 @@ add_tfunc(checked_umul_int, 2, 2, chk_tfunc, 10)
     ## other, misc intrinsics ##
 add_tfunc(Core.Intrinsics.llvmcall, 3, INT_INF,
           (@nospecialize(fptr), @nospecialize(rt), @nospecialize(at), a...) -> instanceof_tfunc(rt)[1], 10)
-cglobal_tfunc(@nospecialize(fptr)) = Ptr{Cvoid}
-cglobal_tfunc(@nospecialize(fptr), @nospecialize(t)) = (isType(t) ? Ptr{t.parameters[1]} : Ptr)
-cglobal_tfunc(@nospecialize(fptr), t::Const) = (isa(t.val, Type) ? Ptr{t.val} : Ptr)
+function cglobal_tfunc(@nospecialize(fptr))
+    Ptr{Cvoid}
+end
+function cglobal_tfunc(@nospecialize(fptr), @nospecialize(t))
+    if isType(t)
+        Ptr{t.parameters[1]}
+    else
+        Ptr
+    end
+end
+function cglobal_tfunc(@nospecialize(fptr), t::Const)
+    if t.val isa Type
+        Ptr{t.val}
+    else
+        Ptr
+    end
+end
 add_tfunc(Core.Intrinsics.cglobal, 1, 2, cglobal_tfunc, 5)
 
 function ifelse_tfunc(@nospecialize(cnd), @nospecialize(x), @nospecialize(y))
@@ -543,14 +573,9 @@ function subtype_tfunc(@nospecialize(a), @nospecialize(b))
 end
 add_tfunc(<:, 2, 2, subtype_tfunc, 0)
 
-is_dt_const_field(fld::Int) = (
-     fld == DATATYPE_NAME_FIELDINDEX ||
-     fld == DATATYPE_PARAMETERS_FIELDINDEX ||
-     fld == DATATYPE_TYPES_FIELDINDEX ||
-     fld == DATATYPE_SUPER_FIELDINDEX ||
-     fld == DATATYPE_MUTABLE_FIELDINDEX ||
-     fld == DATATYPE_INSTANCE_FIELDINDEX
-    )
+function is_dt_const_field(fld::Int)
+    fld == DATATYPE_NAME_FIELDINDEX || (fld == DATATYPE_PARAMETERS_FIELDINDEX || (fld == DATATYPE_TYPES_FIELDINDEX || (fld == DATATYPE_SUPER_FIELDINDEX || (fld == DATATYPE_MUTABLE_FIELDINDEX || fld == DATATYPE_INSTANCE_FIELDINDEX))))
+end
 function const_datatype_getfield_tfunc(@nospecialize(sv), fld::Int)
     if fld == DATATYPE_INSTANCE_FIELDINDEX
         return isdefined(sv, fld) ? Const(getfield(sv, fld)) : Union{}
@@ -665,8 +690,9 @@ function getfield_nothrow(@nospecialize(s00), @nospecialize(name), @nospecialize
     return false
 end
 
-getfield_tfunc(@nospecialize(s00), @nospecialize(name), @nospecialize(inbounds)) =
+function getfield_tfunc(@nospecialize(s00), @nospecialize(name), @nospecialize(inbounds))
     getfield_tfunc(s00, name)
+end
 function getfield_tfunc(@nospecialize(s00), @nospecialize(name))
     s = unwrap_unionall(s00)
     if isa(s, Union)
@@ -798,8 +824,9 @@ function getfield_tfunc(@nospecialize(s00), @nospecialize(name))
 end
 add_tfunc(getfield, 2, 3, getfield_tfunc, 1)
 add_tfunc(setfield!, 3, 3, (@nospecialize(o), @nospecialize(f), @nospecialize(v)) -> v, 3)
-fieldtype_tfunc(@nospecialize(s0), @nospecialize(name), @nospecialize(inbounds)) =
+function fieldtype_tfunc(@nospecialize(s0), @nospecialize(name), @nospecialize(inbounds))
     fieldtype_tfunc(s0, name)
+end
 
 function fieldtype_nothrow(@nospecialize(s0), @nospecialize(name))
     if s0 === Any || s0 === Type || DataType ⊑ s0 || UnionAll ⊑ s0
@@ -1325,13 +1352,9 @@ function builtin_tfunction(@nospecialize(f), argtypes::Array{Any,1},
 end
 
 # Query whether the given intrinsic is nothrow
-intrinsic_nothrow(f::IntrinsicFunction) = !(
-        f === Intrinsics.checked_sdiv_int ||
-        f === Intrinsics.checked_udiv_int ||
-        f === Intrinsics.checked_srem_int ||
-        f === Intrinsics.checked_urem_int ||
-        f === Intrinsics.cglobal
-    )
+function intrinsic_nothrow(f::IntrinsicFunction)
+    !(f === Intrinsics.checked_sdiv_int || (f === Intrinsics.checked_udiv_int || (f === Intrinsics.checked_srem_int || (f === Intrinsics.checked_urem_int || f === Intrinsics.cglobal))))
+end
 
 function intrinsic_nothrow(f::IntrinsicFunction, argtypes::Array{Any, 1})
     # TODO: We could do better for cglobal

@@ -188,7 +188,9 @@ function sptypes_from_meth_instance(linfo::MethodInstance)
     return sp
 end
 
-_topmod(sv::InferenceState) = _topmod(sv.mod)
+function _topmod(sv::InferenceState)
+    _topmod(sv.mod)
+end
 
 # work towards converging the valid age range for sv
 function update_valid_age!(min_valid::UInt, max_valid::UInt, sv::InferenceState)
@@ -201,8 +203,12 @@ function update_valid_age!(min_valid::UInt, max_valid::UInt, sv::InferenceState)
     nothing
 end
 
-update_valid_age!(edge::InferenceState, sv::InferenceState) = update_valid_age!(edge.min_valid, edge.max_valid, sv)
-update_valid_age!(li::MethodInstance, sv::InferenceState) = update_valid_age!(min_world(li), max_world(li), sv)
+function update_valid_age!(edge::InferenceState, sv::InferenceState)
+    update_valid_age!(edge.min_valid, edge.max_valid, sv)
+end
+function update_valid_age!(li::MethodInstance, sv::InferenceState)
+    update_valid_age!(min_world(li), max_world(li), sv)
+end
 
 function record_ssa_assign(ssa_id::Int, @nospecialize(new), frame::InferenceState)
     old = frame.src.ssavaluetypes[ssa_id]

@@ -1,9 +1,19 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-eltype(::Type{<:AbstractSet{T}}) where {T} = @isdefined(T) ? T : Any
-sizehint!(s::AbstractSet, n) = nothing
+function eltype(::Type{<:AbstractSet{T}}) where T
+    if @isdefined(T)
+        T
+    else
+        Any
+    end
+end
+function sizehint!(s::AbstractSet, n)
+    nothing
+end
 
-copy!(dst::AbstractSet, src::AbstractSet) = union!(empty!(dst), src)
+function copy!(dst::AbstractSet, src::AbstractSet)
+    union!(empty!(dst), src)
+end
 
 """
     union(s, itrs...)
@@ -38,10 +48,18 @@ Set([2, 3, 1])
 """
 function union end
 
-_in(itr) = x -> x in itr
+function _in(itr)
+    x->begin
+            x in itr
+        end
+end
 
-union(s, sets...) = union!(emptymutable(s, promote_eltype(s, sets...)), s, sets...)
-union(s::AbstractSet) = copy(s)
+function union(s, sets...)
+    union!(emptymutable(s, promote_eltype(s, sets...)), s, sets...)
+end
+function union(s::AbstractSet)
+    copy(s)
+end
 
 const ∪ = union
 
@@ -68,12 +86,24 @@ function union!(s::AbstractSet, sets...)
     return s
 end
 
-max_values(::Type) = typemax(Int)
-max_values(T::Union{map(X -> Type{X}, BitIntegerSmall_types)...}) = 1 << (8*sizeof(T))
+function max_values(::Type)
+    typemax(Int)
+end
+function max_values(T::Union{map((X->begin
+                            Type{X}
+                        end), BitIntegerSmall_types)...})
+    1 << 8 * sizeof(T)
+end
 # saturated addition to prevent overflow with typemax(Int)
-max_values(T::Union) = max(max_values(T.a), max_values(T.b), max_values(T.a) + max_values(T.b))
-max_values(::Type{Bool}) = 2
-max_values(::Type{Nothing}) = 1
+function max_values(T::Union)
+    max(max_values(T.a), max_values(T.b), max_values(T.a) + max_values(T.b))
+end
+function max_values(::Type{Bool})
+    2
+end
+function max_values(::Type{Nothing})
+    1
+end
 
 function union!(s::AbstractSet{T}, itr) where T
     haslength(itr) && sizehint!(s, length(s) + length(itr))
@@ -107,8 +137,12 @@ Set([2])
 ```
 """
 intersect(s::AbstractSet, itr, itrs...) = intersect!(intersect(s, itr), itrs...)
-intersect(s) = union(s)
-intersect(s::AbstractSet, itr) = mapfilter(_in(s), push!, itr, emptymutable(s))
+function intersect(s)
+    union(s)
+end
+function intersect(s::AbstractSet, itr)
+    mapfilter(_in(s), push!, itr, emptymutable(s))
+end
 
 const ∩ = intersect
 
@@ -124,9 +158,12 @@ function intersect!(s::AbstractSet, itrs...)
     end
     return s
 end
-intersect!(s::AbstractSet, s2::AbstractSet) = filter!(_in(s2), s)
-intersect!(s::AbstractSet, itr) =
+function intersect!(s::AbstractSet, s2::AbstractSet)
+    filter!(_in(s2), s)
+end
+function intersect!(s::AbstractSet, itr)
     intersect!(s, union!(emptymutable(s, eltype(itr)), itr))
+end
 
 """
     setdiff(s, itrs...)
@@ -143,7 +180,9 @@ julia> setdiff([1,2,3], [3,4,5])
 ```
 """
 setdiff(s::AbstractSet, itrs...) = setdiff!(copymutable(s), itrs...)
-setdiff(s) = union(s)
+function setdiff(s)
+    union(s)
+end
 
 """
     setdiff!(s, itrs...)
@@ -200,7 +239,9 @@ julia> symdiff(unique([1,2,1]), unique([2, 1, 2]))
 ```
 """
 symdiff(s, sets...) = symdiff!(emptymutable(s, promote_eltype(s, sets...)), s, sets...)
-symdiff(s) = symdiff!(copy(s))
+function symdiff(s)
+    symdiff!(copy(s))
+end
 
 """
     symdiff!(s::Union{AbstractSet,AbstractVector}, itrs...)
@@ -223,11 +264,17 @@ function symdiff!(s::AbstractSet, itr)
     s
 end
 
-==(l::AbstractSet, r::AbstractSet) = length(l) == length(r) && l ⊆ r
+function ==(l::AbstractSet, r::AbstractSet)
+    length(l) == length(r) && l ⊆ r
+end
 # convenience functions for AbstractSet
 # (if needed, only their synonyms ⊊ and ⊆ must be specialized)
-<( l::AbstractSet, r::AbstractSet) = l ⊊ r
-<=(l::AbstractSet, r::AbstractSet) = l ⊆ r
+function <(l::AbstractSet, r::AbstractSet)
+    l ⊊ r
+end
+function <=(l::AbstractSet, r::AbstractSet)
+    l ⊆ r
+end
 
 function issubset(l, r)
     if haslength(r)
@@ -251,7 +298,9 @@ end
 # use the implementation below when it becomes as efficient
 # issubset(l, r) = all(_in(r), l)
 const ⊆ = issubset
-⊇(l, r) = r ⊆ l
+function ⊇(l, r)
+    r ⊆ l
+end
 """
     issubset(a, b)
     ⊆(a,b)  -> Bool
@@ -289,10 +338,16 @@ true
 ```
 """
 issetequal(l, r) = length(l) == length(r) && l ⊆ r
-issetequal(l::AbstractSet, r::AbstractSet) = l == r
+function issetequal(l::AbstractSet, r::AbstractSet)
+    l == r
+end
 
-⊊(l, r) = length(l) < length(r) && l ⊆ r
-⊋(l, r) = r ⊊ l
+function ⊊(l, r)
+    length(l) < length(r) && l ⊆ r
+end
+function ⊋(l, r)
+    r ⊊ l
+end
 """
     ⊊(a, b)
     ⊋(b, a)
@@ -310,8 +365,12 @@ false
 """
 ⊊, ⊋
 
-⊈(l, r) = !⊆(l, r)
-⊉(l, r) = r ⊈ l
+function ⊈(l, r)
+    !(l ⊆ r)
+end
+function ⊉(l, r)
+    r ⊈ l
+end
 """
     ⊈(a, b)
     ⊉(b, a)
@@ -329,10 +388,14 @@ false
 """
 ⊈, ⊉
 
-filter(pred, s::AbstractSet) = mapfilter(pred, push!, s, emptymutable(s))
+function filter(pred, s::AbstractSet)
+    mapfilter(pred, push!, s, emptymutable(s))
+end
 
 # it must be safe to delete the current element while iterating over s:
-unsafe_filter!(pred, s::AbstractSet) = mapfilter(!pred, delete!, s, s)
+function unsafe_filter!(pred, s::AbstractSet)
+    mapfilter(!pred, delete!, s, s)
+end
 
 # TODO: delete mapfilter in favor of comprehensions/foldl/filter when competitive
 function mapfilter(pred, f, itr, res)

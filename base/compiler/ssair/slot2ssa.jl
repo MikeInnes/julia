@@ -5,7 +5,9 @@ mutable struct SlotInfo
     uses::Vector{Int}
     any_newvar::Bool
 end
-SlotInfo() = SlotInfo(Int[], Int[], false)
+function SlotInfo()
+    SlotInfo(Int[], Int[], false)
+end
 
 function scan_entry!(result::Vector{SlotInfo}, idx::Int, @nospecialize(stmt))
     # NewVarNodes count as defs for the purpose

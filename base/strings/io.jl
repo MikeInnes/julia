@@ -109,11 +109,21 @@ function sprint(f::Function, args...; context=nothing, sizehint::Integer=0)
     String(resize!(s.data, s.size))
 end
 
-tostr_sizehint(x) = 8
-tostr_sizehint(x::AbstractString) = lastindex(x)
-tostr_sizehint(x::Union{String,SubString{String}}) = sizeof(x)
-tostr_sizehint(x::Float64) = 20
-tostr_sizehint(x::Float32) = 12
+function tostr_sizehint(x)
+    8
+end
+function tostr_sizehint(x::AbstractString)
+    lastindex(x)
+end
+function tostr_sizehint(x::Union{String, SubString{String}})
+    sizeof(x)
+end
+function tostr_sizehint(x::Float64)
+    20
+end
+function tostr_sizehint(x::Float32)
+    12
+end
 
 function print_to_string(xs...)
     if isempty(xs)
@@ -169,14 +179,30 @@ string(xs...) = print_to_string(xs...)
 
 # note: print uses an encoding determined by `io` (defaults to UTF-8), whereas
 #       write uses an encoding determined by `s` (UTF-8 for `String`)
-print(io::IO, s::AbstractString) = for c in s; print(io, c); end
-write(io::IO, s::AbstractString) = (len = 0; for c in s; len += write(io, c); end; len)
-show(io::IO, s::AbstractString) = print_quoted(io, s)
+function print(io::IO, s::AbstractString)
+    for c = s
+        print(io, c)
+    end
+end
+function write(io::IO, s::AbstractString)
+    len = 0
+    for c = s
+        len += write(io, c)
+    end
+    len
+end
+function show(io::IO, s::AbstractString)
+    print_quoted(io, s)
+end
 
 # optimized methods to avoid iterating over chars
-write(io::IO, s::Union{String,SubString{String}}) =
+function write(io::IO, s::Union{String, SubString{String}})
     GC.@preserve s unsafe_write(io, pointer(s), reinterpret(UInt, sizeof(s)))
-print(io::IO, s::Union{String,SubString{String}}) = (write(io, s); nothing)
+end
+function print(io::IO, s::Union{String, SubString{String}})
+    write(io, s)
+    nothing
+end
 
 ## printing literal quoted string data ##
 
@@ -220,7 +246,9 @@ julia> repr(big(1/3), context=:compact => true)
 """
 repr(x; context=nothing) = sprint(show, x; context=context)
 
-limitrepr(x) = repr(x, context = :limit=>true)
+function limitrepr(x)
+    repr(x, context=:limit => true)
+end
 
 # IOBuffer views of a (byte)string:
 
@@ -241,7 +269,9 @@ julia> String(take!(io))
 ```
 """
 IOBuffer(str::String) = IOBuffer(unsafe_wrap(Vector{UInt8}, str))
-IOBuffer(s::SubString{String}) = IOBuffer(view(unsafe_wrap(Vector{UInt8}, s.string), s.offset + 1 : s.offset + sizeof(s)))
+function IOBuffer(s::SubString{String})
+    IOBuffer(view(unsafe_wrap(Vector{UInt8}, s.string), s.offset + 1:s.offset + sizeof(s)))
+end
 
 # join is implemented using IO
 
@@ -288,15 +318,28 @@ function join(io::IO, strings, delim="")
     end
 end
 
-join(strings) = sprint(join, strings)
-join(strings, delim) = sprint(join, strings, delim)
-join(strings, delim, last) = sprint(join, strings, delim, last)
+function join(strings)
+    sprint(join, strings)
+end
+function join(strings, delim)
+    sprint(join, strings, delim)
+end
+function join(strings, delim, last)
+    sprint(join, strings, delim, last)
+end
 
 ## string escaping & unescaping ##
 
-need_full_hex(c::Union{Nothing, AbstractChar}) = c !== nothing && isxdigit(c)
-escape_nul(c::Union{Nothing, AbstractChar}) =
-    (c !== nothing && '0' <= c <= '7') ? "\\x00" : "\\0"
+function need_full_hex(c::Union{Nothing, AbstractChar})
+    c !== nothing && isxdigit(c)
+end
+function escape_nul(c::Union{Nothing, AbstractChar})
+    if c !== nothing && '0' <= c <= '7'
+        "\\x00"
+    else
+        "\\0"
+    end
+end
 
 """
     escape_string(str::AbstractString[, esc])::AbstractString
@@ -357,7 +400,9 @@ function escape_string(io::IO, s::AbstractString, esc="")
     end
 end
 
-escape_string(s::AbstractString, esc=('\"',)) = sprint(escape_string, s, esc, sizehint=lastindex(s))
+function escape_string(s::AbstractString, esc=('"',))
+    sprint(escape_string, s, esc, sizehint=lastindex(s))
+end
 
 function print_quoted(io, s::AbstractString)
     print(io, '"')
@@ -453,7 +498,9 @@ function unescape_string(io, s::AbstractString)
         end
     end
 end
-unescape_string(s::AbstractString) = sprint(unescape_string, s, sizehint=lastindex(s))
+function unescape_string(s::AbstractString)
+    sprint(unescape_string, s, sizehint=lastindex(s))
+end
 
 """
     @b_str

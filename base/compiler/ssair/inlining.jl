@@ -14,7 +14,9 @@ struct Signature
     Signature(f, ft, atypes) = new(f, ft, atypes)
     Signature(f, ft, atypes, atype) = new(f, ft, atypes, atype)
 end
-with_atype(sig::Signature) = Signature(sig.f, sig.ft, sig.atypes, argtypes_to_type(sig.atypes))
+function with_atype(sig::Signature)
+    Signature(sig.f, sig.ft, sig.atypes, argtypes_to_type(sig.atypes))
+end
 
 struct InliningTodo
     idx::Int # The statement to replace
@@ -33,7 +35,9 @@ struct InliningTodo
     # simpler inlining algorithm. This flag determines whether that's allowed
     linear_inline_eligible::Bool
 end
-isinvoke(inl::InliningTodo) = inl.isinvoke
+function isinvoke(inl::InliningTodo)
+    inl.isinvoke
+end
 
 struct ConstantCase
     val::Any
@@ -62,7 +66,9 @@ struct UnionSplit
                cases::Vector{Pair{Any, Any}}) =
         new(idx, fully_covered, atype, cases, Int[])
 end
-isinvoke(inl::UnionSplit) = false
+function isinvoke(inl::UnionSplit)
+    false
+end
 
 function ssa_inlining_pass!(ir::IRCode, linetable::Vector{LineInfoNode}, sv::OptimizationState)
     # Go through the function, performing simple ininlingin (e.g. replacing call by constants
@@ -899,11 +905,9 @@ function inline_apply!(ir::IRCode, idx::Int, sig::Signature, params::Params)
 end
 
 # TODO: this test is wrong if we start to handle Unions of function types later
-is_builtin(s::Signature) =
-    isa(s.f, IntrinsicFunction) ||
-    s.ft ⊑ IntrinsicFunction ||
-    isa(s.f, Builtin) ||
-    s.ft ⊑ Builtin
+function is_builtin(s::Signature)
+    s.f isa IntrinsicFunction || (s.ft ⊑ IntrinsicFunction || (s.f isa Builtin || s.ft ⊑ Builtin))
+end
 
 function inline_invoke!(ir::IRCode, idx::Int, sig::Signature, invoke_data::InvokeData, sv::OptimizationState, todo::Vector{Any})
     stmt = ir.stmts[idx]

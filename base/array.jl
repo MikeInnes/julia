@@ -11,7 +11,9 @@ descriptive error string.
 struct DimensionMismatch <: Exception
     msg::AbstractString
 end
-DimensionMismatch() = DimensionMismatch("")
+function DimensionMismatch()
+    DimensionMismatch("")
+end
 
 ## Type aliases for convenience ##
 """
@@ -121,13 +123,21 @@ UInt8
 ```
 """
 eltype(::Type) = Any
-eltype(::Type{Bottom}) = throw(ArgumentError("Union{} does not have elements"))
-eltype(x) = eltype(typeof(x))
+function eltype(::Type{Bottom})
+    throw(ArgumentError("Union{} does not have elements"))
+end
+function eltype(x)
+    eltype(typeof(x))
+end
 
 import Core: arraysize, arrayset, arrayref, const_arrayref
 
-vect() = Vector{Any}()
-vect(X::T...) where {T} = T[ X[i] for i = 1:length(X) ]
+function vect()
+    Vector{Any}()
+end
+function vect(X::T...) where T
+    T[X[i] for i = 1:length(X)]
+end
 
 """
     vect(X...)
@@ -151,12 +161,29 @@ function vect(X...)
     return copyto!(Vector{T}(undef, length(X)), X)
 end
 
-size(a::Array, d::Integer) = arraysize(a, convert(Int, d))
-size(a::Vector) = (arraysize(a,1),)
-size(a::Matrix) = (arraysize(a,1), arraysize(a,2))
-size(a::Array{<:Any,N}) where {N} = (@_inline_meta; ntuple(M -> size(a, M), Val(N)))
+function size(a::Array, d::Integer)
+    arraysize(a, convert(Int, d))
+end
+function size(a::Vector)
+    (arraysize(a, 1),)
+end
+function size(a::Matrix)
+    (arraysize(a, 1), arraysize(a, 2))
+end
+function size(a::Array{<:Any, N}) where N
+    @_inline_meta
+    ntuple((M->begin
+                size(a, M)
+            end), Val(N))
+end
 
-asize_from(a::Array, n) = n > ndims(a) ? () : (arraysize(a,n), asize_from(a, n+1)...)
+function asize_from(a::Array, n)
+    if n > ndims(a)
+        ()
+    else
+        (arraysize(a, n), asize_from(a, n + 1)...)
+    end
+end
 
 """
     Base.isbitsunion(::Type{T})
@@ -173,7 +200,9 @@ false
 ```
 """
 isbitsunion(u::Union) = (@_pure_meta; ccall(:jl_array_store_unboxed, Cint, (Any,), u) != Cint(0))
-isbitsunion(x) = false
+function isbitsunion(x)
+    false
+end
 
 """
     Base.bitsunionsize(U::Union)
@@ -197,9 +226,23 @@ function bitsunionsize(u::Union)
     return sz[]
 end
 
-length(a::Array) = arraylen(a)
-elsize(::Type{<:Array{T}}) where {T} = isbitstype(T) ? sizeof(T) : (isbitsunion(T) ? bitsunionsize(T) : sizeof(Ptr))
-sizeof(a::Array) = Core.sizeof(a)
+function length(a::Array)
+    arraylen(a)
+end
+function elsize(::Type{<:Array{T}}) where T
+    if isbitstype(T)
+        sizeof(T)
+    else
+        if isbitsunion(T)
+            bitsunionsize(T)
+        else
+            sizeof(Ptr)
+        end
+    end
+end
+function sizeof(a::Array)
+    Core.sizeof(a)
+end
 
 function isassigned(a::Array, i::Int...)
     @_inline_meta
@@ -284,7 +327,9 @@ function _throw_argerror()
     throw(ArgumentError("Number of elements to copy must be nonnegative."))
 end
 
-copyto!(dest::Array{T}, src::Array{T}) where {T} = copyto!(dest, 1, src, 1, length(src))
+function copyto!(dest::Array{T}, src::Array{T}) where T
+    copyto!(dest, 1, src, 1, length(src))
+end
 
 # N.B: The generic definition in multidimensional.jl covers, this, this is just here
 # for bootstrapping purposes.
@@ -306,17 +351,33 @@ original.
 """
 copy
 
-copy(a::T) where {T<:Array} = ccall(:jl_array_copy, Ref{T}, (Any,), a)
+function copy(a::T) where T <: Array
+    ccall(:jl_array_copy, Ref{T}, (Any,), a)
+end
 
 ## Constructors ##
 
-similar(a::Array{T,1}) where {T}                    = Vector{T}(undef, size(a,1))
-similar(a::Array{T,2}) where {T}                    = Matrix{T}(undef, size(a,1), size(a,2))
-similar(a::Array{T,1}, S::Type) where {T}           = Vector{S}(undef, size(a,1))
-similar(a::Array{T,2}, S::Type) where {T}           = Matrix{S}(undef, size(a,1), size(a,2))
-similar(a::Array{T}, m::Int) where {T}              = Vector{T}(undef, m)
-similar(a::Array, T::Type, dims::Dims{N}) where {N} = Array{T,N}(undef, dims)
-similar(a::Array{T}, dims::Dims{N}) where {T,N}     = Array{T,N}(undef, dims)
+function similar(a::Array{T, 1}) where T
+    Vector{T}(undef, size(a, 1))
+end
+function similar(a::Array{T, 2}) where T
+    Matrix{T}(undef, size(a, 1), size(a, 2))
+end
+function similar(a::Array{T, 1}, S::Type) where T
+    Vector{S}(undef, size(a, 1))
+end
+function similar(a::Array{T, 2}, S::Type) where T
+    Matrix{S}(undef, size(a, 1), size(a, 2))
+end
+function similar(a::Array{T}, m::Int) where T
+    Vector{T}(undef, m)
+end
+function similar(a::Array, T::Type, dims::Dims{N}) where N
+    Array{T, N}(undef, dims)
+end
+function similar(a::Array{T}, dims::Dims{N}) where {T, N}
+    Array{T, N}(undef, dims)
+end
 
 # T[x...] constructs Array{T,1}
 """
@@ -348,10 +409,35 @@ function getindex(::Type{T}, vals...) where T
     return a
 end
 
-getindex(::Type{T}) where {T} = (@_inline_meta; Vector{T}())
-getindex(::Type{T}, x) where {T} = (@_inline_meta; a = Vector{T}(undef, 1); @inbounds a[1] = x; a)
-getindex(::Type{T}, x, y) where {T} = (@_inline_meta; a = Vector{T}(undef, 2); @inbounds (a[1] = x; a[2] = y); a)
-getindex(::Type{T}, x, y, z) where {T} = (@_inline_meta; a = Vector{T}(undef, 3); @inbounds (a[1] = x; a[2] = y; a[3] = z); a)
+function getindex(::Type{T}) where T
+    @_inline_meta
+    Vector{T}()
+end
+function getindex(::Type{T}, x) where T
+    @_inline_meta
+    a = Vector{T}(undef, 1)
+    @inbounds a[1] = x
+    a
+end
+function getindex(::Type{T}, x, y) where T
+    @_inline_meta
+    a = Vector{T}(undef, 2)
+    @inbounds begin
+            a[1] = x
+            a[2] = y
+        end
+    a
+end
+function getindex(::Type{T}, x, y, z) where T
+    @_inline_meta
+    a = Vector{T}(undef, 3)
+    @inbounds begin
+            a[1] = x
+            a[2] = y
+            a[3] = z
+        end
+    a
+end
 
 function getindex(::Type{Any}, @nospecialize vals...)
     a = Vector{Any}(undef, length(vals))
@@ -360,15 +446,21 @@ function getindex(::Type{Any}, @nospecialize vals...)
     end
     return a
 end
-getindex(::Type{Any}) = Vector{Any}()
+function getindex(::Type{Any})
+    Vector{Any}()
+end
 
 function fill!(a::Union{Array{UInt8}, Array{Int8}}, x::Integer)
     ccall(:memset, Ptr{Cvoid}, (Ptr{Cvoid}, Cint, Csize_t), a, convert(eltype(a), x), length(a))
     return a
 end
 
-to_dim(d::Integer) = d
-to_dim(d::OneTo) = last(d)
+function to_dim(d::Integer)
+    d
+end
+function to_dim(d::OneTo)
+    last(d)
+end
 
 """
     fill(x, dims)
@@ -391,9 +483,19 @@ If `x` is an object reference, all elements will refer to the same object. `fill
 dims)` will return an array filled with the result of evaluating `Foo()` once.
 """
 fill(v, dims::DimOrInd...) = fill(v, dims)
-fill(v, dims::NTuple{N, Union{Integer, OneTo}}) where {N} = fill(v, map(to_dim, dims))
-fill(v, dims::NTuple{N, Integer}) where {N} = (a=Array{typeof(v),N}(undef, dims); fill!(a, v); a)
-fill(v, dims::Tuple{}) = (a=Array{typeof(v),0}(undef, dims); fill!(a, v); a)
+function fill(v, dims::NTuple{N, Union{Integer, OneTo}}) where N
+    fill(v, map(to_dim, dims))
+end
+function fill(v, dims::NTuple{N, Integer}) where N
+    a = Array{typeof(v), N}(undef, dims)
+    fill!(a, v)
+    a
+end
+function fill(v, dims::Tuple{})
+    a = Array{typeof(v), 0}(undef, dims)
+    fill!(a, v)
+    a
+end
 
 """
     zeros([T=Float64,] dims...)
@@ -466,14 +568,26 @@ function _one(unit::T, x::AbstractMatrix) where T
     I
 end
 
-one(x::AbstractMatrix{T}) where {T} = _one(one(T), x)
-oneunit(x::AbstractMatrix{T}) where {T} = _one(oneunit(T), x)
+function one(x::AbstractMatrix{T}) where T
+    _one(one(T), x)
+end
+function oneunit(x::AbstractMatrix{T}) where T
+    _one(oneunit(T), x)
+end
 
 ## Conversions ##
 
-convert(::Type{T}, a::AbstractArray) where {T<:Array} = a isa T ? a : T(a)
+function convert(::Type{T}, a::AbstractArray) where T <: Array
+    if a isa T
+        a
+    else
+        T(a)
+    end
+end
 
-promote_rule(a::Type{Array{T,n}}, b::Type{Array{S,n}}) where {T,n,S} = el_same(promote_type(T,S), a, b)
+function promote_rule(a::Type{Array{T, n}}, b::Type{Array{S, n}}) where {T, n, S}
+    el_same(promote_type(T, S), a, b)
+end
 
 ## Constructors ##
 
@@ -502,8 +616,12 @@ julia> collect(Float64, 1:2:5)
 """
 collect(::Type{T}, itr) where {T} = _collect(T, itr, IteratorSize(itr))
 
-_collect(::Type{T}, itr, isz::HasLength) where {T} = copyto!(Vector{T}(undef, Int(length(itr)::Integer)), itr)
-_collect(::Type{T}, itr, isz::HasShape) where {T}  = copyto!(similar(Array{T}, axes(itr)), itr)
+function _collect(::Type{T}, itr, isz::HasLength) where T
+    copyto!(Vector{T}(undef, Int(length(itr)::Integer)), itr)
+end
+function _collect(::Type{T}, itr, isz::HasShape) where T
+    copyto!(similar(Array{T}, axes(itr)), itr)
+end
 function _collect(::Type{T}, itr, isz::SizeUnknown) where T
     a = Vector{T}()
     for x in itr
@@ -513,12 +631,18 @@ function _collect(::Type{T}, itr, isz::SizeUnknown) where T
 end
 
 # make a collection similar to `c` and appropriate for collecting `itr`
-_similar_for(c::AbstractArray, ::Type{T}, itr, ::SizeUnknown) where {T} = similar(c, T, 0)
-_similar_for(c::AbstractArray, ::Type{T}, itr, ::HasLength) where {T} =
+function _similar_for(c::AbstractArray, ::Type{T}, itr, ::SizeUnknown) where T
+    similar(c, T, 0)
+end
+function _similar_for(c::AbstractArray, ::Type{T}, itr, ::HasLength) where T
     similar(c, T, Int(length(itr)::Integer))
-_similar_for(c::AbstractArray, ::Type{T}, itr, ::HasShape) where {T} =
+end
+function _similar_for(c::AbstractArray, ::Type{T}, itr, ::HasShape) where T
     similar(c, T, axes(itr))
-_similar_for(c, ::Type{T}, itr, isz) where {T} = similar(c, T)
+end
+function _similar_for(c, ::Type{T}, itr, isz) where T
+    similar(c, T)
+end
 
 """
     collect(collection)
@@ -543,12 +667,17 @@ julia> collect(1:2:13)
 """
 collect(itr) = _collect(1:1 #= Array =#, itr, IteratorEltype(itr), IteratorSize(itr))
 
-collect(A::AbstractArray) = _collect_indices(axes(A), A)
+function collect(A::AbstractArray)
+    _collect_indices(axes(A), A)
+end
 
-collect_similar(cont, itr) = _collect(cont, itr, IteratorEltype(itr), IteratorSize(itr))
+function collect_similar(cont, itr)
+    _collect(cont, itr, IteratorEltype(itr), IteratorSize(itr))
+end
 
-_collect(cont, itr, ::HasEltype, isz::Union{HasLength,HasShape}) =
+function _collect(cont, itr, ::HasEltype, isz::Union{HasLength, HasShape})
     copyto!(_similar_for(cont, eltype(itr), itr, isz), itr)
+end
 
 function _collect(cont, itr, ::HasEltype, isz::SizeUnknown)
     a = _similar_for(cont, eltype(itr), itr, isz)
@@ -558,9 +687,12 @@ function _collect(cont, itr, ::HasEltype, isz::SizeUnknown)
     return a
 end
 
-_collect_indices(::Tuple{}, A) = copyto!(Array{eltype(A),0}(undef), A)
-_collect_indices(indsA::Tuple{Vararg{OneTo}}, A) =
+function _collect_indices(::Tuple{}, A)
+    copyto!(Array{eltype(A), 0}(undef), A)
+end
+function _collect_indices(indsA::Tuple{Vararg{OneTo}}, A)
     copyto!(Array{eltype(A)}(undef, length.(indsA)), A)
+end
 function _collect_indices(indsA, A)
     B = Array{eltype(A)}(undef, length.(indsA))
     copyto!(B, CartesianIndices(axes(B)), A, CartesianIndices(indsA))
@@ -594,8 +726,12 @@ else
     end
 end
 
-_array_for(::Type{T}, itr, ::HasLength) where {T} = Vector{T}(undef, Int(length(itr)::Integer))
-_array_for(::Type{T}, itr, ::HasShape{N}) where {T,N} = similar(Array{T,N}, axes(itr))
+function _array_for(::Type{T}, itr, ::HasLength) where T
+    Vector{T}(undef, Int(length(itr)::Integer))
+end
+function _array_for(::Type{T}, itr, ::HasShape{N}) where {T, N}
+    similar(Array{T, N}, axes(itr))
+end
 
 function collect(itr::Generator)
     isz = IteratorSize(itr.iter)
@@ -612,8 +748,9 @@ function collect(itr::Generator)
     end
 end
 
-_collect(c, itr, ::EltypeUnknown, isz::SizeUnknown) =
+function _collect(c, itr, ::EltypeUnknown, isz::SizeUnknown)
     grow_to!(_similar_for(c, @default_eltype(itr), itr, isz), itr)
+end
 
 function _collect(c, itr, ::EltypeUnknown, isz::Union{HasLength,HasShape})
     y = iterate(itr)
@@ -701,7 +838,14 @@ end
 
 ## Iteration ##
 
-iterate(A::Array, i=1) = (@_inline_meta; (i % UInt) - 1 < length(A) ? (@inbounds A[i], i + 1) : nothing)
+function iterate(A::Array, i=1)
+    @_inline_meta
+    if i % UInt - 1 < length(A)
+        @inbounds (A[i], i + 1)
+    else
+        nothing
+    end
+end
 
 ## Indexing: getindex ##
 
@@ -806,21 +950,27 @@ end
 
 # efficiently grow an array
 
-_growbeg!(a::Vector, delta::Integer) =
+function _growbeg!(a::Vector, delta::Integer)
     ccall(:jl_array_grow_beg, Cvoid, (Any, UInt), a, delta)
-_growend!(a::Vector, delta::Integer) =
+end
+function _growend!(a::Vector, delta::Integer)
     ccall(:jl_array_grow_end, Cvoid, (Any, UInt), a, delta)
-_growat!(a::Vector, i::Integer, delta::Integer) =
+end
+function _growat!(a::Vector, i::Integer, delta::Integer)
     ccall(:jl_array_grow_at, Cvoid, (Any, Int, UInt), a, i - 1, delta)
+end
 
 # efficiently delete part of an array
 
-_deletebeg!(a::Vector, delta::Integer) =
+function _deletebeg!(a::Vector, delta::Integer)
     ccall(:jl_array_del_beg, Cvoid, (Any, UInt), a, delta)
-_deleteend!(a::Vector, delta::Integer) =
+end
+function _deleteend!(a::Vector, delta::Integer)
     ccall(:jl_array_del_end, Cvoid, (Any, UInt), a, delta)
-_deleteat!(a::Vector, i::Integer, delta::Integer) =
+end
+function _deleteat!(a::Vector, i::Integer, delta::Integer)
     ccall(:jl_array_del_at, Cvoid, (Any, Int, UInt), a, i - 1, delta)
+end
 
 ## Dequeue functionality ##
 
@@ -896,8 +1046,12 @@ function append!(a::Vector, items::AbstractVector)
     return a
 end
 
-append!(a::Vector, iter) = _append!(a, IteratorSize(iter), iter)
-push!(a::Vector, iter...) = append!(a, iter)
+function append!(a::Vector, iter)
+    _append!(a, IteratorSize(iter), iter)
+end
+function push!(a::Vector, iter...)
+    append!(a, iter)
+end
 
 function _append!(a, ::Union{HasLength,HasShape}, iter)
     require_one_based_indexing(a)
@@ -944,8 +1098,12 @@ function prepend!(a::Vector, items::AbstractVector)
     return a
 end
 
-prepend!(a::Vector, iter) = _prepend!(a, IteratorSize(iter), iter)
-pushfirst!(a::Vector, iter...) = prepend!(a, iter)
+function prepend!(a::Vector, iter)
+    _prepend!(a, IteratorSize(iter), iter)
+end
+function pushfirst!(a::Vector, iter...)
+    prepend!(a, iter)
+end
 
 function _prepend!(a, ::Union{HasLength,HasShape}, iter)
     require_one_based_indexing(a)
@@ -1209,7 +1367,9 @@ Stacktrace:
 ```
 """
 deleteat!(a::Vector, inds) = _deleteat!(a, inds)
-deleteat!(a::Vector, inds::AbstractVector) = _deleteat!(a, to_indices(a, (inds,))[1])
+function deleteat!(a::Vector, inds::AbstractVector)
+    _deleteat!(a, (to_indices(a, (inds,)))[1])
+end
 
 function _deleteat!(a::Vector, inds)
     n = length(a)
@@ -1387,7 +1547,9 @@ function empty!(a::Vector)
     return a
 end
 
-_memcmp(a, b, len) = ccall(:memcmp, Int32, (Ptr{Cvoid}, Ptr{Cvoid}, Csize_t), a, b, len) % Int
+function _memcmp(a, b, len)
+    ccall(:memcmp, Int32, (Ptr{Cvoid}, Ptr{Cvoid}, Csize_t), a, b, len) % Int
+end
 
 # use memcmp for cmp on byte arrays
 function cmp(a::Array{UInt8,1}, b::Array{UInt8,1})
@@ -1397,8 +1559,9 @@ end
 
 const BitIntegerArray{N} = Union{map(T->Array{T,N}, BitInteger_types)...} where N
 # use memcmp for == on bit integer types
-==(a::Arr, b::Arr) where {Arr <: BitIntegerArray} =
+function (a::Arr == b::Arr) where Arr <: BitIntegerArray
     size(a) == size(b) && 0 == _memcmp(a, b, sizeof(eltype(Arr)) * length(a))
+end
 
 # this is ~20% faster than the generic implementation above for very small arrays
 function ==(a::Arr, b::Arr) where Arr <: BitIntegerArray{1}
@@ -1462,7 +1625,9 @@ function reverse(A::AbstractVector, s=first(LinearIndices(A)), n=last(LinearIndi
 end
 
 # to resolve ambiguity with reverse(A; dims)
-reverse(A::Vector) = invoke(reverse, Tuple{AbstractVector}, A)
+function reverse(A::Vector)
+    invoke(reverse, Tuple{AbstractVector}, A)
+end
 
 function reverseind(a::AbstractVector, i::Integer)
     li = LinearIndices(a)
@@ -1513,8 +1678,12 @@ end
 
 # concatenations of homogeneous combinations of vectors, horizontal and vertical
 
-vcat() = Vector{Any}()
-hcat() = Vector{Any}()
+function vcat()
+    Vector{Any}()
+end
+function hcat()
+    Vector{Any}()
+end
 
 function hcat(V::Vector{T}...) where T
     height = length(V[1])
@@ -1565,7 +1734,11 @@ function vcat(arrays::Vector{T}...) where T
     return arr
 end
 
-_cat(n::Integer, x::Integer...) = reshape([x...], (ntuple(x->1, n-1)..., length(x)))
+function _cat(n::Integer, x::Integer...)
+    reshape([x...], (ntuple((x->begin
+                        1
+                    end), n - 1)..., length(x)))
+end
 
 ## find ##
 
@@ -1656,7 +1829,9 @@ function findfirst(A)
 end
 
 # Needed for bootstrap, and allows defining only an optimized findnext method
-findfirst(A::Union{AbstractArray, AbstractString}) = findnext(A, first(keys(A)))
+function findfirst(A::Union{AbstractArray, AbstractString})
+    findnext(A, first(keys(A)))
+end
 
 """
     findnext(predicate::Function, A, i)
@@ -1737,8 +1912,9 @@ function findfirst(testf::Function, A)
 end
 
 # Needed for bootstrap, and allows defining only an optimized findnext method
-findfirst(testf::Function, A::Union{AbstractArray, AbstractString}) =
+function findfirst(testf::Function, A::Union{AbstractArray, AbstractString})
     findnext(testf, A, first(keys(A)))
+end
 
 function findfirst(p::Union{Fix2{typeof(isequal),T},Fix2{typeof(==),T}}, r::StepRange{T,S}) where {T,S}
     first(r) <= p.x <= last(r) || return nothing
@@ -1832,7 +2008,9 @@ function findlast(A)
 end
 
 # Needed for bootstrap, and allows defining only an optimized findprev method
-findlast(A::Union{AbstractArray, AbstractString}) = findprev(A, last(keys(A)))
+function findlast(A::Union{AbstractArray, AbstractString})
+    findprev(A, last(keys(A)))
+end
 
 """
     findprev(predicate::Function, A, i)
@@ -1915,8 +2093,9 @@ function findlast(testf::Function, A)
 end
 
 # Needed for bootstrap, and allows defining only an optimized findprev method
-findlast(testf::Function, A::Union{AbstractArray, AbstractString}) =
+function findlast(testf::Function, A::Union{AbstractArray, AbstractString})
     findprev(testf, A, last(keys(A)))
+end
 
 """
     findall(f::Function, A)
@@ -2026,9 +2205,27 @@ function findall(A::AbstractArray{Bool})
     I
 end
 
-findall(x::Bool) = x ? [1] : Vector{Int}()
-findall(testf::Function, x::Number) = testf(x) ? [1] : Vector{Int}()
-findall(p::Fix2{typeof(in)}, x::Number) = x in p.x ? [1] : Vector{Int}()
+function findall(x::Bool)
+    if x
+        [1]
+    else
+        Vector{Int}()
+    end
+end
+function findall(testf::Function, x::Number)
+    if testf(x)
+        [1]
+    else
+        Vector{Int}()
+    end
+end
+function findall(p::Fix2{typeof(in)}, x::Number)
+    if x in p.x
+        [1]
+    else
+        Vector{Int}()
+    end
+end
 
 """
     findmax(itr) -> (x, index)
@@ -2268,7 +2465,9 @@ function findall(pred::Fix2{typeof(in),<:Union{Array{<:Real},Real}}, x::Array{<:
 end
 # issorted fails for some element types so the method above has to be restricted
 # to element with isless/< defined.
-findall(pred::Fix2{typeof(in)}, x::Union{AbstractArray, Tuple}) = _findin(x, pred.x)
+function findall(pred::Fix2{typeof(in)}, x::Union{AbstractArray, Tuple})
+    _findin(x, pred.x)
+end
 
 # Copying subregions
 function indcopy(sz::Dims, I::Vector)
@@ -2354,22 +2553,30 @@ function filter!(f, a::AbstractVector)
     return a
 end
 
-filter(f, a::Vector) = mapfilter(f, push!, a, empty(a))
+function filter(f, a::Vector)
+    mapfilter(f, push!, a, empty(a))
+end
 
 # set-like operators for vectors
 # These are moderately efficient, preserve order, and remove dupes.
 
-_unique_filter!(pred, update!, state) = function (x)
-    if pred(x, state)
-        update!(state, x)
-        true
-    else
-        false
+function _unique_filter!(pred, update!, state)
+    function (x,)
+        if pred(x, state)
+            update!(state, x)
+            true
+        else
+            false
+        end
     end
 end
 
-_grow_filter!(seen) = _unique_filter!(∉, push!, seen)
-_shrink_filter!(keep) = _unique_filter!(∈, pop!, keep)
+function _grow_filter!(seen)
+    _unique_filter!(∉, push!, seen)
+end
+function _shrink_filter!(keep)
+    _unique_filter!(∈, pop!, keep)
+end
 
 function _grow!(pred!, v::AbstractVector, itrs)
     filter!(pred!, v) # uniquify v
@@ -2379,11 +2586,13 @@ function _grow!(pred!, v::AbstractVector, itrs)
     return v
 end
 
-union!(v::AbstractVector{T}, itrs...) where {T} =
+function union!(v::AbstractVector{T}, itrs...) where T
     _grow!(_grow_filter!(sizehint!(Set{T}(), length(v))), v, itrs)
+end
 
-symdiff!(v::AbstractVector{T}, itrs...) where {T} =
+function symdiff!(v::AbstractVector{T}, itrs...) where T
     _grow!(_shrink_filter!(symdiff!(Set{T}(), v, itrs...)), v, itrs)
+end
 
 function _shrink!(shrinker!, v::AbstractVector, itrs)
     seen = Set{eltype(v)}()
@@ -2392,16 +2601,28 @@ function _shrink!(shrinker!, v::AbstractVector, itrs)
     filter!(_in(seen), v)
 end
 
-intersect!(v::AbstractVector, itrs...) = _shrink!(intersect!, v, itrs)
-setdiff!(  v::AbstractVector, itrs...) = _shrink!(setdiff!, v, itrs)
+function intersect!(v::AbstractVector, itrs...)
+    _shrink!(intersect!, v, itrs)
+end
+function setdiff!(v::AbstractVector, itrs...)
+    _shrink!(setdiff!, v, itrs)
+end
 
-vectorfilter(f, v::AbstractVector) = filter(f, v) # TODO: do we want this special case?
-vectorfilter(f, v) = [x for x in v if f(x)]
+function vectorfilter(f, v::AbstractVector)
+    filter(f, v)
+end # TODO: do we want this special case?
+function vectorfilter(f, v)
+    [x for x = v if f(x)]
+end
 
 function _shrink(shrinker!, itr, itrs)
     keep = shrinker!(Set(itr), itrs...)
     vectorfilter(_shrink_filter!(keep), itr)
 end
 
-intersect(itr, itrs...) = _shrink(intersect!, itr, itrs)
-setdiff(  itr, itrs...) = _shrink(setdiff!, itr, itrs)
+function intersect(itr, itrs...)
+    _shrink(intersect!, itr, itrs)
+end
+function setdiff(itr, itrs...)
+    _shrink(setdiff!, itr, itrs)
+end

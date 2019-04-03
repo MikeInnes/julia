@@ -17,21 +17,39 @@ symbol `sym`.
 """
 struct Irrational{sym} <: AbstractIrrational end
 
-show(io::IO, x::Irrational{sym}) where {sym} = print(io, sym)
+function show(io::IO, x::Irrational{sym}) where sym
+    print(io, sym)
+end
 
 function show(io::IO, ::MIME"text/plain", x::Irrational{sym}) where {sym}
     print(io, sym, " = ", string(float(x))[1:15], "...")
 end
 
-promote_rule(::Type{<:AbstractIrrational}, ::Type{Float16}) = Float16
-promote_rule(::Type{<:AbstractIrrational}, ::Type{Float32}) = Float32
-promote_rule(::Type{<:AbstractIrrational}, ::Type{<:AbstractIrrational}) = Float64
-promote_rule(::Type{<:AbstractIrrational}, ::Type{T}) where {T<:Real} = promote_type(Float64, T)
-promote_rule(::Type{S}, ::Type{T}) where {S<:AbstractIrrational,T<:Number} = promote_type(promote_type(S, real(T)), T)
+function promote_rule(::Type{<:AbstractIrrational}, ::Type{Float16})
+    Float16
+end
+function promote_rule(::Type{<:AbstractIrrational}, ::Type{Float32})
+    Float32
+end
+function promote_rule(::Type{<:AbstractIrrational}, ::Type{<:AbstractIrrational})
+    Float64
+end
+function promote_rule(::Type{<:AbstractIrrational}, ::Type{T}) where T <: Real
+    promote_type(Float64, T)
+end
+function promote_rule(::Type{S}, ::Type{T}) where {S <: AbstractIrrational, T <: Number}
+    promote_type(promote_type(S, real(T)), T)
+end
 
-AbstractFloat(x::AbstractIrrational) = Float64(x)
-Float16(x::AbstractIrrational) = Float16(Float32(x))
-Complex{T}(x::AbstractIrrational) where {T<:Real} = Complex{T}(T(x))
+function AbstractFloat(x::AbstractIrrational)
+    Float64(x)
+end
+function Float16(x::AbstractIrrational)
+    Float16(Float32(x))
+end
+function Complex{T}(x::AbstractIrrational) where T <: Real
+    Complex{T}(T(x))
+end
 
 @pure function Rational{T}(x::AbstractIrrational) where T<:Integer
     o = precision(BigFloat)
@@ -47,7 +65,9 @@ Complex{T}(x::AbstractIrrational) where {T<:Real} = Complex{T}(T(x))
         p += 32
     end
 end
-(::Type{Rational{BigInt}})(x::AbstractIrrational) = throw(ArgumentError("Cannot convert an AbstractIrrational to a Rational{BigInt}: use rationalize(Rational{BigInt}, x) instead"))
+function (::Type{Rational{BigInt}})(x::AbstractIrrational)
+    throw(ArgumentError("Cannot convert an AbstractIrrational to a Rational{BigInt}: use rationalize(Rational{BigInt}, x) instead"))
+end
 
 @pure function (t::Type{T})(x::AbstractIrrational, r::RoundingMode) where T<:Union{Float32,Float64}
     setprecision(BigFloat, 256) do
@@ -55,40 +75,76 @@ end
     end
 end
 
-float(::Type{<:AbstractIrrational}) = Float64
+function float(::Type{<:AbstractIrrational})
+    Float64
+end
 
-==(::Irrational{s}, ::Irrational{s}) where {s} = true
-==(::AbstractIrrational, ::AbstractIrrational) = false
+function (::Irrational{s} == ::Irrational{s}) where s
+    true
+end
+function ==(::AbstractIrrational, ::AbstractIrrational)
+    false
+end
 
-<(::Irrational{s}, ::Irrational{s}) where {s} = false
+function (::Irrational{s} < ::Irrational{s}) where s
+    false
+end
 function <(x::AbstractIrrational, y::AbstractIrrational)
     Float64(x) != Float64(y) || throw(MethodError(<, (x, y)))
     return Float64(x) < Float64(y)
 end
 
-<=(::Irrational{s}, ::Irrational{s}) where {s} = true
-<=(x::AbstractIrrational, y::AbstractIrrational) = x==y || x<y
+function (::Irrational{s} <= ::Irrational{s}) where s
+    true
+end
+function <=(x::AbstractIrrational, y::AbstractIrrational)
+    x == y || x < y
+end
 
 # Irrationals, by definition, can't have a finite representation equal them exactly
-==(x::AbstractIrrational, y::Real) = false
-==(x::Real, y::AbstractIrrational) = false
+function ==(x::AbstractIrrational, y::Real)
+    false
+end
+function ==(x::Real, y::AbstractIrrational)
+    false
+end
 
 # Irrational vs AbstractFloat
-<(x::AbstractIrrational, y::Float64) = Float64(x,RoundUp) <= y
-<(x::Float64, y::AbstractIrrational) = x <= Float64(y,RoundDown)
-<(x::AbstractIrrational, y::Float32) = Float32(x,RoundUp) <= y
-<(x::Float32, y::AbstractIrrational) = x <= Float32(y,RoundDown)
-<(x::AbstractIrrational, y::Float16) = Float32(x,RoundUp) <= y
-<(x::Float16, y::AbstractIrrational) = x <= Float32(y,RoundDown)
-<(x::AbstractIrrational, y::BigFloat) = setprecision(precision(y)+32) do
-    big(x) < y
+function <(x::AbstractIrrational, y::Float64)
+    Float64(x, RoundUp) <= y
 end
-<(x::BigFloat, y::AbstractIrrational) = setprecision(precision(x)+32) do
-    x < big(y)
+function <(x::Float64, y::AbstractIrrational)
+    x <= Float64(y, RoundDown)
+end
+function <(x::AbstractIrrational, y::Float32)
+    Float32(x, RoundUp) <= y
+end
+function <(x::Float32, y::AbstractIrrational)
+    x <= Float32(y, RoundDown)
+end
+function <(x::AbstractIrrational, y::Float16)
+    Float32(x, RoundUp) <= y
+end
+function <(x::Float16, y::AbstractIrrational)
+    x <= Float32(y, RoundDown)
+end
+function <(x::AbstractIrrational, y::BigFloat)
+    setprecision(precision(y) + 32) do 
+        big(x) < y
+    end
+end
+function <(x::BigFloat, y::AbstractIrrational)
+    setprecision(precision(x) + 32) do 
+        x < big(y)
+    end
 end
 
-<=(x::AbstractIrrational, y::AbstractFloat) = x < y
-<=(x::AbstractFloat, y::AbstractIrrational) = x < y
+function <=(x::AbstractIrrational, y::AbstractFloat)
+    x < y
+end
+function <=(x::AbstractFloat, y::AbstractIrrational)
+    x < y
+end
 
 # Irrational vs Rational
 @pure function rationalize(::Type{T}, x::AbstractIrrational; tol::Real=0) where T
@@ -117,28 +173,54 @@ function <(x::Rational{T}, y::AbstractIrrational) where T
         return x < ry
     end
 end
-<(x::AbstractIrrational, y::Rational{BigInt}) = big(x) < y
-<(x::Rational{BigInt}, y::AbstractIrrational) = x < big(y)
+function <(x::AbstractIrrational, y::Rational{BigInt})
+    big(x) < y
+end
+function <(x::Rational{BigInt}, y::AbstractIrrational)
+    x < big(y)
+end
 
-<=(x::AbstractIrrational, y::Rational) = x < y
-<=(x::Rational, y::AbstractIrrational) = x < y
+function <=(x::AbstractIrrational, y::Rational)
+    x < y
+end
+function <=(x::Rational, y::AbstractIrrational)
+    x < y
+end
 
-isfinite(::AbstractIrrational) = true
-isinteger(::AbstractIrrational) = false
-iszero(::AbstractIrrational) = false
-isone(::AbstractIrrational) = false
+function isfinite(::AbstractIrrational)
+    true
+end
+function isinteger(::AbstractIrrational)
+    false
+end
+function iszero(::AbstractIrrational)
+    false
+end
+function isone(::AbstractIrrational)
+    false
+end
 
-hash(x::Irrational, h::UInt) = 3*objectid(x) - h
+function hash(x::Irrational, h::UInt)
+    3 * objectid(x) - h
+end
 
-widen(::Type{T}) where {T<:Irrational} = T
+function widen(::Type{T}) where T <: Irrational
+    T
+end
 
--(x::AbstractIrrational) = -Float64(x)
+function -(x::AbstractIrrational)
+    -(Float64(x))
+end
 for op in Symbol[:+, :-, :*, :/, :^]
     @eval $op(x::AbstractIrrational, y::AbstractIrrational) = $op(Float64(x),Float64(y))
 end
-*(x::Bool, y::AbstractIrrational) = ifelse(x, Float64(y), 0.0)
+function *(x::Bool, y::AbstractIrrational)
+    ifelse(x, Float64(y), 0.0)
+end
 
-round(x::Irrational, r::RoundingMode) = round(float(x), r)
+function round(x::Irrational, r::RoundingMode)
+    round(float(x), r)
+end
 
 """
 	@irrational sym val def
@@ -175,8 +257,12 @@ macro irrational(sym, val, def)
     end
 end
 
-big(x::AbstractIrrational) = BigFloat(x)
-big(::Type{<:AbstractIrrational}) = BigFloat
+function big(x::AbstractIrrational)
+    BigFloat(x)
+end
+function big(::Type{<:AbstractIrrational})
+    BigFloat
+end
 
 # align along = for nice Array printing
 function alignment(io::IO, x::AbstractIrrational)
@@ -186,4 +272,6 @@ function alignment(io::IO, x::AbstractIrrational)
 end
 
 # inv
-inv(x::AbstractIrrational) = 1/x
+function inv(x::AbstractIrrational)
+    1 / x
+end

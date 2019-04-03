@@ -12,18 +12,32 @@ export quot,
        show_sexpr,
        @dump
 
-quot(ex) = Expr(:quote, ex)
+function quot(ex)
+    Expr(:quote, ex)
+end
 
-isexpr(@nospecialize(ex), head::Symbol) = isa(ex, Expr) && ex.head === head
-isexpr(@nospecialize(ex), heads::Union{Set,Vector,Tuple}) = isa(ex, Expr) && in(ex.head, heads)
-isexpr(@nospecialize(ex), heads, n::Int) = isexpr(ex, heads) && length(ex.args) == n
+function isexpr(@nospecialize(ex), head::Symbol)
+    ex isa Expr && ex.head === head
+end
+function isexpr(@nospecialize(ex), heads::Union{Set, Vector, Tuple})
+    ex isa Expr && ex.head in heads
+end
+function isexpr(@nospecialize(ex), heads, n::Int)
+    isexpr(ex, heads) && length(ex.args) == n
+end
 
 
 # ---- show_sexpr: print an AST as an S-expression ----
 
-show_sexpr(ex) = show_sexpr(stdout, ex)
-show_sexpr(io::IO, ex) = show_sexpr(io, ex, 0)
-show_sexpr(io::IO, ex, indent::Int) = show(io, ex)
+function show_sexpr(ex)
+    show_sexpr(stdout, ex)
+end
+function show_sexpr(io::IO, ex)
+    show_sexpr(io, ex, 0)
+end
+function show_sexpr(io::IO, ex, indent::Int)
+    show(io, ex)
+end
 
 const sexpr_indent_width = 2
 
@@ -291,8 +305,12 @@ function _partially_inline!(@nospecialize(x), slot_replacements::Vector{Any},
     return x
 end
 
-_instantiate_type_in_env(x, spsig, spvals) = ccall(:jl_instantiate_type_in_env, Any, (Any, Any, Ptr{Any}), x, spsig, spvals)
+function _instantiate_type_in_env(x, spsig, spvals)
+    ccall(:jl_instantiate_type_in_env, Any, (Any, Any, Ptr{Any}), x, spsig, spvals)
+end
 
-is_meta_expr_head(head::Symbol) = (head === :inbounds || head === :boundscheck || head === :meta || head === :loopinfo)
+function is_meta_expr_head(head::Symbol)
+    head === :inbounds || (head === :boundscheck || (head === :meta || head === :loopinfo))
+end
 
 end # module

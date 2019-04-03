@@ -12,11 +12,19 @@ const setproperty! = setfield!
 
 ccall(:jl_set_istopmod, Cvoid, (Any, Bool), Compiler, false)
 
-eval(x) = Core.eval(Compiler, x)
-eval(m, x) = Core.eval(m, x)
+function eval(x)
+    Core.eval(Compiler, x)
+end
+function eval(m, x)
+    Core.eval(m, x)
+end
 
-include(x) = Core.include(Compiler, x)
-include(mod, x) = Core.include(mod, x)
+function include(x)
+    Core.include(Compiler, x)
+end
+function include(mod, x)
+    Core.include(mod, x)
+end
 
 #############
 # from Base #
@@ -31,7 +39,9 @@ include("options.jl")
 
 # core operations & types
 function return_type end # promotion.jl expects this to exist
-is_return_type(@Core.nospecialize(f)) = f === return_type
+function is_return_type((@Core).nospecialize(f))
+    f === return_type
+end
 include("promotion.jl")
 include("tuple.jl")
 include("pair.jl")
@@ -53,12 +63,24 @@ const checked_add = +
 const checked_sub = -
 const SignedInt = Union{Int8,Int16,Int32,Int64,Int128}
 const UnsignedInt = Union{UInt8,UInt16,UInt32,UInt64,UInt128}
-sub_with_overflow(x::T, y::T) where {T<:SignedInt}   = checked_ssub_int(x, y)
-sub_with_overflow(x::T, y::T) where {T<:UnsignedInt} = checked_usub_int(x, y)
-sub_with_overflow(x::Bool, y::Bool) = (x-y, false)
-add_with_overflow(x::T, y::T) where {T<:SignedInt}   = checked_sadd_int(x, y)
-add_with_overflow(x::T, y::T) where {T<:UnsignedInt} = checked_uadd_int(x, y)
-add_with_overflow(x::Bool, y::Bool) = (x+y, false)
+function sub_with_overflow(x::T, y::T) where T <: SignedInt
+    checked_ssub_int(x, y)
+end
+function sub_with_overflow(x::T, y::T) where T <: UnsignedInt
+    checked_usub_int(x, y)
+end
+function sub_with_overflow(x::Bool, y::Bool)
+    (x - y, false)
+end
+function add_with_overflow(x::T, y::T) where T <: SignedInt
+    checked_sadd_int(x, y)
+end
+function add_with_overflow(x::T, y::T) where T <: UnsignedInt
+    checked_uadd_int(x, y)
+end
+function add_with_overflow(x::Bool, y::Bool)
+    (x + y, false)
+end
 
 # core array operations
 include("indices.jl")

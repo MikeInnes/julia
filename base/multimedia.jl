@@ -44,11 +44,19 @@ macro MIME_str(s)
 end
 
 # fallback text/plain representation of any type:
-show(io::IO, ::MIME"text/plain", x) = show(io, x)
+function show(io::IO, ::@MIME_str("text/plain"), x)
+    show(io, x)
+end
 
-MIME(s) = MIME{Symbol(s)}()
-show(io::IO, ::MIME{mime}) where {mime} = print(io, "MIME type ", string(mime))
-print(io::IO, ::MIME{mime}) where {mime} = print(io, mime)
+function MIME(s)
+    MIME{Symbol(s)}()
+end
+function show(io::IO, ::MIME{mime}) where mime
+    print(io, "MIME type ", string(mime))
+end
+function print(io::IO, ::MIME{mime}) where mime
+    print(io, mime)
+end
 
 ###########################################################################
 # For any type T one can define show(io, ::MIME"type", x::T) = ...
@@ -74,7 +82,9 @@ false
 ```
 """
 showable(::MIME{mime}, @nospecialize x) where {mime} = hasmethod(show, Tuple{IO, MIME{mime}, typeof(x)})
-showable(m::AbstractString, @nospecialize x) = showable(MIME(m), x)
+function showable(m::AbstractString, @nospecialize(x))
+    showable(MIME(m), x)
+end
 
 """
     show(io, mime, x)
@@ -106,7 +116,9 @@ The first argument to `show` can be an [`IOContext`](@ref) specifying output for
 See [`IOContext`](@ref) for details.
 """
 show(stream, mime, x)
-show(io::IO, m::AbstractString, x) = show(io, MIME(m), x)
+function show(io::IO, m::AbstractString, x)
+    show(io, MIME(m), x)
+end
 
 """
     repr(mime, x; context=nothing)
@@ -143,12 +155,20 @@ julia> repr("text/plain", A)
 ```
 """
 repr(m::MIME, x; context=nothing) = istextmime(m) ? _textrepr(m, x, context) : _binrepr(m, x, context)
-repr(m::AbstractString, x; context=nothing) = repr(MIME(m), x; context=context)
+function repr(m::AbstractString, x; context=nothing)
+    repr(MIME(m), x; context=context)
+end
 
 # strings are shown escaped for text/plain
-_textrepr(m::MIME, x, context) = String(__binrepr(m, x, context))
-_textrepr(::MIME, x::AbstractString, context) = x
-_textrepr(m::MIME"text/plain", x::AbstractString, context) = String(__binrepr(m, x, context))
+function _textrepr(m::MIME, x, context)
+    String(__binrepr(m, x, context))
+end
+function _textrepr(::MIME, x::AbstractString, context)
+    x
+end
+function _textrepr(m::@MIME_str("text/plain"), x::AbstractString, context)
+    String(__binrepr(m, x, context))
+end
 
 
 function __binrepr(m::MIME, x, context)
@@ -160,8 +180,12 @@ function __binrepr(m::MIME, x, context)
     end
     take!(s)
 end
-_binrepr(m::MIME, x, context) = __binrepr(m, x, context)
-_binrepr(m::MIME, x::Vector{UInt8}, context) = x
+function _binrepr(m::MIME, x, context)
+    __binrepr(m, x, context)
+end
+function _binrepr(m::MIME, x::Vector{UInt8}, context)
+    x
+end
 
 """
     istextmime(m::MIME)
@@ -179,7 +203,9 @@ false
 ```
 """
 istextmime(m::MIME) = startswith(string(m), "text/")
-istextmime(m::AbstractString) = istextmime(MIME(m))
+function istextmime(m::AbstractString)
+    istextmime(MIME(m))
+end
 
 for mime in ["application/atom+xml", "application/ecmascript",
              "application/javascript", "application/julia",
@@ -211,8 +237,12 @@ of this.
 abstract type AbstractDisplay end
 
 # it is convenient to accept strings instead of ::MIME
-display(d::AbstractDisplay, mime::AbstractString, @nospecialize x) = display(d, MIME(mime), x)
-display(mime::AbstractString, @nospecialize x) = display(MIME(mime), x)
+function display(d::AbstractDisplay, mime::AbstractString, @nospecialize(x))
+    display(d, MIME(mime), x)
+end
+function display(mime::AbstractString, @nospecialize(x))
+    display(MIME(mime), x)
+end
 
 """
     displayable(mime) -> Bool
@@ -223,7 +253,9 @@ any of the displays in the current display stack, or specifically by the display
 second variant.
 """
 displayable(d::AbstractDisplay, mime::AbstractString) = displayable(d, MIME(mime))
-displayable(mime::AbstractString) = displayable(MIME(mime))
+function displayable(mime::AbstractString)
+    displayable(MIME(mime))
+end
 
 # simplest display, which only knows how to display text/plain
 
@@ -237,19 +269,29 @@ objects are printed in the Julia REPL.)
 struct TextDisplay <: AbstractDisplay
     io::IO
 end
-display(d::TextDisplay, M::MIME"text/plain", @nospecialize x) = show(d.io, M, x)
-display(d::TextDisplay, @nospecialize x) = display(d, MIME"text/plain"(), x)
+function display(d::TextDisplay, M::@MIME_str("text/plain"), @nospecialize(x))
+    show(d.io, M, x)
+end
+function display(d::TextDisplay, @nospecialize(x))
+    display(d, (@MIME_str("text/plain"))(), x)
+end
 
 # if you explicitly call display("text/foo", x), it should work on a TextDisplay:
-displayable(d::TextDisplay, M::MIME) = istextmime(M)
+function displayable(d::TextDisplay, M::MIME)
+    istextmime(M)
+end
 function display(d::TextDisplay, M::MIME, @nospecialize x)
     displayable(d, M) || throw(MethodError(display, (d, M, x)))
     show(d.io, M, x)
 end
 
 import Base: close, flush
-flush(d::TextDisplay) = flush(d.io)
-close(d::TextDisplay) = close(d.io)
+function flush(d::TextDisplay)
+    flush(d.io)
+end
+function close(d::TextDisplay)
+    close(d.io)
+end
 
 ###########################################################################
 # We keep a stack of Displays, and calling display(x) uses the topmost
@@ -290,7 +332,9 @@ function reinit_displays()
     pushdisplay(TextDisplay(stdout))
 end
 
-xdisplayable(D::AbstractDisplay, @nospecialize args...) = applicable(display, D, args...)
+function xdisplayable(D::AbstractDisplay, @nospecialize(args...))
+    applicable(display, D, args...)
+end
 
 """
     display(x)
@@ -344,8 +388,9 @@ function display(m::MIME, @nospecialize x)
     throw(MethodError(display, (m, x)))
 end
 
-displayable(d::D, ::MIME{mime}) where {D<:AbstractDisplay,mime} =
-    hasmethod(display, Tuple{D,MIME{mime},Any})
+function displayable(d::D, ::MIME{mime}) where {D <: AbstractDisplay, mime}
+    hasmethod(display, Tuple{D, MIME{mime}, Any})
+end
 
 function displayable(m::MIME)
     for d in displays
@@ -404,8 +449,12 @@ function redisplay(m::Union{MIME,AbstractString}, @nospecialize x)
 end
 
 # default redisplay is simply to call display
-redisplay(d::AbstractDisplay, @nospecialize x) = display(d, x)
-redisplay(d::AbstractDisplay, m::Union{MIME,AbstractString}, @nospecialize x) = display(d, m, x)
+function redisplay(d::AbstractDisplay, @nospecialize(x))
+    display(d, x)
+end
+function redisplay(d::AbstractDisplay, m::Union{MIME, AbstractString}, @nospecialize(x))
+    display(d, m, x)
+end
 
 ###########################################################################
 

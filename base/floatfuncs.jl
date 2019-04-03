@@ -2,19 +2,41 @@
 
 ## floating-point functions ##
 
-copysign(x::Float64, y::Float64) = copysign_float(x, y)
-copysign(x::Float32, y::Float32) = copysign_float(x, y)
-copysign(x::Float32, y::Real) = copysign(x, Float32(y))
-copysign(x::Float64, y::Real) = copysign(x, Float64(y))
+function copysign(x::Float64, y::Float64)
+    copysign_float(x, y)
+end
+function copysign(x::Float32, y::Float32)
+    copysign_float(x, y)
+end
+function copysign(x::Float32, y::Real)
+    copysign(x, Float32(y))
+end
+function copysign(x::Float64, y::Real)
+    copysign(x, Float64(y))
+end
 
-flipsign(x::Float64, y::Float64) = bitcast(Float64, xor_int(bitcast(UInt64, x), and_int(bitcast(UInt64, y), 0x8000000000000000)))
-flipsign(x::Float32, y::Float32) = bitcast(Float32, xor_int(bitcast(UInt32, x), and_int(bitcast(UInt32, y), 0x80000000)))
-flipsign(x::Float32, y::Real) = flipsign(x, Float32(y))
-flipsign(x::Float64, y::Real) = flipsign(x, Float64(y))
+function flipsign(x::Float64, y::Float64)
+    bitcast(Float64, xor_int(bitcast(UInt64, x), and_int(bitcast(UInt64, y), 0x8000000000000000)))
+end
+function flipsign(x::Float32, y::Float32)
+    bitcast(Float32, xor_int(bitcast(UInt32, x), and_int(bitcast(UInt32, y), 0x80000000)))
+end
+function flipsign(x::Float32, y::Real)
+    flipsign(x, Float32(y))
+end
+function flipsign(x::Float64, y::Real)
+    flipsign(x, Float64(y))
+end
 
-signbit(x::Float64) = signbit(bitcast(Int64, x))
-signbit(x::Float32) = signbit(bitcast(Int32, x))
-signbit(x::Float16) = signbit(bitcast(Int16, x))
+function signbit(x::Float64)
+    signbit(bitcast(Int64, x))
+end
+function signbit(x::Float32)
+    signbit(bitcast(Int32, x))
+end
+function signbit(x::Float16)
+    signbit(bitcast(Int16, x))
+end
 
 """
     maxintfloat(T=Float64)
@@ -28,9 +50,15 @@ That is, `maxintfloat` returns the smallest positive integer-valued floating-poi
 When an `Integer`-type value is needed, use `Integer(maxintfloat(T))`.
 """
 maxintfloat(::Type{Float64}) = 9007199254740992.
-maxintfloat(::Type{Float32}) = Float32(16777216.)
-maxintfloat(::Type{Float16}) = Float16(2048f0)
-maxintfloat(x::T) where {T<:AbstractFloat} = maxintfloat(T)
+function maxintfloat(::Type{Float32})
+    Float32(1.6777216e7)
+end
+function maxintfloat(::Type{Float16})
+    Float16(2048.0f0)
+end
+function maxintfloat(x::T) where T <: AbstractFloat
+    maxintfloat(T)
+end
 
 """
     maxintfloat(T, S)
@@ -40,9 +68,13 @@ also does not exceed the maximum integer representable by the integer type `S`. 
 it is the minimum of `maxintfloat(T)` and [`typemax(S)`](@ref).
 """
 maxintfloat(::Type{S}, ::Type{T}) where {S<:AbstractFloat, T<:Integer} = min(maxintfloat(S), S(typemax(T)))
-maxintfloat() = maxintfloat(Float64)
+function maxintfloat()
+    maxintfloat(Float64)
+end
 
-isinteger(x::AbstractFloat) = (x - trunc(x) == 0)
+function isinteger(x::AbstractFloat)
+    x - trunc(x) == 0
+end
 
 """
     round([T,] x, [r::RoundingMode])
@@ -120,8 +152,12 @@ To extend `round` to new numeric types, it is typically sufficient to define `Ba
 """
 round(T::Type, x)
 
-round(::Type{T}, x::AbstractFloat, r::RoundingMode{:ToZero}) where {T<:Integer} = trunc(T, x)
-round(::Type{T}, x::AbstractFloat, r::RoundingMode) where {T<:Integer} = trunc(T, round(x,r))
+function round(::Type{T}, x::AbstractFloat, r::RoundingMode{:ToZero}) where T <: Integer
+    trunc(T, x)
+end
+function round(::Type{T}, x::AbstractFloat, r::RoundingMode) where T <: Integer
+    trunc(T, round(x, r))
+end
 
 # NOTE: this relies on the current keyword dispatch behaviour (#9498).
 function round(x::Real, r::RoundingMode=RoundNearest;
@@ -148,11 +184,19 @@ function round(x::Real, r::RoundingMode=RoundNearest;
     end
 end
 
-trunc(x::Real; kwargs...) = round(x, RoundToZero; kwargs...)
-floor(x::Real; kwargs...) = round(x, RoundDown; kwargs...)
-ceil(x::Real; kwargs...)  = round(x, RoundUp; kwargs...)
+function trunc(x::Real; kwargs...)
+    round(x, RoundToZero; kwargs...)
+end
+function floor(x::Real; kwargs...)
+    round(x, RoundDown; kwargs...)
+end
+function ceil(x::Real; kwargs...)
+    round(x, RoundUp; kwargs...)
+end
 
-round(x::Integer, r::RoundingMode) = x
+function round(x::Integer, r::RoundingMode)
+    x
+end
 
 # round x to multiples of 1/invstep
 function _round_invstep(x, invstep, r::RoundingMode)
@@ -190,7 +234,9 @@ function _round_digits(x, r::RoundingMode, digits::Integer, base)
     end
 end
 
-hidigit(x::Integer, base) = ndigits0z(x, base)
+function hidigit(x::Integer, base)
+    ndigits0z(x, base)
+end
 function hidigit(x::AbstractFloat, base)
     iszero(x) && return 0
     if base == 10
@@ -201,7 +247,9 @@ function hidigit(x::AbstractFloat, base)
         return 1 + floor(Int, log(base, abs(x)))
     end
 end
-hidigit(x::Real, base) = hidigit(float(x), base)
+function hidigit(x::Real, base)
+    hidigit(float(x), base)
+end
 
 function _round_sigdigits(x, r::RoundingMode, sigdigits::Integer, base)
     h = hidigit(x, base)
@@ -283,8 +331,12 @@ This is equivalent to `!isapprox(x,y)` (see [`isapprox`](@ref)).
 ≉(args...; kws...) = !≈(args...; kws...)
 
 # default tolerance arguments
-rtoldefault(::Type{T}) where {T<:AbstractFloat} = sqrt(eps(T))
-rtoldefault(::Type{<:Real}) = 0
+function rtoldefault(::Type{T}) where T <: AbstractFloat
+    sqrt(eps(T))
+end
+function rtoldefault(::Type{<:Real})
+    0
+end
 function rtoldefault(x::Union{T,Type{T}}, y::Union{S,Type{S}}, atol::Real) where {T<:Number,S<:Number}
     rtol = max(rtoldefault(real(T)),rtoldefault(real(S)))
     return atol > 0 ? zero(rtol) : rtol
@@ -301,12 +353,18 @@ algorithms. See [`muladd`](@ref).
 """
 function fma end
 
-fma_libm(x::Float32, y::Float32, z::Float32) =
-    ccall(("fmaf", libm_name), Float32, (Float32,Float32,Float32), x, y, z)
-fma_libm(x::Float64, y::Float64, z::Float64) =
-    ccall(("fma", libm_name), Float64, (Float64,Float64,Float64), x, y, z)
-fma_llvm(x::Float32, y::Float32, z::Float32) = fma_float(x, y, z)
-fma_llvm(x::Float64, y::Float64, z::Float64) = fma_float(x, y, z)
+function fma_libm(x::Float32, y::Float32, z::Float32)
+    ccall(("fmaf", libm_name), Float32, (Float32, Float32, Float32), x, y, z)
+end
+function fma_libm(x::Float64, y::Float64, z::Float64)
+    ccall(("fma", libm_name), Float64, (Float64, Float64, Float64), x, y, z)
+end
+function fma_llvm(x::Float32, y::Float32, z::Float32)
+    fma_float(x, y, z)
+end
+function fma_llvm(x::Float64, y::Float64, z::Float64)
+    fma_float(x, y, z)
+end
 # Disable LLVM's fma if it is incorrect, e.g. because LLVM falls back
 # onto a broken system libm; if so, use openlibm's fma instead
 # 1.0000305f0 = 1 + 1/2^15

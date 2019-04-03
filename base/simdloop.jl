@@ -33,8 +33,12 @@ function check_body!(x::Expr)
     end
     return true
 end
-check_body!(x::QuoteNode) = check_body!(x.value)
-check_body!(x) = true
+function check_body!(x::QuoteNode)
+    check_body!(x.value)
+end
+function check_body!(x)
+    true
+end
 
 # @simd splits a for loop into two loops: an outer scalar loop and
 # an inner loop marked with :loopinfo. The simd_... functions define
@@ -45,7 +49,9 @@ check_body!(x) = true
 #`simd_outer_range(v::MyIter) = v`, and `simd_index(v::MyIter, j, i) = j`.
 
 # Get range for outer loop.
-simd_outer_range(r) = 0:0
+function simd_outer_range(r)
+    0:0
+end
 
 # Get trip count for inner loop.
 @inline simd_inner_length(r, j) = Base.length(r)

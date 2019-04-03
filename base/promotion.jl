@@ -10,8 +10,14 @@ Return the closest common ancestor of `T` and `S`, i.e. the narrowest type from 
 they both inherit.
 """
 typejoin() = (@_pure_meta; Bottom)
-typejoin(@nospecialize(t)) = (@_pure_meta; t)
-typejoin(@nospecialize(t), ts...) = (@_pure_meta; typejoin(t, typejoin(ts...)))
+function typejoin(@nospecialize(t))
+    @_pure_meta
+    t
+end
+function typejoin(@nospecialize(t), ts...)
+    @_pure_meta
+    typejoin(t, typejoin(ts...))
+end
 function typejoin(@nospecialize(a), @nospecialize(b))
     @_pure_meta
     if isa(a, TypeVar)
@@ -126,19 +132,49 @@ either a parent of both types, or a `Union` if appropriate.
 Falls back to [`typejoin`](@ref).
 """
 promote_typejoin(@nospecialize(a), @nospecialize(b)) = _promote_typejoin(a, b)::Type
-_promote_typejoin(@nospecialize(a), @nospecialize(b)) = typejoin(a, b)
-_promote_typejoin(::Type{Nothing}, ::Type{T}) where {T} =
-    isconcretetype(T) || T === Union{} ? Union{T, Nothing} : Any
-_promote_typejoin(::Type{T}, ::Type{Nothing}) where {T} =
-    isconcretetype(T) || T === Union{} ? Union{T, Nothing} : Any
-_promote_typejoin(::Type{Missing}, ::Type{T}) where {T} =
-    isconcretetype(T) || T === Union{} ? Union{T, Missing} : Any
-_promote_typejoin(::Type{T}, ::Type{Missing}) where {T} =
-    isconcretetype(T) || T === Union{} ? Union{T, Missing} : Any
-_promote_typejoin(::Type{Nothing}, ::Type{Missing}) = Union{Nothing, Missing}
-_promote_typejoin(::Type{Missing}, ::Type{Nothing}) = Union{Nothing, Missing}
-_promote_typejoin(::Type{Nothing}, ::Type{Nothing}) = Nothing
-_promote_typejoin(::Type{Missing}, ::Type{Missing}) = Missing
+function _promote_typejoin(@nospecialize(a), @nospecialize(b))
+    typejoin(a, b)
+end
+function _promote_typejoin(::Type{Nothing}, ::Type{T}) where T
+    if isconcretetype(T) || T === Union{}
+        Union{T, Nothing}
+    else
+        Any
+    end
+end
+function _promote_typejoin(::Type{T}, ::Type{Nothing}) where T
+    if isconcretetype(T) || T === Union{}
+        Union{T, Nothing}
+    else
+        Any
+    end
+end
+function _promote_typejoin(::Type{Missing}, ::Type{T}) where T
+    if isconcretetype(T) || T === Union{}
+        Union{T, Missing}
+    else
+        Any
+    end
+end
+function _promote_typejoin(::Type{T}, ::Type{Missing}) where T
+    if isconcretetype(T) || T === Union{}
+        Union{T, Missing}
+    else
+        Any
+    end
+end
+function _promote_typejoin(::Type{Nothing}, ::Type{Missing})
+    Union{Nothing, Missing}
+end
+function _promote_typejoin(::Type{Missing}, ::Type{Nothing})
+    Union{Nothing, Missing}
+end
+function _promote_typejoin(::Type{Nothing}, ::Type{Nothing})
+    Nothing
+end
+function _promote_typejoin(::Type{Missing}, ::Type{Missing})
+    Missing
+end
 
 # Returns length, isfixed
 function full_va_len(p)
@@ -202,14 +238,29 @@ UInt16
 """
 function promote_type end
 
-promote_type()  = Bottom
-promote_type(T) = T
-promote_type(T, S, U, V...) = (@_inline_meta; promote_type(T, promote_type(S, U, V...)))
+function promote_type()
+    Bottom
+end
+function promote_type(T)
+    T
+end
+function promote_type(T, S, U, V...)
+    @_inline_meta
+    promote_type(T, promote_type(S, U, V...))
+end
 
-promote_type(::Type{Bottom}, ::Type{Bottom}) = Bottom
-promote_type(::Type{T}, ::Type{T}) where {T} = T
-promote_type(::Type{T}, ::Type{Bottom}) where {T} = T
-promote_type(::Type{Bottom}, ::Type{T}) where {T} = T
+function promote_type(::Type{Bottom}, ::Type{Bottom})
+    Bottom
+end
+function promote_type(::Type{T}, ::Type{T}) where T
+    T
+end
+function promote_type(::Type{T}, ::Type{Bottom}) where T
+    T
+end
+function promote_type(::Type{Bottom}, ::Type{T}) where T
+    T
+end
 
 function promote_type(::Type{T}, ::Type{S}) where {T,S}
     @_inline_meta
@@ -230,16 +281,30 @@ it for new types as appropriate.
 """
 function promote_rule end
 
-promote_rule(::Type{<:Any}, ::Type{<:Any}) = Bottom
+function promote_rule(::Type{<:Any}, ::Type{<:Any})
+    Bottom
+end
 # To fix ambiguities
-promote_rule(::Type{Any}, ::Type{<:Any}) = Any
-promote_rule(::Type{<:Any}, ::Type{Any}) = Any
-promote_rule(::Type{Any}, ::Type{Any}) = Any
+function promote_rule(::Type{Any}, ::Type{<:Any})
+    Any
+end
+function promote_rule(::Type{<:Any}, ::Type{Any})
+    Any
+end
+function promote_rule(::Type{Any}, ::Type{Any})
+    Any
+end
 
-promote_result(::Type{<:Any},::Type{<:Any},::Type{T},::Type{S}) where {T,S} = (@_inline_meta; promote_type(T,S))
+function promote_result(::Type{<:Any}, ::Type{<:Any}, ::Type{T}, ::Type{S}) where {T, S}
+    @_inline_meta
+    promote_type(T, S)
+end
 # If no promote_rule is defined, both directions give Bottom. In that
 # case use typejoin on the original types instead.
-promote_result(::Type{T},::Type{S},::Type{Bottom},::Type{Bottom}) where {T,S} = (@_inline_meta; typejoin(T, S))
+function promote_result(::Type{T}, ::Type{S}, ::Type{Bottom}, ::Type{Bottom}) where {T, S}
+    @_inline_meta
+    typejoin(T, S)
+end
 
 """
     promote(xs...)
@@ -260,8 +325,13 @@ function _promote(x::T, y::S) where {T,S}
     R = promote_type(T, S)
     return (convert(R, x), convert(R, y))
 end
-promote_typeof(x) = typeof(x)
-promote_typeof(x, xs...) = (@_inline_meta; promote_type(typeof(x), promote_typeof(xs...)))
+function promote_typeof(x)
+    typeof(x)
+end
+function promote_typeof(x, xs...)
+    @_inline_meta
+    promote_type(typeof(x), promote_typeof(xs...))
+end
 function _promote(x, y, z)
     @_inline_meta
     R = promote_typeof(x, y, z)
@@ -276,8 +346,12 @@ end
 
 ## promotions in arithmetic, etc. ##
 
-promote() = ()
-promote(x) = (x,)
+function promote()
+    ()
+end
+function promote(x)
+    (x,)
+end
 
 function promote(x, y)
     @_inline_meta
@@ -297,11 +371,17 @@ function promote(x, y, z, a...)
     p
 end
 
-promote(x::T, y::T, zs::T...) where {T} = (x, y, zs...)
+function promote(x::T, y::T, zs::T...) where T
+    (x, y, zs...)
+end
 
-not_sametype(x::T, y::T) where {T} = sametype_error(x)
+function not_sametype(x::T, y::T) where T
+    sametype_error(x)
+end
 
-not_sametype(x, y) = nothing
+function not_sametype(x, y)
+    nothing
+end
 
 function sametype_error(input)
     @_noinline_meta
@@ -310,10 +390,18 @@ function sametype_error(input)
           " failed to change any arguments")
 end
 
-+(x::Number, y::Number) = +(promote(x,y)...)
-*(x::Number, y::Number) = *(promote(x,y)...)
--(x::Number, y::Number) = -(promote(x,y)...)
-/(x::Number, y::Number) = /(promote(x,y)...)
+function +(x::Number, y::Number)
+    +(promote(x, y)...)
+end
+function *(x::Number, y::Number)
+    (*)(promote(x, y)...)
+end
+function -(x::Number, y::Number)
+    -(promote(x, y)...)
+end
+function /(x::Number, y::Number)
+    (/)(promote(x, y)...)
+end
 
 """
     ^(x, y)
@@ -344,25 +432,55 @@ julia> A^3
 """
 ^(x::Number, y::Number) = ^(promote(x,y)...)
 
-fma(x::Number, y::Number, z::Number) = fma(promote(x,y,z)...)
-muladd(x::Number, y::Number, z::Number) = muladd(promote(x,y,z)...)
+function fma(x::Number, y::Number, z::Number)
+    fma(promote(x, y, z)...)
+end
+function muladd(x::Number, y::Number, z::Number)
+    muladd(promote(x, y, z)...)
+end
 
-==(x::Number, y::Number) = (==)(promote(x,y)...)
-<( x::Real, y::Real)     = (< )(promote(x,y)...)
-<=(x::Real, y::Real)     = (<=)(promote(x,y)...)
+function ==(x::Number, y::Number)
+    (==)(promote(x, y)...)
+end
+function <(x::Real, y::Real)
+    (<)(promote(x, y)...)
+end
+function <=(x::Real, y::Real)
+    (<=)(promote(x, y)...)
+end
 
-div(x::Real, y::Real) = div(promote(x,y)...)
-fld(x::Real, y::Real) = fld(promote(x,y)...)
-cld(x::Real, y::Real) = cld(promote(x,y)...)
-rem(x::Real, y::Real) = rem(promote(x,y)...)
-mod(x::Real, y::Real) = mod(promote(x,y)...)
+function div(x::Real, y::Real)
+    div(promote(x, y)...)
+end
+function fld(x::Real, y::Real)
+    fld(promote(x, y)...)
+end
+function cld(x::Real, y::Real)
+    cld(promote(x, y)...)
+end
+function rem(x::Real, y::Real)
+    rem(promote(x, y)...)
+end
+function mod(x::Real, y::Real)
+    mod(promote(x, y)...)
+end
 
-mod1(x::Real, y::Real) = mod1(promote(x,y)...)
-fld1(x::Real, y::Real) = fld1(promote(x,y)...)
+function mod1(x::Real, y::Real)
+    mod1(promote(x, y)...)
+end
+function fld1(x::Real, y::Real)
+    fld1(promote(x, y)...)
+end
 
-max(x::Real, y::Real) = max(promote(x,y)...)
-min(x::Real, y::Real) = min(promote(x,y)...)
-minmax(x::Real, y::Real) = minmax(promote(x, y)...)
+function max(x::Real, y::Real)
+    max(promote(x, y)...)
+end
+function min(x::Real, y::Real)
+    min(promote(x, y)...)
+end
+function minmax(x::Real, y::Real)
+    minmax(promote(x, y)...)
+end
 
 if isdefined(Core, :Compiler)
     const _return_type = Core.Compiler.return_type
@@ -385,34 +503,86 @@ promote_op(f, S::Type...) = _return_type(f, Tuple{S...})
 
 ## catch-alls to prevent infinite recursion when definitions are missing ##
 
-no_op_err(name, T) = error(name," not defined for ",T)
-(+)(x::T, y::T) where {T<:Number} = no_op_err("+", T)
-(*)(x::T, y::T) where {T<:Number} = no_op_err("*", T)
-(-)(x::T, y::T) where {T<:Number} = no_op_err("-", T)
-(/)(x::T, y::T) where {T<:Number} = no_op_err("/", T)
-(^)(x::T, y::T) where {T<:Number} = no_op_err("^", T)
+function no_op_err(name, T)
+    error(name, " not defined for ", T)
+end
+function (x::T + y::T) where T <: Number
+    no_op_err("+", T)
+end
+function (x::T * y::T) where T <: Number
+    no_op_err("*", T)
+end
+function (x::T - y::T) where T <: Number
+    no_op_err("-", T)
+end
+function (x::T / y::T) where T <: Number
+    no_op_err("/", T)
+end
+function (x::T ^ y::T) where T <: Number
+    no_op_err("^", T)
+end
 
-fma(x::T, y::T, z::T) where {T<:Number} = no_op_err("fma", T)
-fma(x::Integer, y::Integer, z::Integer) = x*y+z
-muladd(x::T, y::T, z::T) where {T<:Number} = x*y+z
+function fma(x::T, y::T, z::T) where T <: Number
+    no_op_err("fma", T)
+end
+function fma(x::Integer, y::Integer, z::Integer)
+    x * y + z
+end
+function muladd(x::T, y::T, z::T) where T <: Number
+    x * y + z
+end
 
-(&)(x::T, y::T) where {T<:Integer} = no_op_err("&", T)
-(|)(x::T, y::T) where {T<:Integer} = no_op_err("|", T)
-xor(x::T, y::T) where {T<:Integer} = no_op_err("xor", T)
+function (x::T & y::T) where T <: Integer
+    no_op_err("&", T)
+end
+function (x::T | y::T) where T <: Integer
+    no_op_err("|", T)
+end
+function xor(x::T, y::T) where T <: Integer
+    no_op_err("xor", T)
+end
 
-(==)(x::T, y::T) where {T<:Number} = x === y
-(< )(x::T, y::T) where {T<:Real} = no_op_err("<" , T)
-(<=)(x::T, y::T) where {T<:Real} = no_op_err("<=", T)
+function (x::T == y::T) where T <: Number
+    x === y
+end
+function (x::T < y::T) where T <: Real
+    no_op_err("<", T)
+end
+function (x::T <= y::T) where T <: Real
+    no_op_err("<=", T)
+end
 
-rem(x::T, y::T) where {T<:Real} = no_op_err("rem", T)
-mod(x::T, y::T) where {T<:Real} = no_op_err("mod", T)
+function rem(x::T, y::T) where T <: Real
+    no_op_err("rem", T)
+end
+function mod(x::T, y::T) where T <: Real
+    no_op_err("mod", T)
+end
 
-min(x::Real) = x
-max(x::Real) = x
-minmax(x::Real) = (x, x)
+function min(x::Real)
+    x
+end
+function max(x::Real)
+    x
+end
+function minmax(x::Real)
+    (x, x)
+end
 
-max(x::T, y::T) where {T<:Real} = ifelse(y < x, x, y)
-min(x::T, y::T) where {T<:Real} = ifelse(y < x, y, x)
-minmax(x::T, y::T) where {T<:Real} = y < x ? (y, x) : (x, y)
+function max(x::T, y::T) where T <: Real
+    ifelse(y < x, x, y)
+end
+function min(x::T, y::T) where T <: Real
+    ifelse(y < x, y, x)
+end
+function minmax(x::T, y::T) where T <: Real
+    if y < x
+        (y, x)
+    else
+        (x, y)
+    end
+end
 
-flipsign(x::T, y::T) where {T<:Signed} = no_op_err("flipsign", T)
+function flipsign(x::T, y::T) where T <: Signed
+    no_op_err("flipsign", T)
+end

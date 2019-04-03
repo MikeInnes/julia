@@ -93,7 +93,9 @@ mutable struct Mutex <: AbstractLock
     end
 end
 
-unsafe_convert(::Type{Ptr{Cvoid}}, m::Mutex) = m.handle
+function unsafe_convert(::Type{Ptr{Cvoid}}, m::Mutex)
+    m.handle
+end
 
 function _uv_hook_close(x::Mutex)
     h = x.handle

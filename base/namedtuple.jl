@@ -83,18 +83,44 @@ NamedTuple{names}(itr) where {names} = NamedTuple{names}(Tuple(itr))
 
 end # if Base
 
-length(t::NamedTuple) = nfields(t)
-iterate(t::NamedTuple, iter=1) = iter > nfields(t) ? nothing : (getfield(t, iter), iter + 1)
-firstindex(t::NamedTuple) = 1
-lastindex(t::NamedTuple) = nfields(t)
-getindex(t::NamedTuple, i::Int) = getfield(t, i)
-getindex(t::NamedTuple, i::Symbol) = getfield(t, i)
-indexed_iterate(t::NamedTuple, i::Int, state=1) = (getfield(t, i), i+1)
-isempty(::NamedTuple{()}) = true
-isempty(::NamedTuple) = false
+function length(t::NamedTuple)
+    nfields(t)
+end
+function iterate(t::NamedTuple, iter=1)
+    if iter > nfields(t)
+        nothing
+    else
+        (getfield(t, iter), iter + 1)
+    end
+end
+function firstindex(t::NamedTuple)
+    1
+end
+function lastindex(t::NamedTuple)
+    nfields(t)
+end
+function getindex(t::NamedTuple, i::Int)
+    getfield(t, i)
+end
+function getindex(t::NamedTuple, i::Symbol)
+    getfield(t, i)
+end
+function indexed_iterate(t::NamedTuple, i::Int, state=1)
+    (getfield(t, i), i + 1)
+end
+function isempty(::NamedTuple{()})
+    true
+end
+function isempty(::NamedTuple)
+    false
+end
 
-convert(::Type{NamedTuple{names,T}}, nt::NamedTuple{names,T}) where {names,T<:Tuple} = nt
-convert(::Type{NamedTuple{names}}, nt::NamedTuple{names}) where {names} = nt
+function convert(::Type{NamedTuple{names, T}}, nt::NamedTuple{names, T}) where {names, T <: Tuple}
+    nt
+end
+function convert(::Type{NamedTuple{names}}, nt::NamedTuple{names}) where names
+    nt
+end
 
 function convert(::Type{NamedTuple{names,T}}, nt::NamedTuple{names}) where {names,T<:Tuple}
     NamedTuple{names,T}(T(nt))
@@ -137,24 +163,46 @@ function show(io::IO, t::NamedTuple)
     end
 end
 
-eltype(::Type{NamedTuple{names,T}}) where {names,T} = eltype(T)
+function eltype(::Type{NamedTuple{names, T}}) where {names, T}
+    eltype(T)
+end
 
-==(a::NamedTuple{n}, b::NamedTuple{n}) where {n} = Tuple(a) == Tuple(b)
-==(a::NamedTuple, b::NamedTuple) = false
+function (a::NamedTuple{n} == b::NamedTuple{n}) where n
+    Tuple(a) == Tuple(b)
+end
+function ==(a::NamedTuple, b::NamedTuple)
+    false
+end
 
-isequal(a::NamedTuple{n}, b::NamedTuple{n}) where {n} = isequal(Tuple(a), Tuple(b))
-isequal(a::NamedTuple, b::NamedTuple) = false
+function isequal(a::NamedTuple{n}, b::NamedTuple{n}) where n
+    isequal(Tuple(a), Tuple(b))
+end
+function isequal(a::NamedTuple, b::NamedTuple)
+    false
+end
 
-_nt_names(::NamedTuple{names}) where {names} = names
-_nt_names(::Type{T}) where {names,T<:NamedTuple{names}} = names
+function _nt_names(::NamedTuple{names}) where names
+    names
+end
+function _nt_names(::Type{T}) where {names, T <: NamedTuple{names}}
+    names
+end
 
-hash(x::NamedTuple, h::UInt) = xor(objectid(_nt_names(x)), hash(Tuple(x), h))
+function hash(x::NamedTuple, h::UInt)
+    xor(objectid(_nt_names(x)), hash(Tuple(x), h))
+end
 
-isless(a::NamedTuple{n}, b::NamedTuple{n}) where {n} = isless(Tuple(a), Tuple(b))
+function isless(a::NamedTuple{n}, b::NamedTuple{n}) where n
+    isless(Tuple(a), Tuple(b))
+end
 # TODO: case where one argument's names are a prefix of the other's
 
-same_names(::NamedTuple{names}...) where {names} = true
-same_names(::NamedTuple...) = false
+function same_names(::NamedTuple{names}...) where names
+    true
+end
+function same_names(::NamedTuple...)
+    false
+end
 
 # NOTE: this method signature makes sure we don't define map(f)
 function map(f, nt::NamedTuple{names}, nts::NamedTuple...) where names
@@ -225,13 +273,21 @@ function merge(a::NamedTuple{an}, b::NamedTuple{bn}) where {an, bn}
     end
 end
 
-merge(a::NamedTuple{()}, b::NamedTuple) = b
+function merge(a::NamedTuple{()}, b::NamedTuple)
+    b
+end
 
-merge(a::NamedTuple, b::Iterators.Pairs{<:Any,<:Any,<:Any,<:NamedTuple}) = merge(a, b.data)
+function merge(a::NamedTuple, b::Iterators.Pairs{<:Any, <:Any, <:Any, <:NamedTuple})
+    merge(a, b.data)
+end
 
-merge(a::NamedTuple, b::NamedTuple, cs::NamedTuple...) = merge(merge(a, b), cs...)
+function merge(a::NamedTuple, b::NamedTuple, cs::NamedTuple...)
+    merge(merge(a, b), cs...)
+end
 
-merge(a::NamedTuple) = a
+function merge(a::NamedTuple)
+    a
+end
 
 """
     merge(a::NamedTuple, iterable)
@@ -260,12 +316,32 @@ function merge(a::NamedTuple, itr)
     merge(a, NamedTuple{(names...,)}((vals...,)))
 end
 
-keys(nt::NamedTuple{names}) where {names} = names
-values(nt::NamedTuple) = Tuple(nt)
-haskey(nt::NamedTuple, key::Union{Integer, Symbol}) = isdefined(nt, key)
-get(nt::NamedTuple, key::Union{Integer, Symbol}, default) = haskey(nt, key) ? getfield(nt, key) : default
-get(f::Callable, nt::NamedTuple, key::Union{Integer, Symbol}) = haskey(nt, key) ? getfield(nt, key) : f()
-tail(t::NamedTuple{names}) where names = NamedTuple{tail(names)}(t)
+function keys(nt::NamedTuple{names}) where names
+    names
+end
+function values(nt::NamedTuple)
+    Tuple(nt)
+end
+function haskey(nt::NamedTuple, key::Union{Integer, Symbol})
+    isdefined(nt, key)
+end
+function get(nt::NamedTuple, key::Union{Integer, Symbol}, default)
+    if haskey(nt, key)
+        getfield(nt, key)
+    else
+        default
+    end
+end
+function get(f::Callable, nt::NamedTuple, key::Union{Integer, Symbol})
+    if haskey(nt, key)
+        getfield(nt, key)
+    else
+        f()
+    end
+end
+function tail(t::NamedTuple{names}) where names
+    NamedTuple{tail(names)}(t)
+end
 
 @pure function diff_names(an::Tuple{Vararg{Symbol}}, bn::Tuple{Vararg{Symbol}})
     names = Symbol[]

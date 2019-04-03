@@ -14,14 +14,32 @@ function lock end
 function unlock end
 function trylock end
 function islocked end
-unlockall(l::AbstractLock) = unlock(l) # internal function for implementing `wait`
-relockall(l::AbstractLock, token::Nothing) = lock(l) # internal function for implementing `wait`
-assert_havelock(l::AbstractLock) = assert_havelock(l, Threads.threadid())
-assert_havelock(l::AbstractLock, tid::Integer) =
-    (islocked(l) && tid == Threads.threadid()) ? nothing : error("concurrency violation detected")
-assert_havelock(l::AbstractLock, tid::Task) =
-    (islocked(l) && tid === current_task()) ? nothing : error("concurrency violation detected")
-assert_havelock(l::AbstractLock, tid::Nothing) = error("concurrency violation detected")
+function unlockall(l::AbstractLock)
+    unlock(l)
+end # internal function for implementing `wait`
+function relockall(l::AbstractLock, token::Nothing)
+    lock(l)
+end # internal function for implementing `wait`
+function assert_havelock(l::AbstractLock)
+    assert_havelock(l, Threads.threadid())
+end
+function assert_havelock(l::AbstractLock, tid::Integer)
+    if islocked(l) && tid == Threads.threadid()
+        nothing
+    else
+        error("concurrency violation detected")
+    end
+end
+function assert_havelock(l::AbstractLock, tid::Task)
+    if islocked(l) && tid === current_task()
+        nothing
+    else
+        error("concurrency violation detected")
+    end
+end
+function assert_havelock(l::AbstractLock, tid::Nothing)
+    error("concurrency violation detected")
+end
 
 """
     AlwaysLockedST
@@ -40,11 +58,21 @@ struct AlwaysLockedST <: AbstractLock
     ownertid::Int16
     AlwaysLockedST() = new(Threads.threadid())
 end
-assert_havelock(l::AlwaysLockedST) = assert_havelock(l, l.ownertid)
-lock(l::AlwaysLockedST) = assert_havelock(l)
-unlock(l::AlwaysLockedST) = assert_havelock(l)
-trylock(l::AlwaysLockedST) = l.ownertid == Threads.threadid()
-islocked(::AlwaysLockedST) = true
+function assert_havelock(l::AlwaysLockedST)
+    assert_havelock(l, l.ownertid)
+end
+function lock(l::AlwaysLockedST)
+    assert_havelock(l)
+end
+function unlock(l::AlwaysLockedST)
+    assert_havelock(l)
+end
+function trylock(l::AlwaysLockedST)
+    l.ownertid == Threads.threadid()
+end
+function islocked(::AlwaysLockedST)
+    true
+end
 
 
 ## condition variables
@@ -64,11 +92,21 @@ struct GenericCondition{L<:AbstractLock}
     GenericCondition(l::AbstractLock) = new{typeof(l)}(InvasiveLinkedList{Task}(), l)
 end
 
-assert_havelock(c::GenericCondition) = assert_havelock(c.lock)
-lock(c::GenericCondition) = lock(c.lock)
-unlock(c::GenericCondition) = unlock(c.lock)
-trylock(c::GenericCondition) = trylock(c.lock)
-islocked(c::GenericCondition) = islocked(c.lock)
+function assert_havelock(c::GenericCondition)
+    assert_havelock(c.lock)
+end
+function lock(c::GenericCondition)
+    lock(c.lock)
+end
+function unlock(c::GenericCondition)
+    unlock(c.lock)
+end
+function trylock(c::GenericCondition)
+    trylock(c.lock)
+end
+function islocked(c::GenericCondition)
+    islocked(c.lock)
+end
 
 """
     wait([x])
@@ -126,9 +164,13 @@ function notify(c::GenericCondition, @nospecialize(arg), all, error)
     return cnt
 end
 
-notify_error(c::GenericCondition, err) = notify(c, err, true, true)
+function notify_error(c::GenericCondition, err)
+    notify(c, err, true, true)
+end
 
-n_waiters(c::GenericCondition) = length(c.waitq)
+function n_waiters(c::GenericCondition)
+    length(c.waitq)
+end
 
 """
     isempty(condition)
@@ -253,15 +295,21 @@ mutable struct Timer
     end
 end
 
-unsafe_convert(::Type{Ptr{Cvoid}}, t::Timer) = t.handle
-unsafe_convert(::Type{Ptr{Cvoid}}, async::AsyncCondition) = async.handle
+function unsafe_convert(::Type{Ptr{Cvoid}}, t::Timer)
+    t.handle
+end
+function unsafe_convert(::Type{Ptr{Cvoid}}, async::AsyncCondition)
+    async.handle
+end
 
 function wait(t::Union{Timer, AsyncCondition})
     isopen(t) || throw(EOFError())
     stream_wait(t, t.cond)
 end
 
-isopen(t::Union{Timer, AsyncCondition}) = t.isopen
+function isopen(t::Union{Timer, AsyncCondition})
+    t.isopen
+end
 
 function close(t::Union{Timer, AsyncCondition})
     if t.handle != C_NULL && isopen(t)

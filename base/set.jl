@@ -7,8 +7,12 @@ struct Set{T} <: AbstractSet{T}
     Set{T}(s::Set{T}) where {T} = new(Dict{T,Nothing}(s.dict))
 end
 
-Set{T}(itr) where {T} = union!(Set{T}(), itr)
-Set() = Set{Any}()
+function Set{T}(itr) where T
+    union!(Set{T}(), itr)
+end
+function Set()
+    Set{Any}()
+end
 
 
 """
@@ -20,7 +24,9 @@ for sets of arbitrary objects.
 """
 Set(itr) = _Set(itr, IteratorEltype(itr))
 
-_Set(itr, ::HasEltype) = Set{eltype(itr)}(itr)
+function _Set(itr, ::HasEltype)
+    Set{eltype(itr)}(itr)
+end
 
 function _Set(itr, ::EltypeUnknown)
     T = @default_eltype(itr)
@@ -28,13 +34,19 @@ function _Set(itr, ::EltypeUnknown)
     return Set{T}(itr)
 end
 
-empty(s::AbstractSet{T}, ::Type{U}=T) where {T,U} = Set{U}()
+function empty(s::AbstractSet{T}, ::Type{U}=T) where {T, U}
+    Set{U}()
+end
 
 # return an empty set with eltype T, which is mutable (can be grown)
 # by default, a Set is returned
-emptymutable(s::AbstractSet{T}, ::Type{U}=T) where {T,U} = Set{U}()
+function emptymutable(s::AbstractSet{T}, ::Type{U}=T) where {T, U}
+    Set{U}()
+end
 
-_similar_for(c::AbstractSet, ::Type{T}, itr, isz) where {T} = empty(c, T)
+function _similar_for(c::AbstractSet, ::Type{T}, itr, isz) where T
+    empty(c, T)
+end
 
 function show(io::IO, s::Set)
     print(io, "Set(")
@@ -42,30 +54,66 @@ function show(io::IO, s::Set)
     print(io, ')')
 end
 
-isempty(s::Set) = isempty(s.dict)
-length(s::Set)  = length(s.dict)
-in(x, s::Set) = haskey(s.dict, x)
-push!(s::Set, x) = (s.dict[x] = nothing; s)
-pop!(s::Set, x) = (pop!(s.dict, x); x)
-pop!(s::Set, x, default) = (x in s ? pop!(s, x) : default)
+function isempty(s::Set)
+    isempty(s.dict)
+end
+function length(s::Set)
+    length(s.dict)
+end
+function in(x, s::Set)
+    haskey(s.dict, x)
+end
+function push!(s::Set, x)
+    s.dict[x] = nothing
+    s
+end
+function pop!(s::Set, x)
+    pop!(s.dict, x)
+    x
+end
+function pop!(s::Set, x, default)
+    if x in s
+        pop!(s, x)
+    else
+        default
+    end
+end
 
 function pop!(s::Set)
     isempty(s) && throw(ArgumentError("set must be non-empty"))
     return pop!(s.dict)[1]
 end
 
-delete!(s::Set, x) = (delete!(s.dict, x); s)
+function delete!(s::Set, x)
+    delete!(s.dict, x)
+    s
+end
 
-copy(s::Set) = copymutable(s)
+function copy(s::Set)
+    copymutable(s)
+end
 
 # Set is the default mutable fall-back
-copymutable(s::AbstractSet{T}) where {T} = Set{T}(s)
+function copymutable(s::AbstractSet{T}) where T
+    Set{T}(s)
+end
 
-sizehint!(s::Set, newsz) = (sizehint!(s.dict, newsz); s)
-empty!(s::Set) = (empty!(s.dict); s)
-rehash!(s::Set) = (rehash!(s.dict); s)
+function sizehint!(s::Set, newsz)
+    sizehint!(s.dict, newsz)
+    s
+end
+function empty!(s::Set)
+    empty!(s.dict)
+    s
+end
+function rehash!(s::Set)
+    rehash!(s.dict)
+    s
+end
 
-iterate(s::Set, i...)       = iterate(KeySet(s.dict), i...)
+function iterate(s::Set, i...)
+    iterate(KeySet(s.dict), i...)
+end
 
 # In case the size(s) is smaller than size(t) its more efficient to iterate through
 # elements of s instead and only delete the ones also contained in t.
@@ -125,7 +173,9 @@ function unique(itr)
     return unique_from(itr, out, seen, i)
 end
 
-_unique_from(itr, out, seen, i) = unique_from(itr, out, seen, i)
+function _unique_from(itr, out, seen, i)
+    unique_from(itr, out, seen, i)
+end
 @inline function unique_from(itr, out::Vector{T}, seen, i) where T
     while true
         y = iterate(itr, i)
@@ -267,7 +317,9 @@ end
 
 # If A is not grouped, then we will need to keep track of all of the elements that we have
 # seen so far.
-_unique!(A::AbstractVector) = unique!(identity, A::AbstractVector)
+function _unique!(A::AbstractVector)
+    unique!(identity, A::AbstractVector)
+end
 
 # If A is grouped, so that each unique element is in a contiguous group, then we only
 # need to keep track of one element at a time. We replace the elements of A with the
@@ -373,12 +425,20 @@ function allunique(C)
     true
 end
 
-allunique(::Set) = true
+function allunique(::Set)
+    true
+end
 
-allunique(r::AbstractRange{T}) where {T} = (step(r) != zero(T)) || (length(r) <= 1)
-allunique(r::StepRange{T,S}) where {T,S} = (step(r) != zero(S)) || (length(r) <= 1)
+function allunique(r::AbstractRange{T}) where T
+    step(r) != zero(T) || length(r) <= 1
+end
+function allunique(r::StepRange{T, S}) where {T, S}
+    step(r) != zero(S) || length(r) <= 1
+end
 
-filter!(f, s::Set) = unsafe_filter!(f, s)
+function filter!(f, s::Set)
+    unsafe_filter!(f, s)
+end
 
 const hashs_seed = UInt === UInt64 ? 0x852ada37cfe8e0ce : 0xcfe8e0ce
 function hash(s::AbstractSet, h::UInt)
@@ -389,8 +449,12 @@ function hash(s::AbstractSet, h::UInt)
     hash(hv, h)
 end
 
-convert(::Type{T}, s::T) where {T<:AbstractSet} = s
-convert(::Type{T}, s::AbstractSet) where {T<:AbstractSet} = T(s)
+function convert(::Type{T}, s::T) where T <: AbstractSet
+    s
+end
+function convert(::Type{T}, s::AbstractSet) where T <: AbstractSet
+    T(s)
+end
 
 
 ## replace/replace! ##
@@ -401,20 +465,40 @@ function check_count(count::Integer)
 end
 
 # TODO: use copy!, which is currently unavailable from here since it is defined in Future
-_copy_oftype(x, ::Type{T}) where {T} = copyto!(similar(x, T), x)
+function _copy_oftype(x, ::Type{T}) where T
+    copyto!(similar(x, T), x)
+end
 # TODO: use similar() once deprecation is removed and it preserves keys
-_copy_oftype(x::AbstractDict, ::Type{T}) where {T} = merge!(empty(x, T), x)
-_copy_oftype(x::AbstractSet, ::Type{T}) where {T} = union!(empty(x, T), x)
+function _copy_oftype(x::AbstractDict, ::Type{T}) where T
+    merge!(empty(x, T), x)
+end
+function _copy_oftype(x::AbstractSet, ::Type{T}) where T
+    union!(empty(x, T), x)
+end
 
-_copy_oftype(x::AbstractArray{T}, ::Type{T}) where {T} = copy(x)
-_copy_oftype(x::AbstractDict{K,V}, ::Type{Pair{K,V}}) where {K,V} = copy(x)
-_copy_oftype(x::AbstractSet{T}, ::Type{T}) where {T} = copy(x)
+function _copy_oftype(x::AbstractArray{T}, ::Type{T}) where T
+    copy(x)
+end
+function _copy_oftype(x::AbstractDict{K, V}, ::Type{Pair{K, V}}) where {K, V}
+    copy(x)
+end
+function _copy_oftype(x::AbstractSet{T}, ::Type{T}) where T
+    copy(x)
+end
 
-_similar_or_copy(x::Any) = similar(x)
-_similar_or_copy(x::Any, ::Type{T}) where {T} = similar(x, T)
+function _similar_or_copy(x::Any)
+    similar(x)
+end
+function _similar_or_copy(x::Any, ::Type{T}) where T
+    similar(x, T)
+end
 # Make a copy on construction since it is faster than inserting elements separately
-_similar_or_copy(x::Union{AbstractDict,AbstractSet}) = copy(x)
-_similar_or_copy(x::Union{AbstractDict,AbstractSet}, ::Type{T}) where {T} = _copy_oftype(x, T)
+function _similar_or_copy(x::Union{AbstractDict, AbstractSet})
+    copy(x)
+end
+function _similar_or_copy(x::Union{AbstractDict, AbstractSet}, ::Type{T}) where T
+    _copy_oftype(x, T)
+end
 
 # to make replace/replace! work for a new container type Cont, only
 # _replace!(new::Callable, res::Cont, A::Cont, count::Int)
@@ -528,13 +612,18 @@ function replace(A, old_new::Pair...; count::Union{Integer,Nothing}=nothing)
     end
 end
 
-promote_valuetype(x::Pair{K, V}) where {K, V} = V
-promote_valuetype(x::Pair{K, V}, y::Pair...) where {K, V} =
+function promote_valuetype(x::Pair{K, V}) where {K, V}
+    V
+end
+function promote_valuetype(x::Pair{K, V}, y::Pair...) where {K, V}
     promote_type(V, promote_valuetype(y...))
+end
 
 # Subtract singleton types which are going to be replaced
 @pure issingletontype(T::DataType) = isdefined(T, :instance)
-issingletontype(::Type) = false
+function issingletontype(::Type)
+    false
+end
 function subtract_singletontype(::Type{T}, x::Pair{K}) where {T, K}
     if issingletontype(K)
         Core.Compiler.typesubtract(T, K)
@@ -542,8 +631,9 @@ function subtract_singletontype(::Type{T}, x::Pair{K}) where {T, K}
         T
     end
 end
-subtract_singletontype(::Type{T}, x::Pair{K}, y::Pair...) where {T, K} =
+function subtract_singletontype(::Type{T}, x::Pair{K}, y::Pair...) where {T, K}
     subtract_singletontype(subtract_singletontype(T, y...), x)
+end
 
 """
     replace(new::Function, A; [count::Integer])
@@ -573,16 +663,30 @@ replace(new::Callable, A; count::Integer=typemax(Int)) =
     _replace!(new, _similar_or_copy(A), A, check_count(count))
 
 # Handle ambiguities
-replace!(a::Callable, b::Pair; count::Integer=-1) = throw(MethodError(replace!, (a, b)))
-replace!(a::Callable, b::Pair, c::Pair; count::Integer=-1) = throw(MethodError(replace!, (a, b, c)))
-replace(a::Callable, b::Pair; count::Integer=-1) = throw(MethodError(replace, (a, b)))
-replace(a::Callable, b::Pair, c::Pair; count::Integer=-1) = throw(MethodError(replace, (a, b, c)))
-replace(a::AbstractString, b::Pair, c::Pair) = throw(MethodError(replace, (a, b, c)))
+function replace!(a::Callable, b::Pair; count::Integer=-1)
+    throw(MethodError(replace!, (a, b)))
+end
+function replace!(a::Callable, b::Pair, c::Pair; count::Integer=-1)
+    throw(MethodError(replace!, (a, b, c)))
+end
+function replace(a::Callable, b::Pair; count::Integer=-1)
+    throw(MethodError(replace, (a, b)))
+end
+function replace(a::Callable, b::Pair, c::Pair; count::Integer=-1)
+    throw(MethodError(replace, (a, b, c)))
+end
+function replace(a::AbstractString, b::Pair, c::Pair)
+    throw(MethodError(replace, (a, b, c)))
+end
 
 ### replace! for AbstractDict/AbstractSet
 
-askey(k, ::AbstractDict) = k.first
-askey(k, ::AbstractSet) = k
+function askey(k, ::AbstractDict)
+    k.first
+end
+function askey(k, ::AbstractSet)
+    k
+end
 
 function _replace!(new::Callable, res::T, A::T,
                    count::Int) where T<:Union{AbstractDict,AbstractSet}

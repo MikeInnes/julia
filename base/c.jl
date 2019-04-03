@@ -33,7 +33,9 @@ struct CFunction <: Ref{Cvoid}
     _2::Ptr{Cvoid}
     let constructor = false end
 end
-unsafe_convert(::Type{Ptr{Cvoid}}, cf::CFunction) = cf.ptr
+function unsafe_convert(::Type{Ptr{Cvoid}}, cf::CFunction)
+    cf.ptr
+end
 
 """
     @cfunction(callable, ReturnType, (ArgumentTypes...,)) -> Ptr{Cvoid}
@@ -159,15 +161,31 @@ Cstring
 end
 
 # construction from pointers
-Cstring(p::Union{Ptr{Int8},Ptr{UInt8},Ptr{Cvoid}}) = bitcast(Cstring, p)
-Cwstring(p::Union{Ptr{Cwchar_t},Ptr{Cvoid}})       = bitcast(Cwstring, p)
-(::Type{Ptr{T}})(p::Cstring) where {T<:Union{Int8,UInt8,Cvoid}} = bitcast(Ptr{T}, p)
-(::Type{Ptr{T}})(p::Cwstring) where {T<:Union{Cwchar_t,Cvoid}}  = bitcast(Ptr{Cwchar_t}, p)
+function Cstring(p::Union{Ptr{Int8}, Ptr{UInt8}, Ptr{Cvoid}})
+    bitcast(Cstring, p)
+end
+function Cwstring(p::Union{Ptr{Cwchar_t}, Ptr{Cvoid}})
+    bitcast(Cwstring, p)
+end
+function (::Type{Ptr{T}})(p::Cstring) where T <: Union{Int8, UInt8, Cvoid}
+    bitcast(Ptr{T}, p)
+end
+function (::Type{Ptr{T}})(p::Cwstring) where T <: Union{Cwchar_t, Cvoid}
+    bitcast(Ptr{Cwchar_t}, p)
+end
 
-convert(::Type{Cstring}, p::Union{Ptr{Int8},Ptr{UInt8},Ptr{Cvoid}}) = Cstring(p)
-convert(::Type{Cwstring}, p::Union{Ptr{Cwchar_t},Ptr{Cvoid}}) = Cwstring(p)
-convert(::Type{Ptr{T}}, p::Cstring) where {T<:Union{Int8,UInt8,Cvoid}} = Ptr{T}(p)
-convert(::Type{Ptr{T}}, p::Cwstring) where {T<:Union{Cwchar_t,Cvoid}} = Ptr{T}(p)
+function convert(::Type{Cstring}, p::Union{Ptr{Int8}, Ptr{UInt8}, Ptr{Cvoid}})
+    Cstring(p)
+end
+function convert(::Type{Cwstring}, p::Union{Ptr{Cwchar_t}, Ptr{Cvoid}})
+    Cwstring(p)
+end
+function convert(::Type{Ptr{T}}, p::Cstring) where T <: Union{Int8, UInt8, Cvoid}
+    Ptr{T}(p)
+end
+function convert(::Type{Ptr{T}}, p::Cwstring) where T <: Union{Cwchar_t, Cvoid}
+    Ptr{T}(p)
+end
 
 """
     pointer(array [, index])
@@ -183,19 +201,32 @@ Calling [`Ref(array[, index])`](@ref Ref) is generally preferable to this functi
 """
 function pointer end
 
-pointer(p::Cstring) = convert(Ptr{UInt8}, p)
-pointer(p::Cwstring) = convert(Ptr{Cwchar_t}, p)
+function pointer(p::Cstring)
+    convert(Ptr{UInt8}, p)
+end
+function pointer(p::Cwstring)
+    convert(Ptr{Cwchar_t}, p)
+end
 
 # comparisons against pointers (mainly to support `cstr==C_NULL`)
-==(x::Union{Cstring,Cwstring}, y::Ptr) = pointer(x) == y
-==(x::Ptr, y::Union{Cstring,Cwstring}) = x == pointer(y)
+function ==(x::Union{Cstring, Cwstring}, y::Ptr)
+    pointer(x) == y
+end
+function ==(x::Ptr, y::Union{Cstring, Cwstring})
+    x == pointer(y)
+end
 
-unsafe_string(s::Cstring) = unsafe_string(convert(Ptr{UInt8}, s))
+function unsafe_string(s::Cstring)
+    unsafe_string(convert(Ptr{UInt8}, s))
+end
 
 # convert strings to String etc. to pass as pointers
-cconvert(::Type{Cstring}, s::String) = s
-cconvert(::Type{Cstring}, s::AbstractString) =
+function cconvert(::Type{Cstring}, s::String)
+    s
+end
+function cconvert(::Type{Cstring}, s::AbstractString)
     cconvert(Cstring, String(s)::String)
+end
 
 function cconvert(::Type{Cwstring}, s::AbstractString)
     v = transcode(Cwchar_t, String(s))
@@ -203,13 +234,22 @@ function cconvert(::Type{Cwstring}, s::AbstractString)
     return v
 end
 
-eltype(::Type{Cstring}) = UInt8
-eltype(::Type{Cwstring}) = Cwchar_t
+function eltype(::Type{Cstring})
+    UInt8
+end
+function eltype(::Type{Cwstring})
+    Cwchar_t
+end
 
-containsnul(p::Ptr, len) =
+function containsnul(p::Ptr, len)
     C_NULL != ccall(:memchr, Ptr{Cchar}, (Ptr{Cchar}, Cint, Csize_t), p, 0, len)
-containsnul(s::String) = containsnul(unsafe_convert(Ptr{Cchar}, s), sizeof(s))
-containsnul(s::AbstractString) = '\0' in s
+end
+function containsnul(s::String)
+    containsnul(unsafe_convert(Ptr{Cchar}, s), sizeof(s))
+end
+function containsnul(s::AbstractString)
+    '\0' in s
+end
 
 function unsafe_convert(::Type{Cstring}, s::Union{String,AbstractVector{UInt8}})
     p = unsafe_convert(Ptr{Cchar}, s)
@@ -230,8 +270,12 @@ function unsafe_convert(::Type{Cwstring}, v::Vector{Cwchar_t})
 end
 
 # symbols are guaranteed not to contain embedded NUL
-cconvert(::Type{Cstring}, s::Symbol) = s
-unsafe_convert(::Type{Cstring}, s::Symbol) = Cstring(unsafe_convert(Ptr{Cchar}, s))
+function cconvert(::Type{Cstring}, s::Symbol)
+    s
+end
+function unsafe_convert(::Type{Cstring}, s::Symbol)
+    Cstring(unsafe_convert(Ptr{Cchar}, s))
+end
 
 @static if ccall(:jl_get_UNAME, Any, ()) === :NT
 """
@@ -273,12 +317,18 @@ Only conversion to/from UTF-8 is currently supported.
 """
 function transcode end
 
-transcode(::Type{T}, src::AbstractVector{T}) where {T<:Union{UInt8,UInt16,UInt32,Int32}} = src
-transcode(::Type{T}, src::String) where {T<:Union{Int32,UInt32}} = T[T(c) for c in src]
-transcode(::Type{T}, src::AbstractVector{UInt8}) where {T<:Union{Int32,UInt32}} =
+function transcode(::Type{T}, src::AbstractVector{T}) where T <: Union{UInt8, UInt16, UInt32, Int32}
+    src
+end
+function transcode(::Type{T}, src::String) where T <: Union{Int32, UInt32}
+    T[T(c) for c = src]
+end
+function transcode(::Type{T}, src::AbstractVector{UInt8}) where T <: Union{Int32, UInt32}
     transcode(T, String(Vector(src)))
-transcode(::Type{T}, src::CodeUnits{UInt8,String}) where {T<:Union{Int32,UInt32}} =
+end
+function transcode(::Type{T}, src::CodeUnits{UInt8, String}) where T <: Union{Int32, UInt32}
     transcode(T, String(src))
+end
 
 function transcode(::Type{UInt8}, src::Vector{<:Union{Int32,UInt32}})
     buf = IOBuffer()
@@ -287,9 +337,15 @@ function transcode(::Type{UInt8}, src::Vector{<:Union{Int32,UInt32}})
     end
     take!(buf)
 end
-transcode(::Type{String}, src::String) = src
-transcode(T, src::String) = transcode(T, codeunits(src))
-transcode(::Type{String}, src) = String(transcode(UInt8, src))
+function transcode(::Type{String}, src::String)
+    src
+end
+function transcode(T, src::String)
+    transcode(T, codeunits(src))
+end
+function transcode(::Type{String}, src)
+    String(transcode(UInt8, src))
+end
 
 function transcode(::Type{UInt16}, src::AbstractVector{UInt8})
     require_one_based_indexing(src)
@@ -421,8 +477,12 @@ end
 # reennable_sigint is provided so that immediate ctrl-c handling is
 # re-enabled within a sigatomic region, e.g. inside a Julia callback function
 # within a long-running C routine.
-sigatomic_begin() = ccall(:jl_sigatomic_begin, Cvoid, ())
-sigatomic_end() = ccall(:jl_sigatomic_end, Cvoid, ())
+function sigatomic_begin()
+    ccall(:jl_sigatomic_begin, Cvoid, ())
+end
+function sigatomic_end()
+    ccall(:jl_sigatomic_end, Cvoid, ())
+end
 
 """
     disable_sigint(f::Function)

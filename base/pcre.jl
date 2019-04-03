@@ -113,17 +113,21 @@ function jit_compile(regex::Ptr{Cvoid})
     error("PCRE JIT error: $(err_message(errno))")
 end
 
-free_match_data(match_data) =
+function free_match_data(match_data)
     ccall((:pcre2_match_data_free_8, PCRE_LIB), Cvoid, (Ptr{Cvoid},), match_data)
+end
 
-free_re(re) =
+function free_re(re)
     ccall((:pcre2_code_free_8, PCRE_LIB), Cvoid, (Ptr{Cvoid},), re)
+end
 
-free_jit_stack(stack) =
+function free_jit_stack(stack)
     ccall((:pcre2_jit_stack_free_8, PCRE_LIB), Cvoid, (Ptr{Cvoid},), stack)
+end
 
-free_match_context(context) =
+function free_match_context(context)
     ccall((:pcre2_match_context_free_8, PCRE_LIB), Cvoid, (Ptr{Cvoid},), context)
+end
 
 function err_message(errno)
     buffer = Vector{UInt8}(undef, 256)

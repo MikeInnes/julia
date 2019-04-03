@@ -7,8 +7,12 @@ mutable struct RefValue{T} <: Ref{T}
     RefValue{T}() where {T} = new()
     RefValue{T}(x) where {T} = new(x)
 end
-RefValue(x::T) where {T} = RefValue{T}(x)
-isassigned(x::RefValue) = isdefined(x, :x)
+function RefValue(x::T) where T
+    RefValue{T}(x)
+end
+function isassigned(x::RefValue)
+    isdefined(x, :x)
+end
 
 function unsafe_convert(P::Type{Ptr{T}}, b::RefValue{T}) where T
     if datatype_pointerfree(RefValue{T})
@@ -27,7 +31,14 @@ end
 function unsafe_convert(P::Type{Ptr{Any}}, b::RefValue{Any})
     return convert(P, pointer_from_objref(b))
 end
-unsafe_convert(::Type{Ptr{Cvoid}}, b::RefValue{T}) where {T} = convert(Ptr{Cvoid}, unsafe_convert(Ptr{T}, b))
+function unsafe_convert(::Type{Ptr{Cvoid}}, b::RefValue{T}) where T
+    convert(Ptr{Cvoid}, unsafe_convert(Ptr{T}, b))
+end
 
-getindex(b::RefValue) = b.x
-setindex!(b::RefValue, x) = (b.x = x; b)
+function getindex(b::RefValue)
+    b.x
+end
+function setindex!(b::RefValue, x)
+    b.x = x
+    b
+end

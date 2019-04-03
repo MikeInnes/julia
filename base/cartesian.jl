@@ -247,7 +247,9 @@ function inlineanonymous(ex::Expr, val)
 end
 
 # Given :i and 3, this generates :i_3
-inlineanonymous(base::Symbol, ext) = Symbol(base,'_',ext)
+function inlineanonymous(base::Symbol, ext)
+    Symbol(base, '_', ext)
+end
 
 # Replace a symbol by a value or a "coded" symbol
 # E.g., for d = 3,
@@ -260,9 +262,13 @@ struct LReplace{S<:AbstractString}
     pat_str::S
     val::Int
 end
-LReplace(sym::Symbol, val::Integer) = LReplace(sym, string(sym), val)
+function LReplace(sym::Symbol, val::Integer)
+    LReplace(sym, string(sym), val)
+end
 
-lreplace(ex, sym::Symbol, val) = lreplace!(copy(ex), LReplace(sym, val))
+function lreplace(ex, sym::Symbol, val)
+    lreplace!(copy(ex), LReplace(sym, val))
+end
 
 function lreplace!(sym::Symbol, r::LReplace)
     sym == r.pat_sym && return r.val
@@ -328,10 +334,14 @@ function lreplace!(ex::Expr, r::LReplace)
     ex
 end
 
-lreplace!(arg, r::LReplace) = arg
+function lreplace!(arg, r::LReplace)
+    arg
+end
 
 
-poplinenum(arg) = arg
+function poplinenum(arg)
+    arg
+end
 function poplinenum(ex::Expr)
     if ex.head == :block
         if length(ex.args) == 1
@@ -358,18 +368,26 @@ function exprresolve_arith(ex::Expr)
     end
     false, 0
 end
-exprresolve_arith(arg) = false, 0
+function exprresolve_arith(arg)
+    (false, 0)
+end
 
-exprresolve_conditional(b::Bool) = true, b
+function exprresolve_conditional(b::Bool)
+    (true, b)
+end
 function exprresolve_conditional(ex::Expr)
     if ex.head == :call && ex.args[1] ∈ keys(exprresolve_cond_dict) && isa(ex.args[2], Number) && isa(ex.args[3], Number)
         return true, exprresolve_cond_dict[ex.args[1]](ex.args[2], ex.args[3])
     end
     false, false
 end
-exprresolve_conditional(arg) = false, false
+function exprresolve_conditional(arg)
+    (false, false)
+end
 
-exprresolve(arg) = arg
+function exprresolve(arg)
+    arg
+end
 function exprresolve(ex::Expr)
     for i = 1:length(ex.args)
         ex.args[i] = exprresolve(ex.args[i])

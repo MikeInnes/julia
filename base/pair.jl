@@ -12,7 +12,9 @@ struct Pair{A, B}
         return new(a, b)
     end
 end
-Pair(a, b) = Pair{typeof(a), typeof(b)}(a, b)
+function Pair(a, b)
+    Pair{typeof(a), typeof(b)}(a, b)
+end
 const => = Pair
 
 """
@@ -45,31 +47,67 @@ foo
 """
 Pair, =>
 
-eltype(p::Type{Pair{A, B}}) where {A, B} = Union{A, B}
-iterate(p::Pair, i=1) = i > 2 ? nothing : (getfield(p, i), i + 1)
-indexed_iterate(p::Pair, i::Int, state=1) = (getfield(p, i), i + 1)
+function eltype(p::Type{Pair{A, B}}) where {A, B}
+    Union{A, B}
+end
+function iterate(p::Pair, i=1)
+    if i > 2
+        nothing
+    else
+        (getfield(p, i), i + 1)
+    end
+end
+function indexed_iterate(p::Pair, i::Int, state=1)
+    (getfield(p, i), i + 1)
+end
 
-hash(p::Pair, h::UInt) = hash(p.second, hash(p.first, h))
+function hash(p::Pair, h::UInt)
+    hash(p.second, hash(p.first, h))
+end
 
-==(p::Pair, q::Pair) = (p.first==q.first) & (p.second==q.second)
-isequal(p::Pair, q::Pair) = isequal(p.first,q.first) & isequal(p.second,q.second)
+function ==(p::Pair, q::Pair)
+    (p.first == q.first) & (p.second == q.second)
+end
+function isequal(p::Pair, q::Pair)
+    isequal(p.first, q.first) & isequal(p.second, q.second)
+end
 
-isless(p::Pair, q::Pair) = ifelse(!isequal(p.first,q.first), isless(p.first,q.first),
-                                                             isless(p.second,q.second))
-getindex(p::Pair,i::Int) = getfield(p,i)
-getindex(p::Pair,i::Real) = getfield(p, convert(Int, i))
-reverse(p::Pair{A,B}) where {A,B} = Pair{B,A}(p.second, p.first)
+function isless(p::Pair, q::Pair)
+    ifelse(!(isequal(p.first, q.first)), isless(p.first, q.first), isless(p.second, q.second))
+end
+function getindex(p::Pair, i::Int)
+    getfield(p, i)
+end
+function getindex(p::Pair, i::Real)
+    getfield(p, convert(Int, i))
+end
+function reverse(p::Pair{A, B}) where {A, B}
+    Pair{B, A}(p.second, p.first)
+end
 
-firstindex(p::Pair) = 1
-lastindex(p::Pair) = 2
-length(p::Pair) = 2
-first(p::Pair) = p.first
-last(p::Pair) = p.second
+function firstindex(p::Pair)
+    1
+end
+function lastindex(p::Pair)
+    2
+end
+function length(p::Pair)
+    2
+end
+function first(p::Pair)
+    p.first
+end
+function last(p::Pair)
+    p.second
+end
 
-convert(::Type{Pair{A,B}}, x::Pair{A,B}) where {A,B} = x
+function convert(::Type{Pair{A, B}}, x::Pair{A, B}) where {A, B}
+    x
+end
 function convert(::Type{Pair{A,B}}, x::Pair) where {A,B}
     Pair{A,B}(convert(A, x[1]), convert(B, x[2]))
 end
 
-promote_rule(::Type{Pair{A1,B1}}, ::Type{Pair{A2,B2}}) where {A1,B1,A2,B2} =
+function promote_rule(::Type{Pair{A1, B1}}, ::Type{Pair{A2, B2}}) where {A1, B1, A2, B2}
     Pair{promote_type(A1, A2), promote_type(B1, B2)}
+end

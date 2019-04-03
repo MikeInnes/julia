@@ -31,8 +31,12 @@ function HTML(xs...)
     end
 end
 
-show(io::IO, ::MIME"text/html", h::HTML) = print(io, h.content)
-show(io::IO, ::MIME"text/html", h::HTML{<:Function}) = h.content(io)
+function show(io::IO, ::@MIME_str("text/html"), h::HTML)
+    print(io, h.content)
+end
+function show(io::IO, ::@MIME_str("text/html"), h::HTML{<:Function})
+    h.content(io)
+end
 
 """
     @html_str -> Docs.HTML
@@ -68,12 +72,22 @@ mutable struct Text{T}
     content::T
 end
 
-print(io::IO, t::Text) = print(io, t.content)
-print(io::IO, t::Text{<:Function}) = t.content(io)
-show(io::IO, t::Text) = print(io, t)
+function print(io::IO, t::Text)
+    print(io, t.content)
+end
+function print(io::IO, t::Text{<:Function})
+    t.content(io)
+end
+function show(io::IO, t::Text)
+    print(io, t)
+end
 
-==(t1::T, t2::T) where {T<:Union{HTML,Text}} = t1.content == t2.content
-hash(t::T, h::UInt) where {T<:Union{HTML,Text}} = hash(T, hash(t.content, h))
+function (t1::T == t2::T) where T <: Union{HTML, Text}
+    t1.content == t2.content
+end
+function hash(t::T, h::UInt) where T <: Union{HTML, Text}
+    hash(T, hash(t.content, h))
+end
 
 """
     @text_str -> Docs.Text

@@ -22,7 +22,9 @@ function startswith(a::AbstractString, b::AbstractString)
     a, b = Iterators.Stateful(a), Iterators.Stateful(b)
     all(splat(==), zip(a, b)) && isempty(b)
 end
-startswith(str::AbstractString, chars::Chars) = !isempty(str) && first(str) in chars
+function startswith(str::AbstractString, chars::Chars)
+    !(isempty(str)) && first(str) in chars
+end
 
 """
     endswith(s::AbstractString, suffix::AbstractString)
@@ -43,7 +45,9 @@ function endswith(a::AbstractString, b::AbstractString)
     b = Iterators.Stateful(Iterators.reverse(b))
     all(splat(==), zip(a, b)) && isempty(b)
 end
-endswith(str::AbstractString, chars::Chars) = !isempty(str) && last(str) in chars
+function endswith(str::AbstractString, chars::Chars)
+    !(isempty(str)) && last(str) in chars
+end
 
 function startswith(a::Union{String, SubString{String}},
                     b::Union{String, SubString{String}})
@@ -163,8 +167,12 @@ function lstrip(f, s::AbstractString)
     end
     SubString(s, e+1, e)
 end
-lstrip(s::AbstractString) = lstrip(isspace, s)
-lstrip(s::AbstractString, chars::Chars) = lstrip(in(chars), s)
+function lstrip(s::AbstractString)
+    lstrip(isspace, s)
+end
+function lstrip(s::AbstractString, chars::Chars)
+    lstrip((in)(chars), s)
+end
 
 """
     rstrip([pred=isspace,] str::AbstractString)
@@ -194,8 +202,12 @@ function rstrip(f, s::AbstractString)
     end
     SubString(s, 1, 0)
 end
-rstrip(s::AbstractString) = rstrip(isspace, s)
-rstrip(s::AbstractString, chars::Chars) = rstrip(in(chars), s)
+function rstrip(s::AbstractString)
+    rstrip(isspace, s)
+end
+function rstrip(s::AbstractString, chars::Chars)
+    rstrip((in)(chars), s)
+end
 
 """
     strip([pred=isspace,] str::AbstractString)
@@ -220,8 +232,12 @@ julia> strip("{3, 5}\\n", ['{', '}', '\\n'])
 ```
 """
 strip(s::AbstractString) = lstrip(rstrip(s))
-strip(s::AbstractString, chars::Chars) = lstrip(rstrip(s, chars), chars)
-strip(f, s::AbstractString) = lstrip(f, rstrip(f, s))
+function strip(s::AbstractString, chars::Chars)
+    lstrip(rstrip(s, chars), chars)
+end
+function strip(f, s::AbstractString)
+    lstrip(f, rstrip(f, s))
+end
 
 ## string padding functions ##
 
@@ -349,9 +365,9 @@ function _split(str::AbstractString, splitter, limit::Integer, keepempty::Bool, 
 end
 
 # a bit oddball, but standard behavior in Perl, Ruby & Python:
-split(str::AbstractString;
-      limit::Integer=0, keepempty::Bool=false) =
+function split(str::AbstractString; limit::Integer=0, keepempty::Bool=false)
     split(str, isspace; limit=limit, keepempty=keepempty)
+end
 
 """
     rsplit(s::AbstractString; limit::Integer=0, keepempty::Bool=false)
@@ -410,23 +426,27 @@ function _rsplit(str::AbstractString, splitter, limit::Integer, keepempty::Bool,
     (keepempty || n > 0) && pushfirst!(strs, SubString(str,1,n))
     return strs
 end
-rsplit(str::AbstractString;
-      limit::Integer=0, keepempty::Bool=false) =
+function rsplit(str::AbstractString; limit::Integer=0, keepempty::Bool=false)
     rsplit(str, isspace; limit=limit, keepempty=keepempty)
+end
 
-_replace(io, repl, str, r, pattern) = print(io, repl)
-_replace(io, repl::Function, str, r, pattern) =
+function _replace(io, repl, str, r, pattern)
+    print(io, repl)
+end
+function _replace(io, repl::Function, str, r, pattern)
     print(io, repl(SubString(str, first(r), last(r))))
-_replace(io, repl::Function, str, r, pattern::Function) =
+end
+function _replace(io, repl::Function, str, r, pattern::Function)
     print(io, repl(str[first(r)]))
+end
 
-replace(str::String, pat_repl::Pair{<:AbstractChar}; count::Integer=typemax(Int)) =
+function replace(str::String, pat_repl::Pair{<:AbstractChar}; count::Integer=typemax(Int))
     replace(str, isequal(first(pat_repl)) => last(pat_repl); count=count)
+end
 
-replace(str::String, pat_repl::Pair{<:Union{Tuple{Vararg{<:AbstractChar}},
-                                            AbstractVector{<:AbstractChar},Set{<:AbstractChar}}};
-        count::Integer=typemax(Int)) =
-    replace(str, in(first(pat_repl)) => last(pat_repl), count=count)
+function replace(str::String, pat_repl::Pair{<:Union{Tuple{Vararg{<:AbstractChar}}, AbstractVector{<:AbstractChar}, Set{<:AbstractChar}}}; count::Integer=typemax(Int))
+    replace(str, (in)(first(pat_repl)) => last(pat_repl), count=count)
+end
 
 function replace(str::String, pat_repl::Pair; count::Integer=typemax(Int))
     pattern, repl = pat_repl
@@ -533,13 +553,25 @@ julia> hex2bytes(a)
 """
 function hex2bytes end
 
-hex2bytes(s::AbstractString) = hex2bytes(String(s))
-hex2bytes(s::Union{String,AbstractVector{UInt8}}) = hex2bytes!(Vector{UInt8}(undef, length(s) >> 1), s)
+function hex2bytes(s::AbstractString)
+    hex2bytes(String(s))
+end
+function hex2bytes(s::Union{String, AbstractVector{UInt8}})
+    hex2bytes!(Vector{UInt8}(undef, length(s) >> 1), s)
+end
 
-_firstbyteidx(s::String) = 1
-_firstbyteidx(s::AbstractVector{UInt8}) = first(eachindex(s))
-_lastbyteidx(s::String) = sizeof(s)
-_lastbyteidx(s::AbstractVector{UInt8}) = lastindex(s)
+function _firstbyteidx(s::String)
+    1
+end
+function _firstbyteidx(s::AbstractVector{UInt8})
+    first(eachindex(s))
+end
+function _lastbyteidx(s::String)
+    sizeof(s)
+end
+function _lastbyteidx(s::AbstractVector{UInt8})
+    lastindex(s)
+end
 
 """
     hex2bytes!(d::AbstractVector{UInt8}, s::Union{String,AbstractVector{UInt8}})
@@ -599,10 +631,11 @@ function bytes2hex(a::AbstractArray{UInt8})
     return String(b)
 end
 
-bytes2hex(io::IO, a::AbstractArray{UInt8}) =
-    for x in a
-        print(io, Char(hex_chars[1 + x >> 4]), Char(hex_chars[1 + x & 0xf]))
+function bytes2hex(io::IO, a::AbstractArray{UInt8})
+    for x = a
+        print(io, Char(hex_chars[1 + x >> 4]), Char(hex_chars[1 + x & 0x0f]))
     end
+end
 
 # check for pure ASCII-ness
 function ascii(s::String)

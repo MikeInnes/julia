@@ -63,8 +63,9 @@ struct StackFrame # this type should be kept platform-agnostic so that profiles 
     pointer::UInt64  # Large enough to be read losslessly on 32- and 64-bit machines.
 end
 
-StackFrame(func, file, line) = StackFrame(Symbol(func), Symbol(file), line,
-                                          nothing, false, false, 0)
+function StackFrame(func, file, line)
+    StackFrame(Symbol(func), Symbol(file), line, nothing, false, false, 0)
+end
 
 """
     StackTrace
@@ -116,12 +117,16 @@ function lookup(pointer::Ptr{Cvoid})
     return res
 end
 
-lookup(pointer::UInt) = lookup(convert(Ptr{Cvoid}, pointer))
+function lookup(pointer::UInt)
+    lookup(convert(Ptr{Cvoid}, pointer))
+end
 
 const top_level_scope_sym = Symbol("top-level scope")
 
 using Base.Meta
-is_loc_meta(expr, kind) = isexpr(expr, :meta) && length(expr.args) >= 1 && expr.args[1] === kind
+function is_loc_meta(expr, kind)
+    isexpr(expr, :meta) && (length(expr.args) >= 1 && expr.args[1] === kind)
+end
 function lookup(ip::Base.InterpreterIP)
     if ip.code isa Core.MethodInstance && ip.code.def isa Method
         codeinfo = ip.code.inferred
@@ -155,8 +160,12 @@ function lookup(ip::Base.InterpreterIP)
 end
 
 # allow lookup on already-looked-up data for easier handling of pre-processed frames
-lookup(s::StackFrame) = StackFrame[s]
-lookup(s::Tuple{StackFrame,Int}) = StackFrame[s[1]]
+function lookup(s::StackFrame)
+    StackFrame[s]
+end
+function lookup(s::Tuple{StackFrame, Int})
+    StackFrame[s[1]]
+end
 
 """
     backtrace()
@@ -213,7 +222,9 @@ function stacktrace(trace::Vector{<:Union{Base.InterpreterIP,Ptr{Cvoid}}}, c_fun
     stack
 end
 
-stacktrace(c_funcs::Bool=false) = stacktrace(backtrace(), c_funcs)
+function stacktrace(c_funcs::Bool=false)
+    stacktrace(backtrace(), c_funcs)
+end
 
 """
     remove_frames!(stack::StackTrace, name::Symbol)
@@ -243,7 +254,9 @@ function remove_frames!(stack::StackTrace, m::Module)
     return stack
 end
 
-is_top_level_frame(f::StackFrame) = f.linfo isa Core.CodeInfo || (f.linfo === nothing && f.func === top_level_scope_sym)
+function is_top_level_frame(f::StackFrame)
+    f.linfo isa Core.CodeInfo || f.linfo === nothing && f.func === top_level_scope_sym
+end
 
 function show_spec_linfo(io::IO, frame::StackFrame)
     if frame.linfo === nothing

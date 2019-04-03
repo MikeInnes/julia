@@ -19,9 +19,15 @@ The reduction operator used in `sum`. The main difference from [`+`](@ref) is th
 integers are promoted to `Int`/`UInt`.
 """
 add_sum(x, y) = x + y
-add_sum(x::SmallSigned, y::SmallSigned) = Int(x) + Int(y)
-add_sum(x::SmallUnsigned, y::SmallUnsigned) = UInt(x) + UInt(y)
-add_sum(x::Real, y::Real)::Real = x + y
+function add_sum(x::SmallSigned, y::SmallSigned)
+    Int(x) + Int(y)
+end
+function add_sum(x::SmallUnsigned, y::SmallUnsigned)
+    UInt(x) + UInt(y)
+end
+function add_sum(x::Real, y::Real)::Real
+    x + y
+end
 
 """
     Base.mul_prod(x, y)
@@ -30,9 +36,15 @@ The reduction operator used in `prod`. The main difference from [`*`](@ref) is t
 integers are promoted to `Int`/`UInt`.
 """
 mul_prod(x, y) = x * y
-mul_prod(x::SmallSigned, y::SmallSigned) = Int(x) * Int(y)
-mul_prod(x::SmallUnsigned, y::SmallUnsigned) = UInt(x) * UInt(y)
-mul_prod(x::Real, y::Real)::Real = x * y
+function mul_prod(x::SmallSigned, y::SmallSigned)
+    Int(x) * Int(y)
+end
+function mul_prod(x::SmallUnsigned, y::SmallUnsigned)
+    UInt(x) * UInt(y)
+end
+function mul_prod(x::Real, y::Real)::Real
+    x * y
+end
 
 ## foldl && mapfoldl
 
@@ -175,8 +187,9 @@ foldr(op, itr; kw...) = mapfoldr(identity, op, itr; kw...)
     end
 end
 
-mapreduce_impl(f, op, A::AbstractArray, ifirst::Integer, ilast::Integer) =
+function mapreduce_impl(f, op, A::AbstractArray, ifirst::Integer, ilast::Integer)
     mapreduce_impl(f, op, A, ifirst, ilast, pairwise_blocksize(f, op))
+end
 
 """
     mapreduce(f, op, itr; [init])
@@ -206,14 +219,20 @@ mapreduce(f, op, itr; kw...) = mapfoldl(f, op, itr; kw...)
 
 # Note: sum_seq usually uses four or more accumulators after partial
 # unrolling, so each accumulator gets at most 256 numbers
-pairwise_blocksize(f, op) = 1024
+function pairwise_blocksize(f, op)
+    1024
+end
 
 # This combination appears to show a benefit from a larger block size
-pairwise_blocksize(::typeof(abs2), ::typeof(+)) = 4096
+function pairwise_blocksize(::typeof(abs2), ::typeof(+))
+    4096
+end
 
 
 # handling empty arrays
-_empty_reduce_error() = throw(ArgumentError("reducing over an empty collection is not allowed"))
+function _empty_reduce_error()
+    throw(ArgumentError("reducing over an empty collection is not allowed"))
+end
 
 """
     Base.reduce_empty(op, T)
@@ -224,19 +243,43 @@ with reduction `op` over an empty array with element type of `T`.
 If not defined, this will throw an `ArgumentError`.
 """
 reduce_empty(op, T) = _empty_reduce_error()
-reduce_empty(::typeof(+), T) = zero(T)
-reduce_empty(::typeof(+), ::Type{Bool}) = zero(Int)
-reduce_empty(::typeof(*), T) = one(T)
-reduce_empty(::typeof(*), ::Type{<:AbstractChar}) = ""
-reduce_empty(::typeof(&), ::Type{Bool}) = true
-reduce_empty(::typeof(|), ::Type{Bool}) = false
+function reduce_empty(::typeof(+), T)
+    zero(T)
+end
+function reduce_empty(::typeof(+), ::Type{Bool})
+    zero(Int)
+end
+function reduce_empty(::typeof(*), T)
+    one(T)
+end
+function reduce_empty(::typeof(*), ::Type{<:AbstractChar})
+    ""
+end
+function reduce_empty(::typeof(&), ::Type{Bool})
+    true
+end
+function reduce_empty(::typeof(|), ::Type{Bool})
+    false
+end
 
-reduce_empty(::typeof(add_sum), T) = reduce_empty(+, T)
-reduce_empty(::typeof(add_sum), ::Type{T}) where {T<:SmallSigned}  = zero(Int)
-reduce_empty(::typeof(add_sum), ::Type{T}) where {T<:SmallUnsigned} = zero(UInt)
-reduce_empty(::typeof(mul_prod), T) = reduce_empty(*, T)
-reduce_empty(::typeof(mul_prod), ::Type{T}) where {T<:SmallSigned}  = one(Int)
-reduce_empty(::typeof(mul_prod), ::Type{T}) where {T<:SmallUnsigned} = one(UInt)
+function reduce_empty(::typeof(add_sum), T)
+    reduce_empty(+, T)
+end
+function reduce_empty(::typeof(add_sum), ::Type{T}) where T <: SmallSigned
+    zero(Int)
+end
+function reduce_empty(::typeof(add_sum), ::Type{T}) where T <: SmallUnsigned
+    zero(UInt)
+end
+function reduce_empty(::typeof(mul_prod), T)
+    reduce_empty(*, T)
+end
+function reduce_empty(::typeof(mul_prod), ::Type{T}) where T <: SmallSigned
+    one(Int)
+end
+function reduce_empty(::typeof(mul_prod), ::Type{T}) where T <: SmallUnsigned
+    one(UInt)
+end
 
 """
     Base.mapreduce_empty(f, op, T)
@@ -248,17 +291,35 @@ of `T`.
 If not defined, this will throw an `ArgumentError`.
 """
 mapreduce_empty(f, op, T) = _empty_reduce_error()
-mapreduce_empty(::typeof(identity), op, T) = reduce_empty(op, T)
-mapreduce_empty(::typeof(abs), op, T)      = abs(reduce_empty(op, T))
-mapreduce_empty(::typeof(abs2), op, T)     = abs2(reduce_empty(op, T))
+function mapreduce_empty(::typeof(identity), op, T)
+    reduce_empty(op, T)
+end
+function mapreduce_empty(::typeof(abs), op, T)
+    abs(reduce_empty(op, T))
+end
+function mapreduce_empty(::typeof(abs2), op, T)
+    abs2(reduce_empty(op, T))
+end
 
-mapreduce_empty(f::typeof(abs),  ::typeof(max), T) = abs(zero(T))
-mapreduce_empty(f::typeof(abs2), ::typeof(max), T) = abs2(zero(T))
+function mapreduce_empty(f::typeof(abs), ::typeof(max), T)
+    abs(zero(T))
+end
+function mapreduce_empty(f::typeof(abs2), ::typeof(max), T)
+    abs2(zero(T))
+end
 
-mapreduce_empty_iter(f, op, itr, ::HasEltype) = mapreduce_empty(f, op, eltype(itr))
-mapreduce_empty_iter(f, op::typeof(&), itr, ::EltypeUnknown) = true
-mapreduce_empty_iter(f, op::typeof(|), itr, ::EltypeUnknown) = false
-mapreduce_empty_iter(f, op, itr, ::EltypeUnknown) = _empty_reduce_error()
+function mapreduce_empty_iter(f, op, itr, ::HasEltype)
+    mapreduce_empty(f, op, eltype(itr))
+end
+function mapreduce_empty_iter(f, op::typeof(&), itr, ::EltypeUnknown)
+    true
+end
+function mapreduce_empty_iter(f, op::typeof(|), itr, ::EltypeUnknown)
+    false
+end
+function mapreduce_empty_iter(f, op, itr, ::EltypeUnknown)
+    _empty_reduce_error()
+end
 
 # handling of single-element iterators
 """
@@ -274,15 +335,31 @@ additional methods should only be defined for cases where `op` gives a result wi
 different types than its inputs.
 """
 reduce_first(op, x) = x
-reduce_first(::typeof(+), x::Bool) = Int(x)
-reduce_first(::typeof(*), x::AbstractChar) = string(x)
+function reduce_first(::typeof(+), x::Bool)
+    Int(x)
+end
+function reduce_first(::typeof(*), x::AbstractChar)
+    string(x)
+end
 
-reduce_first(::typeof(add_sum), x) = reduce_first(+, x)
-reduce_first(::typeof(add_sum), x::SmallSigned)   = Int(x)
-reduce_first(::typeof(add_sum), x::SmallUnsigned) = UInt(x)
-reduce_first(::typeof(mul_prod), x) = reduce_first(*, x)
-reduce_first(::typeof(mul_prod), x::SmallSigned)   = Int(x)
-reduce_first(::typeof(mul_prod), x::SmallUnsigned) = UInt(x)
+function reduce_first(::typeof(add_sum), x)
+    reduce_first(+, x)
+end
+function reduce_first(::typeof(add_sum), x::SmallSigned)
+    Int(x)
+end
+function reduce_first(::typeof(add_sum), x::SmallUnsigned)
+    UInt(x)
+end
+function reduce_first(::typeof(mul_prod), x)
+    reduce_first(*, x)
+end
+function reduce_first(::typeof(mul_prod), x::SmallSigned)
+    Int(x)
+end
+function reduce_first(::typeof(mul_prod), x::SmallUnsigned)
+    UInt(x)
+end
 
 """
     Base.mapreduce_first(f, op, x)
@@ -296,7 +373,9 @@ The default is `reduce_first(op, f(x))`.
 """
 mapreduce_first(f, op, x) = reduce_first(op, f(x))
 
-_mapreduce(f, op, A::AbstractArray) = _mapreduce(f, op, IndexStyle(A), A)
+function _mapreduce(f, op, A::AbstractArray)
+    _mapreduce(f, op, IndexStyle(A), A)
+end
 
 function _mapreduce(f, op, ::IndexLinear, A::AbstractArray{T}) where T
     inds = LinearIndices(A)
@@ -321,9 +400,13 @@ function _mapreduce(f, op, ::IndexLinear, A::AbstractArray{T}) where T
     end
 end
 
-mapreduce(f, op, a::Number) = mapreduce_first(f, op, a)
+function mapreduce(f, op, a::Number)
+    mapreduce_first(f, op, a)
+end
 
-_mapreduce(f, op, ::IndexCartesian, A::AbstractArray) = mapfoldl(f, op, A)
+function _mapreduce(f, op, ::IndexCartesian, A::AbstractArray)
+    mapfoldl(f, op, A)
+end
 
 """
     reduce(op, itr; [init])
@@ -360,7 +443,9 @@ julia> reduce(*, [2; 3; 4]; init=-1)
 """
 reduce(op, itr; kw...) = mapreduce(identity, op, itr; kw...)
 
-reduce(op, a::Number) = a  # Do we want this?
+function reduce(op, a::Number)
+    a
+end  # Do we want this?
 
 ###### Specific reduction functions ######
 
@@ -414,7 +499,9 @@ julia> sum(1:20)
 ```
 """
 sum(a) = sum(identity, a)
-sum(a::AbstractArray{Bool}) = count(a)
+function sum(a::AbstractArray{Bool})
+    count(a)
+end
 
 ## prod
 """
@@ -452,8 +539,12 @@ julia> prod(1:20)
 prod(a) = mapreduce(identity, mul_prod, a)
 
 ## maximum & minimum
-_fast(::typeof(min),x,y) = min(x,y)
-_fast(::typeof(max),x,y) = max(x,y)
+function _fast(::typeof(min), x, y)
+    min(x, y)
+end
+function _fast(::typeof(max), x, y)
+    max(x, y)
+end
 function _fast(::typeof(max), x::AbstractFloat, y::AbstractFloat)
     ifelse(isnan(x),
         x,
@@ -466,11 +557,21 @@ function _fast(::typeof(min),x::AbstractFloat, y::AbstractFloat)
         ifelse(x < y, x, y))
 end
 
-isbadzero(::typeof(max), x::AbstractFloat) = (x == zero(x)) & signbit(x)
-isbadzero(::typeof(min), x::AbstractFloat) = (x == zero(x)) & !signbit(x)
-isbadzero(op, x) = false
-isgoodzero(::typeof(max), x) = isbadzero(min, x)
-isgoodzero(::typeof(min), x) = isbadzero(max, x)
+function isbadzero(::typeof(max), x::AbstractFloat)
+    (x == zero(x)) & signbit(x)
+end
+function isbadzero(::typeof(min), x::AbstractFloat)
+    (x == zero(x)) & !(signbit(x))
+end
+function isbadzero(op, x)
+    false
+end
+function isgoodzero(::typeof(max), x)
+    isbadzero(min, x)
+end
+function isgoodzero(::typeof(min), x)
+    isbadzero(max, x)
+end
 
 function mapreduce_impl(f, op::Union{typeof(max), typeof(min)},
                         A::AbstractArray, first::Int, last::Int)
@@ -514,8 +615,12 @@ function mapreduce_impl(f, op::Union{typeof(max), typeof(min)},
     return v
 end
 
-maximum(f, a) = mapreduce(f, max, a)
-minimum(f, a) = mapreduce(f, min, a)
+function maximum(f, a)
+    mapreduce(f, max, a)
+end
+function minimum(f, a)
+    mapreduce(f, min, a)
+end
 
 """
     maximum(itr)
@@ -753,4 +858,6 @@ function count(pred, a::AbstractArray)
     end
     return n
 end
-count(itr) = count(identity, itr)
+function count(itr)
+    count(identity, itr)
+end

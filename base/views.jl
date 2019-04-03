@@ -132,7 +132,9 @@ end
 # lastindex in replace_ref_end!) must be interpolated
 # as values rather than as symbols to ensure that they are called
 # from Base rather than from the caller's scope.
-_views(x) = x
+function _views(x)
+    x
+end
 function _views(ex::Expr)
     if ex.head in (:(=), :(.=))
         # don't use view for ref on the lhs of an assignment,

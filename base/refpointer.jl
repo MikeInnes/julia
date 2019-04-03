@@ -33,22 +33,52 @@ end
 
 ### General Methods for Ref{T} type
 
-eltype(x::Type{<:Ref{T}}) where {T} = @isdefined(T) ? T : Any
-convert(::Type{Ref{T}}, x::Ref{T}) where {T} = x
-size(x::Ref) = ()
-axes(x::Ref) = ()
-length(x::Ref) = 1
-ndims(x::Ref) = 0
-ndims(::Type{<:Ref}) = 0
-iterate(r::Ref) = (r[], nothing)
-iterate(r::Ref, s) = nothing
-IteratorSize(::Type{<:Ref}) = HasShape{0}()
+function eltype(x::Type{<:Ref{T}}) where T
+    if @isdefined(T)
+        T
+    else
+        Any
+    end
+end
+function convert(::Type{Ref{T}}, x::Ref{T}) where T
+    x
+end
+function size(x::Ref)
+    ()
+end
+function axes(x::Ref)
+    ()
+end
+function length(x::Ref)
+    1
+end
+function ndims(x::Ref)
+    0
+end
+function ndims(::Type{<:Ref})
+    0
+end
+function iterate(r::Ref)
+    (r[], nothing)
+end
+function iterate(r::Ref, s)
+    nothing
+end
+function IteratorSize(::Type{<:Ref})
+    HasShape{0}()
+end
 
 # create Ref objects for general object conversion
-unsafe_convert(::Type{Ref{T}}, x::Ref{T}) where {T} = unsafe_convert(Ptr{T}, x)
-unsafe_convert(::Type{Ref{T}}, x) where {T} = unsafe_convert(Ptr{T}, x)
+function unsafe_convert(::Type{Ref{T}}, x::Ref{T}) where T
+    unsafe_convert(Ptr{T}, x)
+end
+function unsafe_convert(::Type{Ref{T}}, x) where T
+    unsafe_convert(Ptr{T}, x)
+end
 
-convert(::Type{Ref{T}}, x) where {T} = RefValue{T}(x)
+function convert(::Type{Ref{T}}, x) where T
+    RefValue{T}(x)
+end
 
 ### Methods for a Ref object that is backed by an array at index i
 struct RefArray{T,A<:AbstractArray{T},R} <: Ref{T}
@@ -57,9 +87,15 @@ struct RefArray{T,A<:AbstractArray{T},R} <: Ref{T}
     roots::R # should be either ::Nothing or ::Any
     RefArray{T,A,R}(x,i,roots=nothing) where {T,A<:AbstractArray{T},R} = new(x,i,roots)
 end
-RefArray(x::AbstractArray{T}, i::Int, roots::Any) where {T} = RefArray{T,typeof(x),Any}(x, i, roots)
-RefArray(x::AbstractArray{T}, i::Int=1, roots::Nothing=nothing) where {T} = RefArray{T,typeof(x),Nothing}(x, i, nothing)
-convert(::Type{Ref{T}}, x::AbstractArray{T}) where {T} = RefArray(x, 1)
+function RefArray(x::AbstractArray{T}, i::Int, roots::Any) where T
+    RefArray{T, typeof(x), Any}(x, i, roots)
+end
+function RefArray(x::AbstractArray{T}, i::Int=1, roots::Nothing=nothing) where T
+    RefArray{T, typeof(x), Nothing}(x, i, nothing)
+end
+function convert(::Type{Ref{T}}, x::AbstractArray{T}) where T
+    RefArray(x, 1)
+end
 
 function unsafe_convert(P::Type{Ptr{T}}, b::RefArray{T}) where T
     if datatype_pointerfree(RefValue{T})
@@ -75,7 +111,9 @@ end
 function unsafe_convert(P::Type{Ptr{Any}}, b::RefArray{Any})
     return convert(P, pointer(b.x, b.i))
 end
-unsafe_convert(::Type{Ptr{Cvoid}}, b::RefArray{T}) where {T} = convert(Ptr{Cvoid}, unsafe_convert(Ptr{T}, b))
+function unsafe_convert(::Type{Ptr{Cvoid}}, b::RefArray{T}) where T
+    convert(Ptr{Cvoid}, unsafe_convert(Ptr{T}, b))
+end
 
 ###
 if is_primary_base_module
@@ -109,14 +147,27 @@ if is_primary_base_module
     Ref(x::AbstractArray, i::Integer) = RefArray(x, i)
 end
 
-cconvert(::Type{Ptr{P}}, a::Array{<:Ptr}) where {P<:Ptr} = a
-cconvert(::Type{Ref{P}}, a::Array{<:Ptr}) where {P<:Ptr} = a
-cconvert(::Type{Ptr{P}}, a::Array) where {P<:Union{Ptr,Cwstring,Cstring}} = Ref{P}(a)
-cconvert(::Type{Ref{P}}, a::Array) where {P<:Union{Ptr,Cwstring,Cstring}} = Ref{P}(a)
+function cconvert(::Type{Ptr{P}}, a::Array{<:Ptr}) where P <: Ptr
+    a
+end
+function cconvert(::Type{Ref{P}}, a::Array{<:Ptr}) where P <: Ptr
+    a
+end
+function cconvert(::Type{Ptr{P}}, a::Array) where P <: Union{Ptr, Cwstring, Cstring}
+    Ref{P}(a)
+end
+function cconvert(::Type{Ref{P}}, a::Array) where P <: Union{Ptr, Cwstring, Cstring}
+    Ref{P}(a)
+end
 
 ###
 
-getindex(b::RefArray) = b.x[b.i]
-setindex!(b::RefArray, x) = (b.x[b.i] = x; b)
+function getindex(b::RefArray)
+    b.x[b.i]
+end
+function setindex!(b::RefArray, x)
+    b.x[b.i] = x
+    b
+end
 
 ###

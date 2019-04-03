@@ -87,8 +87,13 @@ end
 #   (h|hh|l|ll|L|j|t|z|q)?  # modifier (ignored)
 #   [diouxXeEfFgGaAcCsSp%]  # conversion
 
-pop_or_die!(s, a) = !isempty(a) ? popfirst!(a) :
-    throw(ArgumentError("invalid printf format string: $(repr(s))"))
+function pop_or_die!(s, a)
+    if !(isempty(a))
+        popfirst!(a)
+    else
+        throw(ArgumentError("invalid printf format string: $(repr(s))"))
+    end
+end
 
 function parse1!(s, a)
     width = 0
@@ -833,27 +838,61 @@ macro handle_zero(ex, digits)
     end
 end
 
-decode_oct(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, decode_oct(d, digits))
-decode_0ct(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, decode_0ct(d, digits))
-decode_dec(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, decode_dec(d, digits))
-decode_hex(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, decode_hex(d, digits))
-decode_HEX(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, decode_HEX(d, digits))
-fix_dec(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, fix_dec(d, precision, digits))
-ini_dec(out, d, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits) = (true, ini_dec(d, ndigits, digits))
-ini_hex(out, d, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits) = (true, ini_hex(d, ndigits, digits))
-ini_HEX(out, d, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits) = (true, ini_HEX(d, ndigits, digits))
-ini_hex(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, ini_hex(d, digits))
-ini_HEX(out, d, flags::String, width::Int, precision::Int, c::Char, digits) = (true, ini_HEX(d, digits))
+function decode_oct(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, decode_oct(d, digits))
+end
+function decode_0ct(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, decode_0ct(d, digits))
+end
+function decode_dec(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, decode_dec(d, digits))
+end
+function decode_hex(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, decode_hex(d, digits))
+end
+function decode_HEX(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, decode_HEX(d, digits))
+end
+function fix_dec(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, fix_dec(d, precision, digits))
+end
+function ini_dec(out, d, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, ini_dec(d, ndigits, digits))
+end
+function ini_hex(out, d, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, ini_hex(d, ndigits, digits))
+end
+function ini_HEX(out, d, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, ini_HEX(d, ndigits, digits))
+end
+function ini_hex(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, ini_hex(d, digits))
+end
+function ini_HEX(out, d, flags::String, width::Int, precision::Int, c::Char, digits)
+    (true, ini_HEX(d, digits))
+end
 
 
 # fallbacks for Real types without explicit decode_* implementation
-decode_oct(d::Real, digits) = decode_oct(Integer(d), digits)
-decode_0ct(d::Real, digits) = decode_0ct(Integer(d), digits)
-decode_dec(d::Real, digits) = decode_dec(Integer(d), digits)
-decode_hex(d::Real, digits) = decode_hex(Integer(d), digits)
-decode_HEX(d::Real, digits) = decode_HEX(Integer(d), digits)
+function decode_oct(d::Real, digits)
+    decode_oct(Integer(d), digits)
+end
+function decode_0ct(d::Real, digits)
+    decode_0ct(Integer(d), digits)
+end
+function decode_dec(d::Real, digits)
+    decode_dec(Integer(d), digits)
+end
+function decode_hex(d::Real, digits)
+    decode_hex(Integer(d), digits)
+end
+function decode_HEX(d::Real, digits)
+    decode_HEX(Integer(d), digits)
+end
 
-handlenegative(d::Unsigned) = (false, d)
+function handlenegative(d::Unsigned)
+    (false, d)
+end
 function handlenegative(d::Integer)
     if d < 0
         return true, unsigned(oftype(d,-d))
@@ -913,8 +952,12 @@ end
 const hex_symbols = b"0123456789abcdef"
 const HEX_symbols = b"0123456789ABCDEF"
 
-decode_hex(x::Integer, digits) = decode_hex(x,hex_symbols,digits)
-decode_HEX(x::Integer, digits) = decode_hex(x,HEX_symbols,digits)
+function decode_hex(x::Integer, digits)
+    decode_hex(x, hex_symbols, digits)
+end
+function decode_HEX(x::Integer, digits)
+    decode_hex(x, HEX_symbols, digits)
+end
 
 function decode(b::Int, x::BigInt, digits)
     neg = x.size < 0
@@ -925,10 +968,18 @@ function decode(b::Int, x::BigInt, digits)
     neg && (x.size = -x.size)
     return Int32(pt), Int32(pt), neg
 end
-decode_oct(x::BigInt, digits) = decode(8, x, digits)
-decode_dec(x::BigInt, digits) = decode(10, x, digits)
-decode_hex(x::BigInt, digits) = decode(16, x, digits)
-decode_HEX(x::BigInt, digits) = decode(-16, x, digits)
+function decode_oct(x::BigInt, digits)
+    decode(8, x, digits)
+end
+function decode_dec(x::BigInt, digits)
+    decode(10, x, digits)
+end
+function decode_hex(x::BigInt, digits)
+    decode(16, x, digits)
+end
+function decode_HEX(x::BigInt, digits)
+    decode(-16, x, digits)
+end
 
 function decode_0ct(x::BigInt, digits)
     neg = x.size < 0
@@ -984,9 +1035,13 @@ end
 #
 
 # fallback for Real types without explicit fix_dec implementation
-fix_dec(x::Real, n::Int, digits) = fix_dec(float(x),n,digits)
+function fix_dec(x::Real, n::Int, digits)
+    fix_dec(float(x), n, digits)
+end
 
-fix_dec(x::Integer, n::Int, digits) = decode_dec(x, digits)
+function fix_dec(x::Integer, n::Int, digits)
+    decode_dec(x, digits)
+end
 
 function fix_dec(x::SmallFloatingPoint, n::Int, digits)
     if n > length(digits)-1; n = length(digits)-1; end
@@ -1005,7 +1060,9 @@ end
 #
 
 # fallback for Real types without explicit fix_dec implementation
-ini_dec(x::Real, n::Int, digits) = ini_dec(float(x),n,digits)
+function ini_dec(x::Real, n::Int, digits)
+    ini_dec(float(x), n, digits)
+end
 
 function ini_dec(d::Integer, n::Int, digits)
     neg, x = handlenegative(d)
@@ -1066,14 +1123,26 @@ function ini_dec(x::BigInt, n::Int, digits)
 end
 
 
-ini_hex(x::Real, n::Int, digits) = ini_hex(x,n,hex_symbols,digits)
-ini_HEX(x::Real, n::Int, digits) = ini_hex(x,n,HEX_symbols,digits)
+function ini_hex(x::Real, n::Int, digits)
+    ini_hex(x, n, hex_symbols, digits)
+end
+function ini_HEX(x::Real, n::Int, digits)
+    ini_hex(x, n, HEX_symbols, digits)
+end
 
-ini_hex(x::Real, digits) = ini_hex(x,hex_symbols,digits)
-ini_HEX(x::Real, digits) = ini_hex(x,HEX_symbols,digits)
+function ini_hex(x::Real, digits)
+    ini_hex(x, hex_symbols, digits)
+end
+function ini_HEX(x::Real, digits)
+    ini_hex(x, HEX_symbols, digits)
+end
 
-ini_hex(x::Real, n::Int, symbols::AbstractArray{UInt8,1}, digits) = ini_hex(float(x), n, symbols, digits)
-ini_hex(x::Real, symbols::AbstractArray{UInt8,1}, digits) = ini_hex(float(x), symbols, digits)
+function ini_hex(x::Real, n::Int, symbols::AbstractArray{UInt8, 1}, digits)
+    ini_hex(float(x), n, symbols, digits)
+end
+function ini_hex(x::Real, symbols::AbstractArray{UInt8, 1}, digits)
+    ini_hex(float(x), symbols, digits)
+end
 
 function ini_hex(x::SmallFloatingPoint, n::Int, symbols::AbstractArray{UInt8,1}, digits)
     x = Float64(x)
@@ -1133,15 +1202,29 @@ function ini_HEX(x::Integer, digits)
 end
 
 # not implemented
-ini_hex(x::Integer,ndigits::Int,digits) = throw(MethodError(ini_hex,(x,ndigits,digits)))
+function ini_hex(x::Integer, ndigits::Int, digits)
+    throw(MethodError(ini_hex, (x, ndigits, digits)))
+end
 
 #BigFloat
-fix_dec(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits) = bigfloat_printf(out, d, flags, width, precision, c, digits)
-ini_dec(out, d::BigFloat, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits) = bigfloat_printf(out, d, flags, width, precision, c, digits)
-ini_hex(out, d::BigFloat, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits) = bigfloat_printf(out, d, flags, width, precision, c, digits)
-ini_HEX(out, d::BigFloat, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits) = bigfloat_printf(out, d, flags, width, precision, c, digits)
-ini_hex(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits) = bigfloat_printf(out, d, flags, width, precision, c, digits)
-ini_HEX(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits) = bigfloat_printf(out, d, flags, width, precision, c, digits)
+function fix_dec(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits)
+    bigfloat_printf(out, d, flags, width, precision, c, digits)
+end
+function ini_dec(out, d::BigFloat, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits)
+    bigfloat_printf(out, d, flags, width, precision, c, digits)
+end
+function ini_hex(out, d::BigFloat, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits)
+    bigfloat_printf(out, d, flags, width, precision, c, digits)
+end
+function ini_HEX(out, d::BigFloat, ndigits::Int, flags::String, width::Int, precision::Int, c::Char, digits)
+    bigfloat_printf(out, d, flags, width, precision, c, digits)
+end
+function ini_hex(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits)
+    bigfloat_printf(out, d, flags, width, precision, c, digits)
+end
+function ini_HEX(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits)
+    bigfloat_printf(out, d, flags, width, precision, c, digits)
+end
 function bigfloat_printf(out, d::BigFloat, flags::String, width::Int, precision::Int, c::Char, digits)
     fmt_len = sizeof(flags)+4
     if width > 0
@@ -1179,9 +1262,9 @@ end
 
 ### external printf interface ###
 
-is_str_expr(ex) =
-    isa(ex,Expr) && (ex.head == :string || (ex.head == :macrocall && isa(ex.args[1],Symbol) &&
-    endswith(string(ex.args[1]),"str")))
+function is_str_expr(ex)
+    ex isa Expr && (ex.head == :string || ex.head == :macrocall && (ex.args[1] isa Symbol && endswith(string(ex.args[1]), "str")))
+end
 
 function _printf(macroname, io, fmt, args)
     isa(fmt, AbstractString) || throw(ArgumentError("$macroname: format must be a plain static string (no interpolation or prefix)"))

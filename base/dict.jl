@@ -104,7 +104,9 @@ function Dict{K,V}(kv) where V where K
     end
     return h
 end
-Dict{K,V}(p::Pair) where {K,V} = setindex!(Dict{K,V}(), p.second, p.first)
+function Dict{K, V}(p::Pair) where {K, V}
+    setindex!(Dict{K, V}(), p.second, p.first)
+end
 function Dict{K,V}(ps::Pair...) where V where K
     h = Dict{K,V}()
     sizehint!(h, length(ps))
@@ -114,14 +116,24 @@ function Dict{K,V}(ps::Pair...) where V where K
     return h
 end
 # Note the constructors of WeakKeyDict mirror these here, keep in sync.
-Dict() = Dict{Any,Any}()
-Dict(kv::Tuple{}) = Dict()
-copy(d::Dict) = Dict(d)
+function Dict()
+    Dict{Any, Any}()
+end
+function Dict(kv::Tuple{})
+    Dict()
+end
+function copy(d::Dict)
+    Dict(d)
+end
 
 const AnyDict = Dict{Any,Any}
 
-Dict(ps::Pair{K,V}...) where {K,V} = Dict{K,V}(ps)
-Dict(ps::Pair...)                  = Dict(ps)
+function Dict(ps::Pair{K, V}...) where {K, V}
+    Dict{K, V}(ps)
+end
+function Dict(ps::Pair...)
+    Dict(ps)
+end
 
 function Dict(kv)
     try
@@ -163,9 +175,13 @@ function grow_to!(dest::AbstractDict{K,V}, itr, st) where V where K
     return dest
 end
 
-empty(a::AbstractDict, ::Type{K}, ::Type{V}) where {K, V} = Dict{K, V}()
+function empty(a::AbstractDict, ::Type{K}, ::Type{V}) where {K, V}
+    Dict{K, V}()
+end
 
-hashindex(key, sz) = (((hash(key)%Int) & (sz-1)) + 1)::Int
+function hashindex(key, sz)
+    ((hash(key) % Int) & (sz - 1) + 1)::Int
+end
 
 @propagate_inbounds isslotempty(h::Dict, i::Int) = h.slots[i] == 0x0
 @propagate_inbounds isslotfilled(h::Dict, i::Int) = h.slots[i] == 0x1
@@ -417,7 +433,11 @@ Dict{String,Int64} with 4 entries:
 """
 get!(collection, key, default)
 
-get!(h::Dict{K,V}, key0, default) where {K,V} = get!(()->default, h, key0)
+function get!(h::Dict{K, V}, key0, default) where {K, V}
+    get!((()->begin
+                default
+            end), h, key0)
+end
 
 """
     get!(f::Function, collection, key)
@@ -543,7 +563,9 @@ false
 ```
 """
 haskey(h::Dict, key) = (ht_keyindex(h, key) >= 0)
-in(key, v::KeySet{<:Any, <:Dict}) = (ht_keyindex(v.dict, key) >= 0)
+function in(key, v::KeySet{<:Any, <:Dict})
+    ht_keyindex(v.dict, key) >= 0
+end
 
 """
     getkey(collection, key, default)
@@ -674,8 +696,12 @@ end
 end
 @propagate_inbounds iterate(t::Dict, i) = _iterate(t, skip_deleted(t, i))
 
-isempty(t::Dict) = (t.count == 0)
-length(t::Dict) = t.count
+function isempty(t::Dict)
+    t.count == 0
+end
+function length(t::Dict)
+    t.count
+end
 
 @propagate_inbounds function iterate(v::Union{KeySet{<:Any, <:Dict}, ValueIterator{<:Dict}},
                                      i=v.dict.idxfloor)
@@ -684,7 +710,9 @@ length(t::Dict) = t.count
     (v isa KeySet ? v.dict.keys[i] : v.dict.vals[i], i+1)
 end
 
-filter!(f, d::Dict) = filter_in_one_pass!(f, d)
+function filter!(f, d::Dict)
+    filter_in_one_pass!(f, d)
+end
 
 function map!(f, iter::ValueIterator{<:Dict})
     dict = iter.dict
@@ -724,8 +752,12 @@ Create a new entry in the Immutable Dictionary for the key => value pair
 
 """
 ImmutableDict
-ImmutableDict(KV::Pair{K,V}) where {K,V} = ImmutableDict{K,V}(KV[1], KV[2])
-ImmutableDict(t::ImmutableDict{K,V}, KV::Pair) where {K,V} = ImmutableDict{K,V}(t, KV[1], KV[2])
+function ImmutableDict(KV::Pair{K, V}) where {K, V}
+    ImmutableDict{K, V}(KV[1], KV[2])
+end
+function ImmutableDict(t::ImmutableDict{K, V}, KV::Pair) where {K, V}
+    ImmutableDict{K, V}(t, KV[1], KV[2])
+end
 
 function in(key_value::Pair, dict::ImmutableDict, valcmp=(==))
     key, value = key_value
@@ -766,10 +798,21 @@ function iterate(d::ImmutableDict{K,V}, t=d) where {K, V}
     !isdefined(t, :parent) && return nothing
     (Pair{K,V}(t.key, t.value), t.parent)
 end
-length(t::ImmutableDict) = count(x->true, t)
-isempty(t::ImmutableDict) = !isdefined(t, :parent)
-empty(::ImmutableDict, ::Type{K}, ::Type{V}) where {K, V} = ImmutableDict{K,V}()
+function length(t::ImmutableDict)
+    count((x->begin
+                true
+            end), t)
+end
+function isempty(t::ImmutableDict)
+    !(isdefined(t, :parent))
+end
+function empty(::ImmutableDict, ::Type{K}, ::Type{V}) where {K, V}
+    ImmutableDict{K, V}()
+end
 
-_similar_for(c::Dict, ::Type{Pair{K,V}}, itr, isz) where {K, V} = empty(c, K, V)
-_similar_for(c::AbstractDict, ::Type{T}, itr, isz) where {T} =
+function _similar_for(c::Dict, ::Type{Pair{K, V}}, itr, isz) where {K, V}
+    empty(c, K, V)
+end
+function _similar_for(c::AbstractDict, ::Type{T}, itr, isz) where T
     throw(ArgumentError("for AbstractDicts, similar requires an element type of Pair;\n  if calling map, consider a comprehension instead"))
+end

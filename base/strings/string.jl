@@ -36,7 +36,9 @@ In other cases, `Vector{UInt8}` data may be copied, but `v` is truncated anyway
 to guarantee consistent behavior.
 """
 String(v::AbstractVector{UInt8}) = String(copyto!(StringVector(length(v)), v))
-String(v::Vector{UInt8}) = ccall(:jl_array_to_string, Ref{String}, (Any,), v)
+function String(v::Vector{UInt8})
+    ccall(:jl_array_to_string, Ref{String}, (Any,), v)
+end
 
 """
     unsafe_string(p::Ptr{UInt8}, [length::Integer])
@@ -57,7 +59,9 @@ function unsafe_string(p::Union{Ptr{UInt8},Ptr{Int8}})
     ccall(:jl_cstr_to_string, Ref{String}, (Ptr{UInt8},), p)
 end
 
-_string_n(n::Integer) = ccall(:jl_alloc_string, Ref{String}, (Csize_t,), n)
+function _string_n(n::Integer)
+    ccall(:jl_alloc_string, Ref{String}, (Csize_t,), n)
+end
 
 """
     String(s::AbstractString)
@@ -66,24 +70,46 @@ Convert a string to a contiguous byte array representation encoded as UTF-8 byte
 This representation is often appropriate for passing strings to C.
 """
 String(s::AbstractString) = print_to_string(s)
-String(s::Symbol) = unsafe_string(unsafe_convert(Ptr{UInt8}, s))
+function String(s::Symbol)
+    unsafe_string(unsafe_convert(Ptr{UInt8}, s))
+end
 
-unsafe_wrap(::Type{Vector{UInt8}}, s::String) = ccall(:jl_string_to_array, Ref{Vector{UInt8}}, (Any,), s)
+function unsafe_wrap(::Type{Vector{UInt8}}, s::String)
+    ccall(:jl_string_to_array, Ref{Vector{UInt8}}, (Any,), s)
+end
 
-(::Type{Vector{UInt8}})(s::CodeUnits{UInt8,String}) = copyto!(Vector{UInt8}(undef, length(s)), s)
-(::Type{Vector{UInt8}})(s::String) = Vector{UInt8}(codeunits(s))
-(::Type{Array{UInt8}})(s::String)  = Vector{UInt8}(codeunits(s))
+function (::Type{Vector{UInt8}})(s::CodeUnits{UInt8, String})
+    copyto!(Vector{UInt8}(undef, length(s)), s)
+end
+function (::Type{Vector{UInt8}})(s::String)
+    Vector{UInt8}(codeunits(s))
+end
+function (::Type{Array{UInt8}})(s::String)
+    Vector{UInt8}(codeunits(s))
+end
 
-String(s::CodeUnits{UInt8,String}) = s.s
+function String(s::CodeUnits{UInt8, String})
+    s.s
+end
 
 ## low-level functions ##
 
-pointer(s::String) = unsafe_convert(Ptr{UInt8}, s)
-pointer(s::String, i::Integer) = pointer(s)+(i-1)
+function pointer(s::String)
+    unsafe_convert(Ptr{UInt8}, s)
+end
+function pointer(s::String, i::Integer)
+    pointer(s) + (i - 1)
+end
 
-ncodeunits(s::String) = Core.sizeof(s)
-sizeof(s::String) = Core.sizeof(s)
-codeunit(s::String) = UInt8
+function ncodeunits(s::String)
+    Core.sizeof(s)
+end
+function sizeof(s::String)
+    Core.sizeof(s)
+end
+function codeunit(s::String)
+    UInt8
+end
 
 @inline function codeunit(s::String, i::Integer)
     @boundscheck checkbounds(s, i)
@@ -105,8 +131,12 @@ function ==(a::String, b::String)
     return al == sizeof(b) && 0 == ccall(:memcmp, Int32, (Ptr{UInt8}, Ptr{UInt8}, UInt), a, b, al)
 end
 
-typemin(::Type{String}) = ""
-typemin(::String) = typemin(String)
+function typemin(::Type{String})
+    ""
+end
+function typemin(::String)
+    typemin(String)
+end
 
 ## thisind, nextind ##
 
@@ -160,16 +190,23 @@ end
 
 ## checking UTF-8 & ACSII validity ##
 
-byte_string_classify(s::Union{String,Vector{UInt8}}) =
+function byte_string_classify(s::Union{String, Vector{UInt8}})
     ccall(:u8_isvalid, Int32, (Ptr{UInt8}, Int), s, sizeof(s))
+end
     # 0: neither valid ASCII nor UTF-8
     # 1: valid ASCII
     # 2: valid UTF-8
 
-isvalid(::Type{String}, s::Union{Vector{UInt8},String}) = byte_string_classify(s) ≠ 0
-isvalid(s::String) = isvalid(String, s)
+function isvalid(::Type{String}, s::Union{Vector{UInt8}, String})
+    byte_string_classify(s) ≠ 0
+end
+function isvalid(s::String)
+    isvalid(String, s)
+end
 
-is_valid_continuation(c) = c & 0xc0 == 0x80
+function is_valid_continuation(c)
+    c & 0xc0 == 0x80
+end
 
 ## required core functionality ##
 
@@ -236,7 +273,9 @@ function getindex_continued(s::String, i::Int, u::UInt32)
     return reinterpret(Char, u)
 end
 
-getindex(s::String, r::UnitRange{<:Integer}) = s[Int(first(r)):Int(last(r))]
+function getindex(s::String, r::UnitRange{<:Integer})
+    s[Int(first(r)):Int(last(r))]
+end
 
 @inline function getindex(s::String, r::UnitRange{Int})
     isempty(r) && return ""
@@ -253,7 +292,9 @@ getindex(s::String, r::UnitRange{<:Integer}) = s[Int(first(r)):Int(last(r))]
     return ss
 end
 
-length(s::String) = length_continued(s, 1, ncodeunits(s), ncodeunits(s))
+function length(s::String)
+    length_continued(s, 1, ncodeunits(s), ncodeunits(s))
+end
 
 @inline function length(s::String, i::Int, j::Int)
     @boundscheck begin
@@ -293,7 +334,9 @@ end
 
 ## overload methods for efficiency ##
 
-isvalid(s::String, i::Int) = checkbounds(Bool, s, i) && thisind(s, i) == i
+function isvalid(s::String, i::Int)
+    checkbounds(Bool, s, i) && thisind(s, i) == i
+end
 
 function isascii(s::String)
     @inbounds for i = 1:ncodeunits(s)

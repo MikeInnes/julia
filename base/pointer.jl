@@ -20,14 +20,22 @@ const C_NULL = bitcast(Ptr{Cvoid}, 0)
 # TODO: deprecate these conversions. C doesn't even allow them.
 
 # pointer to integer
-convert(::Type{T}, x::Ptr) where {T<:Integer} = T(UInt(x))
+function convert(::Type{T}, x::Ptr) where T <: Integer
+    T(UInt(x))
+end
 
 # integer to pointer
-convert(::Type{Ptr{T}}, x::Union{Int,UInt}) where {T} = Ptr{T}(x)
+function convert(::Type{Ptr{T}}, x::Union{Int, UInt}) where T
+    Ptr{T}(x)
+end
 
 # pointer to pointer
-convert(::Type{Ptr{T}}, p::Ptr{T}) where {T} = p
-convert(::Type{Ptr{T}}, p::Ptr) where {T} = bitcast(Ptr{T}, p)
+function convert(::Type{Ptr{T}}, p::Ptr{T}) where T
+    p
+end
+function convert(::Type{Ptr{T}}, p::Ptr) where T
+    bitcast(Ptr{T}, p)
+end
 
 # object to pointer (when used with ccall)
 
@@ -54,17 +62,35 @@ See also [`cconvert`](@ref)
 """
 function unsafe_convert end
 
-unsafe_convert(::Type{Ptr{UInt8}}, x::Symbol) = ccall(:jl_symbol_name, Ptr{UInt8}, (Any,), x)
-unsafe_convert(::Type{Ptr{Int8}}, x::Symbol) = ccall(:jl_symbol_name, Ptr{Int8}, (Any,), x)
-unsafe_convert(::Type{Ptr{UInt8}}, s::String) = convert(Ptr{UInt8}, pointer_from_objref(s)+sizeof(Int))
-unsafe_convert(::Type{Ptr{Int8}}, s::String) = convert(Ptr{Int8}, pointer_from_objref(s)+sizeof(Int))
+function unsafe_convert(::Type{Ptr{UInt8}}, x::Symbol)
+    ccall(:jl_symbol_name, Ptr{UInt8}, (Any,), x)
+end
+function unsafe_convert(::Type{Ptr{Int8}}, x::Symbol)
+    ccall(:jl_symbol_name, Ptr{Int8}, (Any,), x)
+end
+function unsafe_convert(::Type{Ptr{UInt8}}, s::String)
+    convert(Ptr{UInt8}, pointer_from_objref(s) + sizeof(Int))
+end
+function unsafe_convert(::Type{Ptr{Int8}}, s::String)
+    convert(Ptr{Int8}, pointer_from_objref(s) + sizeof(Int))
+end
 # convert strings to String etc. to pass as pointers
-cconvert(::Type{Ptr{UInt8}}, s::AbstractString) = String(s)
-cconvert(::Type{Ptr{Int8}}, s::AbstractString) = String(s)
+function cconvert(::Type{Ptr{UInt8}}, s::AbstractString)
+    String(s)
+end
+function cconvert(::Type{Ptr{Int8}}, s::AbstractString)
+    String(s)
+end
 
-unsafe_convert(::Type{Ptr{T}}, a::Array{T}) where {T} = ccall(:jl_array_ptr, Ptr{T}, (Any,), a)
-unsafe_convert(::Type{Ptr{S}}, a::AbstractArray{T}) where {S,T} = convert(Ptr{S}, unsafe_convert(Ptr{T}, a))
-unsafe_convert(::Type{Ptr{T}}, a::AbstractArray{T}) where {T} = error("conversion to pointer not defined for $(typeof(a))")
+function unsafe_convert(::Type{Ptr{T}}, a::Array{T}) where T
+    ccall(:jl_array_ptr, Ptr{T}, (Any,), a)
+end
+function unsafe_convert(::Type{Ptr{S}}, a::AbstractArray{T}) where {S, T}
+    convert(Ptr{S}, unsafe_convert(Ptr{T}, a))
+end
+function unsafe_convert(::Type{Ptr{T}}, a::AbstractArray{T}) where T
+    error("conversion to pointer not defined for $(typeof(a))")
+end
 
 # unsafe pointer to array conversions
 """
@@ -89,8 +115,9 @@ function unsafe_wrap(::Union{Type{Array},Type{Array{T}},Type{Array{T,1}}},
     ccall(:jl_ptr_to_array_1d, Array{T,1},
           (Any, Ptr{Cvoid}, Csize_t, Cint), Array{T,1}, p, d, own)
 end
-unsafe_wrap(Atype::Type, p::Ptr, dims::NTuple{N,<:Integer}; own::Bool = false) where {N} =
-    unsafe_wrap(Atype, p, convert(Tuple{Vararg{Int}}, dims), own = own)
+function unsafe_wrap(Atype::Type, p::Ptr, dims::NTuple{N, <:Integer}; own::Bool=false) where N
+    unsafe_wrap(Atype, p, convert(Tuple{Vararg{Int}}, dims), own=own)
+end
 
 """
     unsafe_load(p::Ptr{T}, i::Integer=1)
@@ -115,7 +142,9 @@ pointer `p` to ensure that it is valid. Incorrect usage may corrupt or segfault 
 program, in the same manner as C.
 """
 unsafe_store!(p::Ptr{Any}, @nospecialize(x), i::Integer=1) = pointerset(p, x, Int(i), 1)
-unsafe_store!(p::Ptr{T}, x, i::Integer=1) where {T} = pointerset(p, convert(T,x), Int(i), 1)
+function unsafe_store!(p::Ptr{T}, x, i::Integer=1) where T
+    pointerset(p, convert(T, x), Int(i), 1)
+end
 
 # convert a raw Ptr to an object reference, and vice-versa
 """
@@ -149,13 +178,29 @@ end
 
 ## limited pointer arithmetic & comparison ##
 
-isequal(x::Ptr, y::Ptr) = (x === y)
-isless(x::Ptr{T}, y::Ptr{T}) where {T} = x < y
+function isequal(x::Ptr, y::Ptr)
+    x === y
+end
+function isless(x::Ptr{T}, y::Ptr{T}) where T
+    x < y
+end
 
-==(x::Ptr, y::Ptr) = UInt(x) == UInt(y)
-<(x::Ptr,  y::Ptr) = UInt(x) < UInt(y)
--(x::Ptr,  y::Ptr) = UInt(x) - UInt(y)
+function ==(x::Ptr, y::Ptr)
+    UInt(x) == UInt(y)
+end
+function <(x::Ptr, y::Ptr)
+    UInt(x) < UInt(y)
+end
+function -(x::Ptr, y::Ptr)
+    UInt(x) - UInt(y)
+end
 
-+(x::Ptr, y::Integer) = oftype(x, add_ptr(UInt(x), (y % UInt) % UInt))
--(x::Ptr, y::Integer) = oftype(x, sub_ptr(UInt(x), (y % UInt) % UInt))
-+(x::Integer, y::Ptr) = y + x
+function +(x::Ptr, y::Integer)
+    oftype(x, add_ptr(UInt(x), (y % UInt) % UInt))
+end
+function -(x::Ptr, y::Integer)
+    oftype(x, sub_ptr(UInt(x), (y % UInt) % UInt))
+end
+function +(x::Integer, y::Ptr)
+    y + x
+end

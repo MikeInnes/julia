@@ -13,8 +13,9 @@ const _REF_NAME = Ref.body.name
 #########
 
 # see if the inference result might affect the final answer
-call_result_unused(frame::InferenceState, pc::LineNum=frame.currpc) =
-    isexpr(frame.src.code[frame.currpc], :call) && isempty(frame.ssavalue_uses[pc])
+function call_result_unused(frame::InferenceState, pc::LineNum=frame.currpc)
+    isexpr((frame.src).code[frame.currpc], :call) && isempty(frame.ssavalue_uses[pc])
+end
 
 function abstract_call_gf_by_type(@nospecialize(f), argtypes::Vector{Any}, @nospecialize(atype), sv::InferenceState,
                                   max_methods = sv.params.MAX_METHODS)

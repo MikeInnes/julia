@@ -24,19 +24,35 @@ const LOG10_2 = 3.01029995663981195213738894724493026768189881462108541310427461
 const LN10 = 2.302585092994045684017991454684364207601101488628772976033327900967572609677367
 
 # log10(2) into upper and lower bits
-LOG10_2U(::Type{Float64}) = 3.01025390625000000000e-1
-LOG10_2U(::Type{Float32}) = 3.00781250000000000000f-1
+function LOG10_2U(::Type{Float64})
+    0.301025390625
+end
+function LOG10_2U(::Type{Float32})
+    0.30078125f0
+end
 
-LOG10_2L(::Type{Float64}) = 4.60503898119521373889e-6
-LOG10_2L(::Type{Float32}) = 2.48745663981195213739f-4
+function LOG10_2L(::Type{Float64})
+    4.605038981195214e-6
+end
+function LOG10_2L(::Type{Float32})
+    0.00024874567f0
+end
 
 # max and min arguments
-MAX_EXP10(::Type{Float64}) = 3.08254715559916743851e2 # log 2^1023*(2-2^-52)
-MAX_EXP10(::Type{Float32}) = 38.531839419103626f0     # log 2^127 *(2-2^-23)
+function MAX_EXP10(::Type{Float64})
+    308.25471555991675
+end # log 2^1023*(2-2^-52)
+function MAX_EXP10(::Type{Float32})
+    38.53184f0
+end     # log 2^127 *(2-2^-23)
 
 # one less than the min exponent since we can sqeeze a bit more from the exp10 function
-MIN_EXP10(::Type{Float64}) = -3.23607245338779784854769e2 # log10 2^-1075
-MIN_EXP10(::Type{Float32}) = -45.15449934959718f0         # log10 2^-150
+function MIN_EXP10(::Type{Float64})
+    -323.60724533877976
+end # log10 2^-1075
+function MIN_EXP10(::Type{Float32})
+    -45.1545f0
+end         # log10 2^-150
 
 @inline exp10_kernel(x::Float64) =
     @horner(x, 1.0,

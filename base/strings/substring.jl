@@ -44,18 +44,33 @@ end
     SubString(s.string, s.offset+i, s.offset+j)
 end
 
-SubString(s::AbstractString) = SubString(s, 1, lastindex(s))
-SubString{T}(s::T) where {T<:AbstractString} = SubString{T}(s, 1, lastindex(s))
+function SubString(s::AbstractString)
+    SubString(s, 1, lastindex(s))
+end
+function SubString{T}(s::T) where T <: AbstractString
+    SubString{T}(s, 1, lastindex(s))
+end
 
-convert(::Type{SubString{S}}, s::AbstractString) where {S<:AbstractString} =
+function convert(::Type{SubString{S}}, s::AbstractString) where S <: AbstractString
     SubString(convert(S, s))
-convert(::Type{T}, s::T) where {T<:SubString} = s
+end
+function convert(::Type{T}, s::T) where T <: SubString
+    s
+end
 
-String(s::SubString{String}) = unsafe_string(pointer(s.string, s.offset+1), s.ncodeunits)
+function String(s::SubString{String})
+    unsafe_string(pointer(s.string, s.offset + 1), s.ncodeunits)
+end
 
-ncodeunits(s::SubString) = s.ncodeunits
-codeunit(s::SubString) = codeunit(s.string)
-length(s::SubString) = length(s.string, s.offset+1, s.offset+s.ncodeunits)
+function ncodeunits(s::SubString)
+    s.ncodeunits
+end
+function codeunit(s::SubString)
+    codeunit(s.string)
+end
+function length(s::SubString)
+    length(s.string, s.offset + 1, s.offset + s.ncodeunits)
+end
 
 function codeunit(s::SubString, i::Integer)
     @boundscheck checkbounds(s, i)
@@ -82,14 +97,23 @@ function isvalid(s::SubString, i::Integer)
     @inbounds return ib && isvalid(s.string, s.offset + i)
 end
 
-byte_string_classify(s::SubString{String}) =
+function byte_string_classify(s::SubString{String})
     ccall(:u8_isvalid, Int32, (Ptr{UInt8}, Int), s, sizeof(s))
+end
 
-isvalid(::Type{String}, s::SubString{String}) = byte_string_classify(s) ≠ 0
-isvalid(s::SubString{String}) = isvalid(String, s)
+function isvalid(::Type{String}, s::SubString{String})
+    byte_string_classify(s) ≠ 0
+end
+function isvalid(s::SubString{String})
+    isvalid(String, s)
+end
 
-thisind(s::SubString{String}, i::Int) = _thisind_str(s, i)
-nextind(s::SubString{String}, i::Int) = _nextind_str(s, i)
+function thisind(s::SubString{String}, i::Int)
+    _thisind_str(s, i)
+end
+function nextind(s::SubString{String}, i::Int)
+    _nextind_str(s, i)
+end
 
 function cmp(a::SubString{String}, b::SubString{String})
     na = sizeof(a)
@@ -100,15 +124,23 @@ function cmp(a::SubString{String}, b::SubString{String})
 end
 
 # don't make unnecessary copies when passing substrings to C functions
-cconvert(::Type{Ptr{UInt8}}, s::SubString{String}) = s
-cconvert(::Type{Ptr{Int8}}, s::SubString{String}) = s
+function cconvert(::Type{Ptr{UInt8}}, s::SubString{String})
+    s
+end
+function cconvert(::Type{Ptr{Int8}}, s::SubString{String})
+    s
+end
 
 function unsafe_convert(::Type{Ptr{R}}, s::SubString{String}) where R<:Union{Int8, UInt8}
     convert(Ptr{R}, pointer(s.string)) + s.offset
 end
 
-pointer(x::SubString{String}) = pointer(x.string) + x.offset
-pointer(x::SubString{String}, i::Integer) = pointer(x.string) + x.offset + (i-1)
+function pointer(x::SubString{String})
+    pointer(x.string) + x.offset
+end
+function pointer(x::SubString{String}, i::Integer)
+    pointer(x.string) + x.offset + (i - 1)
+end
 
 """
     reverse(s::AbstractString) -> AbstractString
@@ -149,8 +181,12 @@ function reverse(s::Union{String,SubString{String}})::String
     return out
 end
 
-string(a::String)            = String(a)
-string(a::SubString{String}) = String(a)
+function string(a::String)
+    String(a)
+end
+function string(a::SubString{String})
+    String(a)
+end
 
 @inline function __unsafe_string!(out, c::Char, offs::Integer)
     x = bswap(reinterpret(UInt32, c))
@@ -207,4 +243,6 @@ function repeat(s::Union{String, SubString{String}}, r::Integer)
     return out
 end
 
-getindex(s::AbstractString, r::UnitRange{<:Integer}) = SubString(s, r)
+function getindex(s::AbstractString, r::UnitRange{<:Integer})
+    SubString(s, r)
+end

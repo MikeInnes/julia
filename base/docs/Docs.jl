@@ -74,7 +74,13 @@ export doc
 const modules = Module[]
 const META    = gensym(:meta)
 
-meta(m::Module) = isdefined(m, META) ? getfield(m, META) : IdDict()
+function meta(m::Module)
+    if isdefined(m, META)
+        getfield(m, META)
+    else
+        IdDict()
+    end
+end
 
 function initmeta(m::Module)
     if !isdefined(m, META)
@@ -113,19 +119,31 @@ function signature!(tv, expr::Expr)
         return signature!(tv, expr.args[1])
     end
 end
-signature!(tv, @nospecialize(other)) = :(Union{})
-signature(expr::Expr) = signature!([], expr)
-signature(@nospecialize other) = signature!([], other)
+function signature!(tv, @nospecialize(other))
+    $(Expr(:quote, :(Union{})))
+end
+function signature(expr::Expr)
+    signature!([], expr)
+end
+function signature(@nospecialize(other))
+    signature!([], other)
+end
 
 function argtype(expr::Expr)
     isexpr(expr, :(::))  && return expr.args[end]
     isexpr(expr, :(...)) && return :(Vararg{$(argtype(expr.args[1]))})
     return argtype(expr.args[1])
 end
-argtype(@nospecialize other) = :Any
+function argtype(@nospecialize(other))
+    :Any
+end
 
-tvar(x::Expr)   = x
-tvar(s::Symbol) = :($s <: Any)
+function tvar(x::Expr)
+    x
+end
+function tvar(s::Symbol)
+    $(Expr(:quote, :($(Expr(:$, :s)) <: Any)))
+end
 
 # Docsystem types.
 # ================
@@ -161,13 +179,24 @@ function docstr(binding::Binding, typesig = Union{})
     end
     error("could not find matching docstring for '$binding :: $typesig'.")
 end
-docstr(object, data = Dict()) = _docstr(object, data)
+function docstr(object, data=Dict())
+    _docstr(object, data)
+end
 
-_docstr(vec::Core.SimpleVector, data) = DocStr(vec,            nothing, data)
-_docstr(str::AbstractString,    data) = DocStr(Core.svec(str), nothing, data)
-_docstr(object,                 data) = DocStr(Core.svec(),     object, data)
+function _docstr(vec::Core.SimpleVector, data)
+    DocStr(vec, nothing, data)
+end
+function _docstr(str::AbstractString, data)
+    DocStr(Core.svec(str), nothing, data)
+end
+function _docstr(object, data)
+    DocStr(Core.svec(), object, data)
+end
 
-_docstr(doc::DocStr, data) = (doc.data = merge(data, doc.data); doc)
+function _docstr(doc::DocStr, data)
+    doc.data = merge(data, doc.data)
+    doc
+end
 
 macro ref(x)
     binding = bindingexpr(namify(x))
@@ -175,7 +204,9 @@ macro ref(x)
     return esc(docexpr(__source__, __module__, binding, typesig))
 end
 
-docexpr(__source__, __module__, args...) = Expr(:call, docstr, args...)
+function docexpr(__source__, __module__, args...)
+    Expr(:call, docstr, args...)
+end
 
 """
     MultiDoc
@@ -251,8 +282,12 @@ was found for `obj`, in which case the docsystem will fall back to searching for
 """
 function getdoc end
 
-getdoc(@nospecialize(x), @nospecialize(sig)) = getdoc(x)
-getdoc(@nospecialize(x)) = nothing
+function getdoc(@nospecialize(x), @nospecialize(sig))
+    getdoc(x)
+end
+function getdoc(@nospecialize(x))
+    nothing
+end
 
 # Utilities.
 # ==========
@@ -261,7 +296,9 @@ getdoc(@nospecialize(x)) = nothing
 `catdoc(xs...)`: Combine the documentation metadata `xs` into a single meta object.
 """
 catdoc() = nothing
-catdoc(xs...) = vcat(xs...)
+function catdoc(xs...)
+    vcat(xs...)
+end
 
 const keywords = Dict{Symbol, DocStr}()
 
@@ -272,9 +309,17 @@ function unblock(@nospecialize ex)
     return unblock(exs[1])
 end
 
-uncurly(@nospecialize ex) = isexpr(ex, :curly) ? ex.args[1] : ex
+function uncurly(@nospecialize(ex))
+    if isexpr(ex, :curly)
+        ex.args[1]
+    else
+        ex
+    end
+end
 
-namify(@nospecialize x) = astname(x, isexpr(x, :macro))
+function namify(@nospecialize(x))
+    astname(x, isexpr(x, :macro))
+end
 
 function astname(x::Expr, ismacro::Bool)
     if isexpr(x, :.)
@@ -287,16 +332,30 @@ function astname(x::Expr, ismacro::Bool)
         astname(x.args[n], ismacro)
     end
 end
-astname(q::QuoteNode, ismacro::Bool) = astname(q.value, ismacro)
-astname(s::Symbol, ismacro::Bool)    = ismacro ? macroname(s) : s
-astname(@nospecialize(other), ismacro::Bool) = other
+function astname(q::QuoteNode, ismacro::Bool)
+    astname(q.value, ismacro)
+end
+function astname(s::Symbol, ismacro::Bool)
+    if ismacro
+        macroname(s)
+    else
+        s
+    end
+end
+function astname(@nospecialize(other), ismacro::Bool)
+    other
+end
 
-macroname(s::Symbol) = Symbol('@', s)
-macroname(x::Expr)   = Expr(x.head, x.args[1], macroname(x.args[end].value))
+function macroname(s::Symbol)
+    Symbol('@', s)
+end
+function macroname(x::Expr)
+    Expr(x.head, x.args[1], macroname((x.args[end]).value))
+end
 
-isfield(@nospecialize x) = isexpr(x, :.) &&
-    (isa(x.args[1], Symbol) || isfield(x.args[1])) &&
-    (isa(x.args[2], QuoteNode) || isexpr(x.args[2], :quote))
+function isfield(@nospecialize(x))
+    isexpr(x, :.) && ((x.args[1] isa Symbol || isfield(x.args[1])) && (x.args[2] isa QuoteNode || isexpr(x.args[2], :quote)))
+end
 
 # @doc expression builders.
 # =========================
@@ -373,7 +432,9 @@ function calldoc(__source__, __module__, str, def::Expr)
         docerror(def)
     end
 end
-validcall(x) = isa(x, Symbol) || isexpr(x, (:(::), :..., :kw, :parameters))
+function validcall(x)
+    x isa Symbol || isexpr(x, (:(::), :..., :kw, :parameters))
+end
 
 function moduledoc(__source__, __module__, meta, def, def′::Expr)
     @nospecialize meta def
@@ -476,20 +537,25 @@ function finddoc(λ, def::Expr)
         found
     end
 end
-finddoc(λ, @nospecialize def) = false
+function finddoc(λ, @nospecialize(def))
+    false
+end
 
 # Predicates and helpers for `docm` expression selection:
 
 const FUNC_HEADS    = [:function, :macro, :(=)]
 const BINDING_HEADS = [:const, :global, :(=)]
 # For the special `:@mac` / `:(Base.@mac)` syntax for documenting a macro after definition.
-isquotedmacrocall(@nospecialize x) =
-    isexpr(x, :copyast, 1) &&
-    isa(x.args[1], QuoteNode) &&
-    isexpr(x.args[1].value, :macrocall, 2)
+function isquotedmacrocall(@nospecialize(x))
+    isexpr(x, :copyast, 1) && (x.args[1] isa QuoteNode && isexpr((x.args[1]).value, :macrocall, 2))
+end
 # Simple expressions / atoms the may be documented.
-isbasicdoc(@nospecialize x) = isexpr(x, :.) || isa(x, Union{QuoteNode, Symbol})
-is_signature(@nospecialize x) = isexpr(x, :call) || (isexpr(x, :(::), 2) && isexpr(x.args[1], :call)) || isexpr(x, :where)
+function isbasicdoc(@nospecialize(x))
+    isexpr(x, :.) || x isa Union{QuoteNode, Symbol}
+end
+function is_signature(@nospecialize(x))
+    isexpr(x, :call) || (isexpr(x, :(::), 2) && isexpr(x.args[1], :call) || isexpr(x, :where))
+end
 
 function docm(source::LineNumberNode, mod::Module, ex)
     @nospecialize ex

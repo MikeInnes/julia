@@ -2,7 +2,9 @@
 
 # Missing, missing and ismissing are defined in essentials.jl
 
-show(io::IO, x::Missing) = print(io, "missing")
+function show(io::IO, x::Missing)
+    print(io, "missing")
+end
 
 """
     MissingException(msg)
@@ -15,14 +17,23 @@ struct MissingException <: Exception
     msg::AbstractString
 end
 
-showerror(io::IO, ex::MissingException) =
+function showerror(io::IO, ex::MissingException)
     print(io, "MissingException: ", ex.msg)
+end
 
 
-nonmissingtype(::Type{Union{T, Missing}}) where {T} = T
-nonmissingtype(::Type{Missing}) = Union{}
-nonmissingtype(::Type{T}) where {T} = T
-nonmissingtype(::Type{Any}) = Any
+function nonmissingtype(::Type{Union{T, Missing}}) where T
+    T
+end
+function nonmissingtype(::Type{Missing})
+    Union{}
+end
+function nonmissingtype(::Type{T}) where T
+    T
+end
+function nonmissingtype(::Type{Any})
+    Any
+end
 
 for U in (:Nothing, :Missing)
     @eval begin
@@ -35,43 +46,96 @@ for U in (:Nothing, :Missing)
         promote_rule(::Type{$U}, ::Type{$U}) = $U
     end
 end
-promote_rule(::Type{Union{Nothing, Missing}}, ::Type{Any}) = Any
-promote_rule(::Type{Union{Nothing, Missing}}, ::Type{T}) where {T} =
+function promote_rule(::Type{Union{Nothing, Missing}}, ::Type{Any})
+    Any
+end
+function promote_rule(::Type{Union{Nothing, Missing}}, ::Type{T}) where T
     Union{Nothing, Missing, T}
-promote_rule(::Type{Union{Nothing, Missing, S}}, ::Type{Any}) where {S} = Any
-promote_rule(::Type{Union{Nothing, Missing, S}}, ::Type{T}) where {T,S} =
+end
+function promote_rule(::Type{Union{Nothing, Missing, S}}, ::Type{Any}) where S
+    Any
+end
+function promote_rule(::Type{Union{Nothing, Missing, S}}, ::Type{T}) where {T, S}
     Union{Nothing, Missing, promote_type(T, S)}
+end
 
-convert(::Type{Union{T, Missing}}, x::Union{T, Missing}) where {T} = x
-convert(::Type{Union{T, Missing}}, x) where {T} = convert(T, x)
+function convert(::Type{Union{T, Missing}}, x::Union{T, Missing}) where T
+    x
+end
+function convert(::Type{Union{T, Missing}}, x) where T
+    convert(T, x)
+end
 # To fix ambiguities
-convert(::Type{Missing}, ::Missing) = missing
-convert(::Type{Union{Nothing, Missing}}, x::Union{Nothing, Missing}) = x
-convert(::Type{Union{Nothing, Missing, T}}, x::Union{Nothing, Missing, T}) where {T} = x
-convert(::Type{Union{Nothing, Missing}}, x) =
+function convert(::Type{Missing}, ::Missing)
+    missing
+end
+function convert(::Type{Union{Nothing, Missing}}, x::Union{Nothing, Missing})
+    x
+end
+function convert(::Type{Union{Nothing, Missing, T}}, x::Union{Nothing, Missing, T}) where T
+    x
+end
+function convert(::Type{Union{Nothing, Missing}}, x)
     throw(MethodError(convert, (Union{Nothing, Missing}, x)))
+end
 # To print more appropriate message than "T not defined"
-convert(::Type{Missing}, x) = throw(MethodError(convert, (Missing, x)))
+function convert(::Type{Missing}, x)
+    throw(MethodError(convert, (Missing, x)))
+end
 
 # Comparison operators
-==(::Missing, ::Missing) = missing
-==(::Missing, ::Any) = missing
-==(::Any, ::Missing) = missing
+function ==(::Missing, ::Missing)
+    missing
+end
+function ==(::Missing, ::Any)
+    missing
+end
+function ==(::Any, ::Missing)
+    missing
+end
 # To fix ambiguity
-==(::Missing, ::WeakRef) = missing
-==(::WeakRef, ::Missing) = missing
-isequal(::Missing, ::Missing) = true
-isequal(::Missing, ::Any) = false
-isequal(::Any, ::Missing) = false
-<(::Missing, ::Missing) = missing
-<(::Missing, ::Any) = missing
-<(::Any, ::Missing) = missing
-isless(::Missing, ::Missing) = false
-isless(::Missing, ::Any) = false
-isless(::Any, ::Missing) = true
-isapprox(::Missing, ::Missing; kwargs...) = missing
-isapprox(::Missing, ::Any; kwargs...) = missing
-isapprox(::Any, ::Missing; kwargs...) = missing
+function ==(::Missing, ::WeakRef)
+    missing
+end
+function ==(::WeakRef, ::Missing)
+    missing
+end
+function isequal(::Missing, ::Missing)
+    true
+end
+function isequal(::Missing, ::Any)
+    false
+end
+function isequal(::Any, ::Missing)
+    false
+end
+function <(::Missing, ::Missing)
+    missing
+end
+function <(::Missing, ::Any)
+    missing
+end
+function <(::Any, ::Missing)
+    missing
+end
+function isless(::Missing, ::Missing)
+    false
+end
+function isless(::Missing, ::Any)
+    false
+end
+function isless(::Any, ::Missing)
+    true
+end
+function isapprox(::Missing, ::Missing; kwargs...)
+    missing
+end
+function isapprox(::Missing, ::Any; kwargs...)
+    missing
+end
+function isapprox(::Any, ::Missing; kwargs...)
+    missing
+end
 
 # Unary operators/functions
 for f in (:(!), :(~), :(+), :(-), :(zero), :(one), :(oneunit),
@@ -100,22 +164,45 @@ for f in (:(+), :(-), :(*), :(/), :(^), :(div), :(mod), :(fld), :(rem))
     end
 end
 
-min(::Missing, ::Missing) = missing
-min(::Missing, ::Any)     = missing
-min(::Any,     ::Missing) = missing
-max(::Missing, ::Missing) = missing
-max(::Missing, ::Any)     = missing
-max(::Any,     ::Missing) = missing
+function min(::Missing, ::Missing)
+    missing
+end
+function min(::Missing, ::Any)
+    missing
+end
+function min(::Any, ::Missing)
+    missing
+end
+function max(::Missing, ::Missing)
+    missing
+end
+function max(::Missing, ::Any)
+    missing
+end
+function max(::Any, ::Missing)
+    missing
+end
 
 # Rounding and related functions
-round(::Missing, ::RoundingMode=RoundNearest; sigdigits::Integer=0, digits::Integer=0, base::Integer=0) = missing
-round(::Type{>:Missing}, ::Missing, ::RoundingMode=RoundNearest) = missing
-round(::Type{T}, ::Missing, ::RoundingMode=RoundNearest) where {T} =
-    throw(MissingException("cannot convert a missing value to type $T: use Union{$T, Missing} instead"))
-round(::Type{T}, x::Any, r::RoundingMode=RoundNearest) where {T>:Missing} = round(nonmissingtype(T), x, r)
+function round(::Missing, ::RoundingMode=RoundNearest; sigdigits::Integer=0, digits::Integer=0, base::Integer=0)
+    missing
+end
+function round(::Type{>:Missing}, ::Missing, ::RoundingMode=RoundNearest)
+    missing
+end
+function round(::Type{T}, ::Missing, ::RoundingMode=RoundNearest) where T
+    throw(MissingException("cannot convert a missing value to type $(T): use Union{$(T), Missing} instead"))
+end
+function round(::Type{T}, x::Any, r::RoundingMode=RoundNearest) where $(Expr(:>:, :T, :Missing))
+    round(nonmissingtype(T), x, r)
+end
 # to fix ambiguities
-round(::Type{T}, x::Rational, r::RoundingMode=RoundNearest) where {T>:Missing} = round(nonmissingtype(T), x, r)
-round(::Type{T}, x::Rational{Bool}, r::RoundingMode=RoundNearest) where {T>:Missing} = round(nonmissingtype(T), x, r)
+function round(::Type{T}, x::Rational, r::RoundingMode=RoundNearest) where $(Expr(:>:, :T, :Missing))
+    round(nonmissingtype(T), x, r)
+end
+function round(::Type{T}, x::Rational{Bool}, r::RoundingMode=RoundNearest) where $(Expr(:>:, :T, :Missing))
+    round(nonmissingtype(T), x, r)
+end
 
 # Handle ceil, floor, and trunc separately as they have no RoundingMode argument
 for f in (:(ceil), :(floor), :(trunc))
@@ -131,33 +218,71 @@ for f in (:(ceil), :(floor), :(trunc))
 end
 
 # to avoid ambiguity warnings
-(^)(::Missing, ::Integer) = missing
+function ^(::Missing, ::Integer)
+    missing
+end
 
 # Bit operators
-(&)(::Missing, ::Missing) = missing
-(&)(a::Missing, b::Bool) = ifelse(b, missing, false)
-(&)(b::Bool, a::Missing) = ifelse(b, missing, false)
-(&)(::Missing, ::Integer) = missing
-(&)(::Integer, ::Missing) = missing
-(|)(::Missing, ::Missing) = missing
-(|)(a::Missing, b::Bool) = ifelse(b, true, missing)
-(|)(b::Bool, a::Missing) = ifelse(b, true, missing)
-(|)(::Missing, ::Integer) = missing
-(|)(::Integer, ::Missing) = missing
-xor(::Missing, ::Missing) = missing
-xor(a::Missing, b::Bool) = missing
-xor(b::Bool, a::Missing) = missing
-xor(::Missing, ::Integer) = missing
-xor(::Integer, ::Missing) = missing
+function &(::Missing, ::Missing)
+    missing
+end
+function &(a::Missing, b::Bool)
+    ifelse(b, missing, false)
+end
+function &(b::Bool, a::Missing)
+    ifelse(b, missing, false)
+end
+function &(::Missing, ::Integer)
+    missing
+end
+function &(::Integer, ::Missing)
+    missing
+end
+function |(::Missing, ::Missing)
+    missing
+end
+function |(a::Missing, b::Bool)
+    ifelse(b, true, missing)
+end
+function |(b::Bool, a::Missing)
+    ifelse(b, true, missing)
+end
+function |(::Missing, ::Integer)
+    missing
+end
+function |(::Integer, ::Missing)
+    missing
+end
+function xor(::Missing, ::Missing)
+    missing
+end
+function xor(a::Missing, b::Bool)
+    missing
+end
+function xor(b::Bool, a::Missing)
+    missing
+end
+function xor(::Missing, ::Integer)
+    missing
+end
+function xor(::Integer, ::Missing)
+    missing
+end
 
-*(d::Missing, x::AbstractString) = missing
-*(d::AbstractString, x::Missing) = missing
+function *(d::Missing, x::AbstractString)
+    missing
+end
+function *(d::AbstractString, x::Missing)
+    missing
+end
 
 function float(A::AbstractArray{Union{T, Missing}}) where {T}
     U = typeof(float(zero(T)))
     convert(AbstractArray{Union{U, Missing}}, A)
 end
-float(A::AbstractArray{Missing}) = A
+function float(A::AbstractArray{Missing})
+    A
+end
 
 """
     skipmissing(itr)
@@ -211,9 +336,15 @@ skipmissing(itr) = SkipMissing(itr)
 struct SkipMissing{T}
     x::T
 end
-IteratorSize(::Type{<:SkipMissing}) = SizeUnknown()
-IteratorEltype(::Type{SkipMissing{T}}) where {T} = IteratorEltype(T)
-eltype(::Type{SkipMissing{T}}) where {T} = nonmissingtype(eltype(T))
+function IteratorSize(::Type{<:SkipMissing})
+    SizeUnknown()
+end
+function IteratorEltype(::Type{SkipMissing{T}}) where T
+    IteratorEltype(T)
+end
+function eltype(::Type{SkipMissing{T}}) where T
+    nonmissingtype(eltype(T))
+end
 
 function iterate(itr::SkipMissing, state...)
     y = iterate(itr.x, state...)
@@ -227,11 +358,19 @@ function iterate(itr::SkipMissing, state...)
     item, state
 end
 
-IndexStyle(::Type{<:SkipMissing{T}}) where {T} = IndexStyle(T)
-eachindex(itr::SkipMissing) =
-    Iterators.filter(i -> @inbounds(itr.x[i]) !== missing, eachindex(itr.x))
-keys(itr::SkipMissing) =
-    Iterators.filter(i -> @inbounds(itr.x[i]) !== missing, keys(itr.x))
+function IndexStyle(::Type{<:SkipMissing{T}}) where T
+    IndexStyle(T)
+end
+function eachindex(itr::SkipMissing)
+    Iterators.filter((i->begin
+                @inbounds(itr.x[i]) !== missing
+            end), eachindex(itr.x))
+end
+function keys(itr::SkipMissing)
+    Iterators.filter((i->begin
+                @inbounds(itr.x[i]) !== missing
+            end), keys(itr.x))
+end
 @propagate_inbounds function getindex(itr::SkipMissing, I...)
     v = itr.x[I...]
     v === missing && throw(MissingException("the value at index $I is missing"))
@@ -241,8 +380,13 @@ end
 # Optimized mapreduce implementation
 # The generic method is faster when !(eltype(A) >: Missing) since it does not need
 # additional loops to identify the two first non-missing values of each block
-mapreduce(f, op, itr::SkipMissing{<:AbstractArray}) =
-    _mapreduce(f, op, IndexStyle(itr.x), eltype(itr.x) >: Missing ? itr : itr.x)
+function mapreduce(f, op, itr::SkipMissing{<:AbstractArray})
+    _mapreduce(f, op, IndexStyle(itr.x), if $(Expr(:>:, :(eltype(itr.x)), :Missing))
+            itr
+        else
+            itr.x
+        end)
+end
 
 function _mapreduce(f, op, ::IndexLinear, itr::SkipMissing{<:AbstractArray})
     A = itr.x
@@ -268,10 +412,13 @@ function _mapreduce(f, op, ::IndexLinear, itr::SkipMissing{<:AbstractArray})
     something(mapreduce_impl(f, op, itr, first(inds), last(inds)))
 end
 
-_mapreduce(f, op, ::IndexCartesian, itr::SkipMissing) = mapfoldl(f, op, itr)
+function _mapreduce(f, op, ::IndexCartesian, itr::SkipMissing)
+    mapfoldl(f, op, itr)
+end
 
-mapreduce_impl(f, op, A::SkipMissing, ifirst::Integer, ilast::Integer) =
+function mapreduce_impl(f, op, A::SkipMissing, ifirst::Integer, ilast::Integer)
     mapreduce_impl(f, op, A, ifirst, ilast, pairwise_blocksize(f, op))
+end
 
 # Returns nothing when the input contains only missing values, and Some(x) otherwise
 @noinline function mapreduce_impl(f, op, itr::SkipMissing{<:AbstractArray},
@@ -383,6 +530,12 @@ missing
 """
 function coalesce end
 
-coalesce() = missing
-coalesce(x::Missing, y...) = coalesce(y...)
-coalesce(x::Any, y...) = x
+function coalesce()
+    missing
+end
+function coalesce(x::Missing, y...)
+    coalesce(y...)
+end
+function coalesce(x::Any, y...)
+    x
+end

@@ -19,7 +19,9 @@ struct GC_Num
     full_sweep  ::Cint
 end
 
-gc_num() = ccall(:jl_gc_num, GC_Num, ())
+function gc_num()
+    ccall(:jl_gc_num, GC_Num, ())
+end
 
 # This type is to represent differences in the counters, so fields may be negative
 struct GC_Diff
@@ -34,9 +36,9 @@ struct GC_Diff
     full_sweep  ::Int64 # Number of GC full collection
 end
 
-gc_total_bytes(gc_num::GC_Num) =
-    (gc_num.allocd + gc_num.deferred_alloc +
-     Int64(gc_num.collect) + Int64(gc_num.total_allocd))
+function gc_total_bytes(gc_num::GC_Num)
+    gc_num.allocd + gc_num.deferred_alloc + Int64(gc_num.collect) + Int64(gc_num.total_allocd)
+end
 
 function GC_Diff(new::GC_Num, old::GC_Num)
     # logic from `src/gc.c:jl_gc_total_bytes`
@@ -59,10 +61,14 @@ end
 
 
 # total time spend in garbage collection, in nanoseconds
-gc_time_ns() = ccall(:jl_gc_total_hrtime, UInt64, ())
+function gc_time_ns()
+    ccall(:jl_gc_total_hrtime, UInt64, ())
+end
 
 # total number of bytes allocated so far
-gc_bytes() = ccall(:jl_gc_total_bytes, Int64, ())
+function gc_bytes()
+    ccall(:jl_gc_total_bytes, Int64, ())
+end
 
 # print elapsed time, return expression value
 const _mem_units = ["byte", "KiB", "MiB", "GiB", "TiB", "PiB"]
@@ -397,8 +403,9 @@ If the keyword `bold` is given as `true`, the result will be printed in bold.
 """
 printstyled(io::IO, msg...; bold::Bool=false, color::Union{Int,Symbol}=:normal) =
     with_output_color(print, color, io, msg...; bold=bold)
-printstyled(msg...; bold::Bool=false, color::Union{Int,Symbol}=:normal) =
+function printstyled(msg...; bold::Bool=false, color::Union{Int, Symbol}=:normal)
     printstyled(stdout, msg...; bold=bold, color=color)
+end
 
 """
     Base.julia_cmd(juliapath=joinpath(Sys.BINDIR::String, julia_exename()))
@@ -494,7 +501,9 @@ function securezero! end
 @noinline securezero!(a::AbstractArray{<:Number}) = fill!(a, 0)
 @noinline unsafe_securezero!(p::Ptr{T}, len::Integer=1) where {T} =
     ccall(:memset, Ptr{T}, (Ptr{T}, Cint, Csize_t), p, 0, len*sizeof(T))
-unsafe_securezero!(p::Ptr{Cvoid}, len::Integer=1) = Ptr{Cvoid}(unsafe_securezero!(Ptr{UInt8}(p), len))
+function unsafe_securezero!(p::Ptr{Cvoid}, len::Integer=1)
+    Ptr{Cvoid}(unsafe_securezero!(Ptr{UInt8}(p), len))
+end
 
 """
     Base.getpass(message::AbstractString) -> Base.SecretBuffer
@@ -539,7 +548,9 @@ end
 
 # allow new getpass methods to be defined if stdin has been
 # redirected to some custom stream, e.g. in IJulia.
-getpass(prompt::AbstractString) = getpass(stdin, stdout, prompt)
+function getpass(prompt::AbstractString)
+    getpass(stdin, stdout, prompt)
+end
 
 """
     prompt(message; default="") -> Union{String, Nothing}
@@ -561,7 +572,9 @@ end
 
 # allow new prompt methods to be defined if stdin has been
 # redirected to some custom stream, e.g. in IJulia.
-prompt(message::AbstractString; default::AbstractString="") = prompt(stdin, stdout, message, default=default)
+function prompt(message::AbstractString; default::AbstractString="")
+    prompt(stdin, stdout, message, default=default)
+end
 
 # Windows authentication prompt
 if Sys.iswindows()
@@ -646,12 +659,17 @@ if Sys.iswindows()
 
 end
 
-unsafe_crc32c(a, n, crc) = ccall(:jl_crc32c, UInt32, (UInt32, Ptr{UInt8}, Csize_t), crc, a, n)
+function unsafe_crc32c(a, n, crc)
+    ccall(:jl_crc32c, UInt32, (UInt32, Ptr{UInt8}, Csize_t), crc, a, n)
+end
 
-_crc32c(a::Union{Array{UInt8},FastContiguousSubArray{UInt8,N,<:Array{UInt8}} where N}, crc::UInt32=0x00000000) =
+function _crc32c(a::Union{Array{UInt8}, FastContiguousSubArray{UInt8, N, <:Array{UInt8}} where N}, crc::UInt32=0x00000000)
     unsafe_crc32c(a, length(a) % Csize_t, crc)
+end
 
-_crc32c(s::String, crc::UInt32=0x00000000) = unsafe_crc32c(s, sizeof(s) % Csize_t, crc)
+function _crc32c(s::String, crc::UInt32=0x00000000)
+    unsafe_crc32c(s, sizeof(s) % Csize_t, crc)
+end
 
 function _crc32c(io::IO, nb::Integer, crc::UInt32=0x00000000)
     nb < 0 && throw(ArgumentError("number of bytes to checksum must be ≥ 0, got $nb"))
@@ -665,10 +683,15 @@ function _crc32c(io::IO, nb::Integer, crc::UInt32=0x00000000)
     end
     return unsafe_crc32c(buf, readbytes!(io, buf, min(nb, length(buf))), crc)
 end
-_crc32c(io::IO, crc::UInt32=0x00000000) = _crc32c(io, typemax(Int64), crc)
-_crc32c(io::IOStream, crc::UInt32=0x00000000) = _crc32c(io, filesize(io)-position(io), crc)
-_crc32c(uuid::UUID, crc::UInt32=0x00000000) =
+function _crc32c(io::IO, crc::UInt32=0x00000000)
+    _crc32c(io, typemax(Int64), crc)
+end
+function _crc32c(io::IOStream, crc::UInt32=0x00000000)
+    _crc32c(io, filesize(io) - position(io), crc)
+end
+function _crc32c(uuid::UUID, crc::UInt32=0x00000000)
     ccall(:jl_crc32c, UInt32, (UInt32, Ref{UInt128}, Csize_t), crc, uuid.value, 16)
+end
 
 """
     @kwdef typedef

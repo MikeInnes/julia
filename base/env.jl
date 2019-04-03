@@ -76,15 +76,46 @@ variable may result in an uppercase `ENV` key.)
 """
 const ENV = EnvDict()
 
-getindex(::EnvDict, k::AbstractString) = access_env(k->throw(KeyError(k)), k)
-get(::EnvDict, k::AbstractString, def) = access_env(k->def, k)
-get(f::Callable, ::EnvDict, k::AbstractString) = access_env(k->f(), k)
-in(k::AbstractString, ::KeySet{String, EnvDict}) = _hasenv(k)
-pop!(::EnvDict, k::AbstractString) = (v = ENV[k]; _unsetenv(k); v)
-pop!(::EnvDict, k::AbstractString, def) = haskey(ENV,k) ? pop!(ENV,k) : def
-delete!(::EnvDict, k::AbstractString) = (_unsetenv(k); ENV)
-setindex!(::EnvDict, v, k::AbstractString) = _setenv(k,string(v))
-push!(::EnvDict, kv::Pair{<:AbstractString}) = setindex!(ENV, kv.second, kv.first)
+function getindex(::EnvDict, k::AbstractString)
+    access_env((k->begin
+                throw(KeyError(k))
+            end), k)
+end
+function get(::EnvDict, k::AbstractString, def)
+    access_env((k->begin
+                def
+            end), k)
+end
+function get(f::Callable, ::EnvDict, k::AbstractString)
+    access_env((k->begin
+                f()
+            end), k)
+end
+function in(k::AbstractString, ::KeySet{String, EnvDict})
+    _hasenv(k)
+end
+function pop!(::EnvDict, k::AbstractString)
+    v = ENV[k]
+    _unsetenv(k)
+    v
+end
+function pop!(::EnvDict, k::AbstractString, def)
+    if haskey(ENV, k)
+        pop!(ENV, k)
+    else
+        def
+    end
+end
+function delete!(::EnvDict, k::AbstractString)
+    _unsetenv(k)
+    ENV
+end
+function setindex!(::EnvDict, v, k::AbstractString)
+    _setenv(k, string(v))
+end
+function push!(::EnvDict, kv::Pair{<:AbstractString})
+    setindex!(ENV, kv.second, kv.first)
+end
 
 if Sys.iswindows()
     GESW() = (pos = ccall(:GetEnvironmentStringsW,stdcall,Ptr{UInt16},()); (pos,pos))
@@ -165,4 +196,6 @@ function withenv(f::Function, keyvals::Pair{T}...) where T<:AbstractString
         end
     end
 end
-withenv(f::Function) = f() # handle empty keyvals case; see #10853
+function withenv(f::Function)
+    f()
+end # handle empty keyvals case; see #10853

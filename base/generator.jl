@@ -33,11 +33,21 @@ struct Generator{I,F}
     iter::I
 end
 
-Generator(f, I1, I2, Is...) = Generator(a->f(a...), zip(I1, I2, Is...))
+function Generator(f, I1, I2, Is...)
+    Generator((a->begin
+                f(a...)
+            end), zip(I1, I2, Is...))
+end
 
-Generator(::Type{T}, iter::I) where {T,I} = Generator{I,Type{T}}(T, iter)
+function Generator(::Type{T}, iter::I) where {T, I}
+    Generator{I, Type{T}}(T, iter)
+end
 
-Generator(::Type{T}, I1, I2, Is...) where {T} = Generator(a->T(a...), zip(I1, I2, Is...))
+function Generator(::Type{T}, I1, I2, Is...) where T
+    Generator((a->begin
+                T(a...)
+            end), zip(I1, I2, Is...))
+end
 
 function iterate(g::Generator, s...)
     @_inline_meta
@@ -47,10 +57,18 @@ function iterate(g::Generator, s...)
     return (g.f(y[1]), y[2])
 end
 
-length(g::Generator) = length(g.iter)
-size(g::Generator) = size(g.iter)
-axes(g::Generator) = axes(g.iter)
-ndims(g::Generator) = ndims(g.iter)
+function length(g::Generator)
+    length(g.iter)
+end
+function size(g::Generator)
+    size(g.iter)
+end
+function axes(g::Generator)
+    axes(g.iter)
+end
+function ndims(g::Generator)
+    ndims(g.iter)
+end
 
 
 ## iterator traits
@@ -88,14 +106,24 @@ Base.HasLength()
 ```
 """
 IteratorSize(x) = IteratorSize(typeof(x))
-IteratorSize(::Type) = HasLength()  # HasLength is the default
+function IteratorSize(::Type)
+    HasLength()
+end  # HasLength is the default
 
-IteratorSize(::Type{<:AbstractArray{<:Any,N}})  where {N} = HasShape{N}()
-IteratorSize(::Type{Generator{I,F}}) where {I,F} = IteratorSize(I)
+function IteratorSize(::Type{<:AbstractArray{<:Any, N}}) where N
+    HasShape{N}()
+end
+function IteratorSize(::Type{Generator{I, F}}) where {I, F}
+    IteratorSize(I)
+end
 
-IteratorSize(::Type{Any}) = SizeUnknown()
+function IteratorSize(::Type{Any})
+    SizeUnknown()
+end
 
-haslength(iter) = IteratorSize(iter) isa Union{HasShape, HasLength}
+function haslength(iter)
+    IteratorSize(iter) isa Union{HasShape, HasLength}
+end
 
 abstract type IteratorEltype end
 struct EltypeUnknown <: IteratorEltype end
@@ -121,8 +149,14 @@ Base.HasEltype()
 ```
 """
 IteratorEltype(x) = IteratorEltype(typeof(x))
-IteratorEltype(::Type) = HasEltype()  # HasEltype is the default
+function IteratorEltype(::Type)
+    HasEltype()
+end  # HasEltype is the default
 
-IteratorEltype(::Type{Generator{I,T}}) where {I,T} = EltypeUnknown()
+function IteratorEltype(::Type{Generator{I, T}}) where {I, T}
+    EltypeUnknown()
+end
 
-IteratorEltype(::Type{Any}) = EltypeUnknown()
+function IteratorEltype(::Type{Any})
+    EltypeUnknown()
+end

@@ -77,8 +77,12 @@ function compact_exprtype(compact::IncrementalCompact, @nospecialize(value))
     return argextype(value, compact.ir, compact.ir.sptypes)
 end
 
-is_tuple_call(ir::IRCode, @nospecialize(def)) = isa(def, Expr) && is_known_call(def, tuple, ir, ir.sptypes)
-is_tuple_call(compact::IncrementalCompact, @nospecialize(def)) = isa(def, Expr) && is_known_call(def, tuple, compact)
+function is_tuple_call(ir::IRCode, @nospecialize(def))
+    def isa Expr && is_known_call(def, tuple, ir, ir.sptypes)
+end
+function is_tuple_call(compact::IncrementalCompact, @nospecialize(def))
+    def isa Expr && is_known_call(def, tuple, compact)
+end
 function is_known_call(e::Expr, @nospecialize(func), src::IncrementalCompact)
     if e.head !== :call
         return false

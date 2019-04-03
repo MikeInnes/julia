@@ -19,16 +19,32 @@ function repl_color(key, default)
     haskey(text_colors, c_conv) ? c_conv : default
 end
 
-error_color() = repl_color("JULIA_ERROR_COLOR", default_color_error)
-warn_color()  = repl_color("JULIA_WARN_COLOR" , default_color_warn)
-info_color()  = repl_color("JULIA_INFO_COLOR" , default_color_info)
-debug_color()  = repl_color("JULIA_DEBUG_COLOR" , default_color_debug)
+function error_color()
+    repl_color("JULIA_ERROR_COLOR", default_color_error)
+end
+function warn_color()
+    repl_color("JULIA_WARN_COLOR", default_color_warn)
+end
+function info_color()
+    repl_color("JULIA_INFO_COLOR", default_color_info)
+end
+function debug_color()
+    repl_color("JULIA_DEBUG_COLOR", default_color_debug)
+end
 
-input_color()  = text_colors[repl_color("JULIA_INPUT_COLOR", default_color_input)]
-answer_color() = text_colors[repl_color("JULIA_ANSWER_COLOR", default_color_answer)]
+function input_color()
+    text_colors[repl_color("JULIA_INPUT_COLOR", default_color_input)]
+end
+function answer_color()
+    text_colors[repl_color("JULIA_ANSWER_COLOR", default_color_answer)]
+end
 
-stackframe_lineinfo_color() = repl_color("JULIA_STACKFRAME_LINEINFO_COLOR", :bold)
-stackframe_function_color() = repl_color("JULIA_STACKFRAME_FUNCTION_COLOR", :bold)
+function stackframe_lineinfo_color()
+    repl_color("JULIA_STACKFRAME_LINEINFO_COLOR", :bold)
+end
+function stackframe_function_color()
+    repl_color("JULIA_STACKFRAME_FUNCTION_COLOR", :bold)
+end
 
 function repl_cmd(cmd, out)
     shell = shell_split(get(ENV, "JULIA_SHELL", get(ENV, "SHELL", "/bin/sh")))
@@ -109,9 +125,15 @@ function display_error(io::IO, stack::Vector)
     printstyled(io, "ERROR: "; bold=true, color=Base.error_color())
     show_exception_stack(IOContext(io, :limit => true), Any[ (x[1], scrub_repl_backtrace(x[2])) for x in stack ])
 end
-display_error(stack::Vector) = display_error(stderr, stack)
-display_error(er, bt) = display_error(stderr, er, bt)
-display_error(er) = display_error(er, [])
+function display_error(stack::Vector)
+    display_error(stderr, stack)
+end
+function display_error(er, bt)
+    display_error(stderr, er, bt)
+end
+function display_error(er)
+    display_error(er, [])
+end
 
 function eval_user_input(errio, @nospecialize(ast), show_value::Bool)
     errcount = 0
@@ -187,7 +209,9 @@ function parse_input_line(s::String; filename::String="none", depwarn=true)
     end
     return ex
 end
-parse_input_line(s::AbstractString) = parse_input_line(String(s))
+function parse_input_line(s::AbstractString)
+    parse_input_line(String(s))
+end
 
 function parse_input_line(io::IO)
     s = ""
@@ -203,7 +227,9 @@ end
 # detect the reason which caused an :incomplete expression
 # from the error message
 # NOTE: the error messages are defined in src/julia-parser.scm
-incomplete_tag(ex) = :none
+function incomplete_tag(ex)
+    :none
+end
 function incomplete_tag(ex::Expr)
     Meta.isexpr(ex, :incomplete) || return :none
     msg = ex.args[1]
@@ -216,7 +242,9 @@ function incomplete_tag(ex::Expr)
 end
 
 # call include() on a file, ignoring if not found
-include_ifexists(mod::Module, path::AbstractString) = isfile(path) && include(mod, path)
+function include_ifexists(mod::Module, path::AbstractString)
+    isfile(path) && include(mod, path)
+end
 
 function exec_options(opts)
     if !isempty(ARGS)
@@ -350,7 +378,9 @@ function __atreplinit(repl)
         end
     end
 end
-_atreplinit(repl) = invokelatest(__atreplinit, repl)
+function _atreplinit(repl)
+    invokelatest(__atreplinit, repl)
+end
 
 # The REPL stdlib hooks into Base using this Ref
 const REPL_MODULE_REF = Ref{Module}()
@@ -428,8 +458,12 @@ function run_main_repl(interactive::Bool, quiet::Bool, banner::Bool, history_fil
 end
 
 baremodule MainInclude
-include(fname::AbstractString) = Main.Base.include(Main, fname)
-eval(x) = Core.eval(Main, x)
+function include(fname::AbstractString)
+    (Main.Base).include(Main, fname)
+end
+function eval(x)
+    Core.eval(Main, x)
+end
 end
 
 """

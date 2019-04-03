@@ -155,7 +155,9 @@ end
 
 const k1Log10 = 0.30102999566398114
 const kSignificandSize = SignificandSize(Float64)
-estimatepower(exponent::Int) = ceil(Int,(exponent + kSignificandSize - 1) * k1Log10 - 1e-10)
+function estimatepower(exponent::Int)
+    ceil(Int, ((exponent + kSignificandSize) - 1) * k1Log10 - 1.0e-10)
+end
 
 function init3!(
         significand,exponent,estimated_power,need_boundary_deltas,

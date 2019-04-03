@@ -217,7 +217,9 @@ macro nospecialize(x)
     _expr(:meta, :nospecialize, x)
 end
 
-Expr(@nospecialize args...) = _expr(args...)
+function Expr(@nospecialize(args...))
+    _expr(args...)
+end
 
 abstract type Exception end
 struct ErrorException <: Exception
@@ -268,8 +270,9 @@ struct TypeError <: Exception
     TypeError(func, context, @nospecialize(expected::Type), @nospecialize(got)) =
         new(func, context, expected, got)
 end
-TypeError(where, @nospecialize(expected::Type), @nospecialize(got)) =
+function TypeError(where, @nospecialize(expected::Type), @nospecialize(got))
     TypeError(Symbol(where), "", expected, got)
+end
 struct InexactError <: Exception
     func::Symbol
     T  # Type
@@ -294,12 +297,16 @@ struct MethodError <: Exception
     MethodError(@nospecialize(f), @nospecialize(args), world::UInt) = new(f, args, world)
 end
 const typemax_UInt = ccall(:jl_typemax_uint, Any, (Any,), UInt)
-MethodError(@nospecialize(f), @nospecialize(args)) = MethodError(f, args, typemax_UInt)
+function MethodError(@nospecialize(f), @nospecialize(args))
+    MethodError(f, args, typemax_UInt)
+end
 
 struct AssertionError <: Exception
     msg::AbstractString
 end
-AssertionError() = AssertionError("")
+function AssertionError()
+    AssertionError("")
+end
 
 abstract type WrappedException <: Exception end
 
@@ -314,21 +321,35 @@ struct InitError <: WrappedException
     error
 end
 
-String(s::String) = s  # no constructor yet
+function String(s::String)
+    s
+end  # no constructor yet
 
 const Cvoid = Nothing
-Nothing() = nothing
+function Nothing()
+    nothing
+end
 
 # This should always be inlined
-getptls() = ccall(:jl_get_ptls_states, Ptr{Cvoid}, ())
+function getptls()
+    ccall(:jl_get_ptls_states, Ptr{Cvoid}, ())
+end
 
-include(m::Module, fname::String) = ccall(:jl_load_, Any, (Any, Any), m, fname)
+function include(m::Module, fname::String)
+    ccall(:jl_load_, Any, (Any, Any), m, fname)
+end
 
-eval(m::Module, @nospecialize(e)) = ccall(:jl_toplevel_eval_in, Any, (Any, Any), m, e)
+function eval(m::Module, @nospecialize(e))
+    ccall(:jl_toplevel_eval_in, Any, (Any, Any), m, e)
+end
 
-kwfunc(@nospecialize(f)) = ccall(:jl_get_keyword_sorter, Any, (Any,), f)
+function kwfunc(@nospecialize(f))
+    ccall(:jl_get_keyword_sorter, Any, (Any,), f)
+end
 
-kwftype(@nospecialize(t)) = typeof(ccall(:jl_get_kwsorter, Any, (Any,), t))
+function kwftype(@nospecialize(t))
+    typeof(ccall(:jl_get_kwsorter, Any, (Any,), t))
+end
 
 mutable struct Box
     contents::Any
@@ -345,21 +366,37 @@ mutable struct WeakRef
                                       (Ptr{Cvoid}, Any), getptls(), v)
 end
 
-TypeVar(n::Symbol) = _typevar(n, Union{}, Any)
-TypeVar(n::Symbol, @nospecialize(ub)) = _typevar(n, Union{}, ub)
-TypeVar(n::Symbol, @nospecialize(lb), @nospecialize(ub)) = _typevar(n, lb, ub)
+function TypeVar(n::Symbol)
+    _typevar(n, Union{}, Any)
+end
+function TypeVar(n::Symbol, @nospecialize(ub))
+    _typevar(n, Union{}, ub)
+end
+function TypeVar(n::Symbol, @nospecialize(lb), @nospecialize(ub))
+    _typevar(n, lb, ub)
+end
 
-UnionAll(v::TypeVar, @nospecialize(t)) = ccall(:jl_type_unionall, Any, (Any, Any), v, t)
+function UnionAll(v::TypeVar, @nospecialize(t))
+    ccall(:jl_type_unionall, Any, (Any, Any), v, t)
+end
 
-(::Type{Tuple{}})() = () # Tuple{}()
+function (::Type{Tuple{}})()
+    ()
+end # Tuple{}()
 
 struct VecElement{T}
     value::T
     VecElement{T}(value::T) where {T} = new(value) # disable converting constructor in Core
 end
-VecElement(arg::T) where {T} = VecElement{T}(arg)
+function VecElement(arg::T) where T
+    VecElement{T}(arg)
+end
 
-_new(typ::Symbol, argty::Symbol) = eval(Core, :($typ(@nospecialize n::$argty) = $(Expr(:new, typ, :n))))
+function _new(typ::Symbol, argty::Symbol)
+    eval(Core, $(Expr(:quote, :(($(Expr(:$, :typ)))(@nospecialize(n::$(Expr(:$, :argty)))) = begin
+          $(Expr(:$, :(Expr(:new, typ, :n))))
+      end))))
+end
 _new(:GotoNode, :Int)
 _new(:NewvarNode, :SlotNumber)
 _new(:QuoteNode, :Any)
@@ -377,7 +414,9 @@ eval(Core, :(UpsilonNode() = $(Expr(:new, :UpsilonNode))))
 eval(Core, :(LineInfoNode(@nospecialize(method), file::Symbol, line::Int, inlined_at::Int) =
              $(Expr(:new, :LineInfoNode, :method, :file, :line, :inlined_at))))
 
-Module(name::Symbol=:anonymous, std_imports::Bool=true) = ccall(:jl_f_new_module, Ref{Module}, (Any, Bool), name, std_imports)
+function Module(name::Symbol=:anonymous, std_imports::Bool=true)
+    ccall(:jl_f_new_module, Ref{Module}, (Any, Bool), name, std_imports)
+end
 
 function _Task(@nospecialize(f), reserved_stack::Int, completion_future)
     return ccall(:jl_new_task, Ref{Task}, (Any, Any, Int), f, completion_future, reserved_stack)
@@ -386,10 +425,18 @@ end
 # simple convert for use by constructors of types in Core
 # note that there is no actual conversion defined here,
 # so the methods and ccall's in Core aren't permitted to use convert
-convert(::Type{Any}, @nospecialize(x)) = x
-convert(::Type{T}, x::T) where {T} = x
-cconvert(::Type{T}, x) where {T} = convert(T, x)
-unsafe_convert(::Type{T}, x::T) where {T} = x
+function convert(::Type{Any}, @nospecialize(x))
+    x
+end
+function convert(::Type{T}, x::T) where T
+    x
+end
+function cconvert(::Type{T}, x) where T
+    convert(T, x)
+end
+function unsafe_convert(::Type{T}, x::T) where T
+    x
+end
 
 const NTuple{N,T} = Tuple{Vararg{T,N}}
 
@@ -398,34 +445,64 @@ const NTuple{N,T} = Tuple{Vararg{T,N}}
 struct UndefInitializer end
 const undef = UndefInitializer()
 # type and dimensionality specified, accepting dims as series of Ints
-Array{T,1}(::UndefInitializer, m::Int) where {T} =
-    ccall(:jl_alloc_array_1d, Array{T,1}, (Any, Int), Array{T,1}, m)
-Array{T,2}(::UndefInitializer, m::Int, n::Int) where {T} =
-    ccall(:jl_alloc_array_2d, Array{T,2}, (Any, Int, Int), Array{T,2}, m, n)
-Array{T,3}(::UndefInitializer, m::Int, n::Int, o::Int) where {T} =
-    ccall(:jl_alloc_array_3d, Array{T,3}, (Any, Int, Int, Int), Array{T,3}, m, n, o)
-Array{T,N}(::UndefInitializer, d::Vararg{Int,N}) where {T,N} =
-    ccall(:jl_new_array, Array{T,N}, (Any, Any), Array{T,N}, d)
+function Array{T, 1}(::UndefInitializer, m::Int) where T
+    ccall(:jl_alloc_array_1d, Array{T, 1}, (Any, Int), Array{T, 1}, m)
+end
+function Array{T, 2}(::UndefInitializer, m::Int, n::Int) where T
+    ccall(:jl_alloc_array_2d, Array{T, 2}, (Any, Int, Int), Array{T, 2}, m, n)
+end
+function Array{T, 3}(::UndefInitializer, m::Int, n::Int, o::Int) where T
+    ccall(:jl_alloc_array_3d, Array{T, 3}, (Any, Int, Int, Int), Array{T, 3}, m, n, o)
+end
+function Array{T, N}(::UndefInitializer, d::Vararg{Int, N}) where {T, N}
+    ccall(:jl_new_array, Array{T, N}, (Any, Any), Array{T, N}, d)
+end
 # type and dimensionality specified, accepting dims as tuples of Ints
-Array{T,1}(::UndefInitializer, d::NTuple{1,Int}) where {T} = Array{T,1}(undef, getfield(d,1))
-Array{T,2}(::UndefInitializer, d::NTuple{2,Int}) where {T} = Array{T,2}(undef, getfield(d,1), getfield(d,2))
-Array{T,3}(::UndefInitializer, d::NTuple{3,Int}) where {T} = Array{T,3}(undef, getfield(d,1), getfield(d,2), getfield(d,3))
-Array{T,N}(::UndefInitializer, d::NTuple{N,Int}) where {T,N} = ccall(:jl_new_array, Array{T,N}, (Any, Any), Array{T,N}, d)
+function Array{T, 1}(::UndefInitializer, d::NTuple{1, Int}) where T
+    Array{T, 1}(undef, getfield(d, 1))
+end
+function Array{T, 2}(::UndefInitializer, d::NTuple{2, Int}) where T
+    Array{T, 2}(undef, getfield(d, 1), getfield(d, 2))
+end
+function Array{T, 3}(::UndefInitializer, d::NTuple{3, Int}) where T
+    Array{T, 3}(undef, getfield(d, 1), getfield(d, 2), getfield(d, 3))
+end
+function Array{T, N}(::UndefInitializer, d::NTuple{N, Int}) where {T, N}
+    ccall(:jl_new_array, Array{T, N}, (Any, Any), Array{T, N}, d)
+end
 # type but not dimensionality specified
-Array{T}(::UndefInitializer, m::Int) where {T} = Array{T,1}(undef, m)
-Array{T}(::UndefInitializer, m::Int, n::Int) where {T} = Array{T,2}(undef, m, n)
-Array{T}(::UndefInitializer, m::Int, n::Int, o::Int) where {T} = Array{T,3}(undef, m, n, o)
-Array{T}(::UndefInitializer, d::NTuple{N,Int}) where {T,N} = Array{T,N}(undef, d)
+function Array{T}(::UndefInitializer, m::Int) where T
+    Array{T, 1}(undef, m)
+end
+function Array{T}(::UndefInitializer, m::Int, n::Int) where T
+    Array{T, 2}(undef, m, n)
+end
+function Array{T}(::UndefInitializer, m::Int, n::Int, o::Int) where T
+    Array{T, 3}(undef, m, n, o)
+end
+function Array{T}(::UndefInitializer, d::NTuple{N, Int}) where {T, N}
+    Array{T, N}(undef, d)
+end
 # empty vector constructor
-Array{T,1}() where {T} = Array{T,1}(undef, 0)
+function Array{T, 1}() where T
+    Array{T, 1}(undef, 0)
+end
 
 
-(::Type{Array{T,N} where T})(x::AbstractArray{S,N}) where {S,N} = Array{S,N}(x)
+function (::Type{Array{T, N} where T})(x::AbstractArray{S, N}) where {S, N}
+    Array{S, N}(x)
+end
 
-Array(A::AbstractArray{T,N})    where {T,N}   = Array{T,N}(A)
-Array{T}(A::AbstractArray{S,N}) where {T,N,S} = Array{T,N}(A)
+function Array(A::AbstractArray{T, N}) where {T, N}
+    Array{T, N}(A)
+end
+function Array{T}(A::AbstractArray{S, N}) where {T, N, S}
+    Array{T, N}(A)
+end
 
-AbstractArray{T}(A::AbstractArray{S,N}) where {T,S,N} = AbstractArray{T,N}(A)
+function AbstractArray{T}(A::AbstractArray{S, N}) where {T, S, N}
+    AbstractArray{T, N}(A)
+end
 
 # primitive Symbol constructors
 function Symbol(s::String)
@@ -438,7 +515,9 @@ function Symbol(a::Array{UInt8,1})
                  ccall(:jl_array_ptr, Ptr{UInt8}, (Any,), a),
                  Intrinsics.arraylen(a))
 end
-Symbol(s::Symbol) = s
+function Symbol(s::Symbol)
+    s
+end
 
 # module providing the IR object model
 module IR
@@ -463,7 +542,9 @@ macro __doc__(x)
     return Expr(:escape, Expr(:block, Expr(:meta, :doc), x))
 end
 atdoc     = (source, mod, str, expr) -> Expr(:escape, expr)
-atdoc!(λ) = global atdoc = λ
+function atdoc!(λ)
+    global atdoc = λ
+end
 
 # macros for big integer syntax
 macro int128_str end
@@ -480,32 +561,66 @@ struct CoreSTDOUT <: IO end
 struct CoreSTDERR <: IO end
 const stdout = CoreSTDOUT()
 const stderr = CoreSTDERR()
-io_pointer(::CoreSTDOUT) = Intrinsics.pointerref(Intrinsics.cglobal(:jl_uv_stdout, Ptr{Cvoid}), 1, 1)
-io_pointer(::CoreSTDERR) = Intrinsics.pointerref(Intrinsics.cglobal(:jl_uv_stderr, Ptr{Cvoid}), 1, 1)
+function io_pointer(::CoreSTDOUT)
+    Intrinsics.pointerref(Intrinsics.cglobal(:jl_uv_stdout, Ptr{Cvoid}), 1, 1)
+end
+function io_pointer(::CoreSTDERR)
+    Intrinsics.pointerref(Intrinsics.cglobal(:jl_uv_stderr, Ptr{Cvoid}), 1, 1)
+end
 
-unsafe_write(io::IO, x::Ptr{UInt8}, nb::UInt) =
-    (ccall(:jl_uv_puts, Cvoid, (Ptr{Cvoid}, Ptr{UInt8}, UInt), io_pointer(io), x, nb); nb)
-unsafe_write(io::IO, x::Ptr{UInt8}, nb::Int) =
-    (ccall(:jl_uv_puts, Cvoid, (Ptr{Cvoid}, Ptr{UInt8}, Int), io_pointer(io), x, nb); nb)
-write(io::IO, x::UInt8) =
-    (ccall(:jl_uv_putb, Cvoid, (Ptr{Cvoid}, UInt8), io_pointer(io), x); 1)
+function unsafe_write(io::IO, x::Ptr{UInt8}, nb::UInt)
+    ccall(:jl_uv_puts, Cvoid, (Ptr{Cvoid}, Ptr{UInt8}, UInt), io_pointer(io), x, nb)
+    nb
+end
+function unsafe_write(io::IO, x::Ptr{UInt8}, nb::Int)
+    ccall(:jl_uv_puts, Cvoid, (Ptr{Cvoid}, Ptr{UInt8}, Int), io_pointer(io), x, nb)
+    nb
+end
+function write(io::IO, x::UInt8)
+    ccall(:jl_uv_putb, Cvoid, (Ptr{Cvoid}, UInt8), io_pointer(io), x)
+    1
+end
 function write(io::IO, x::String)
     nb = sizeof(x)
     unsafe_write(io, ccall(:jl_string_ptr, Ptr{UInt8}, (Any,), x), nb)
     return nb
 end
 
-show(io::IO, @nospecialize x) = ccall(:jl_static_show, Cvoid, (Ptr{Cvoid}, Any), io_pointer(io), x)
-print(io::IO, x::AbstractChar) = ccall(:jl_uv_putc, Cvoid, (Ptr{Cvoid}, Char), io_pointer(io), x)
-print(io::IO, x::String) = (write(io, x); nothing)
-print(io::IO, @nospecialize x) = show(io, x)
-print(io::IO, @nospecialize(x), @nospecialize a...) = (print(io, x); print(io, a...))
-println(io::IO) = (write(io, 0x0a); nothing) # 0x0a = '\n'
-println(io::IO, @nospecialize x...) = (print(io, x...); println(io))
+function show(io::IO, @nospecialize(x))
+    ccall(:jl_static_show, Cvoid, (Ptr{Cvoid}, Any), io_pointer(io), x)
+end
+function print(io::IO, x::AbstractChar)
+    ccall(:jl_uv_putc, Cvoid, (Ptr{Cvoid}, Char), io_pointer(io), x)
+end
+function print(io::IO, x::String)
+    write(io, x)
+    nothing
+end
+function print(io::IO, @nospecialize(x))
+    show(io, x)
+end
+function print(io::IO, @nospecialize(x), @nospecialize(a...))
+    print(io, x)
+    print(io, a...)
+end
+function println(io::IO)
+    write(io, 0x0a)
+    nothing
+end # 0x0a = '\n'
+function println(io::IO, @nospecialize(x...))
+    print(io, x...)
+    println(io)
+end
 
-show(@nospecialize a) = show(stdout, a)
-print(@nospecialize a...) = print(stdout, a...)
-println(@nospecialize a...) = println(stdout, a...)
+function show(@nospecialize(a))
+    show(stdout, a)
+end
+function print(@nospecialize(a...))
+    print(stdout, a...)
+end
+function println(@nospecialize(a...))
+    println(stdout, a...)
+end
 
 struct GeneratedFunctionStub
     gen
@@ -536,7 +651,9 @@ function (g::GeneratedFunctionStub)(@nospecialize args...)
     end
 end
 
-NamedTuple() = NamedTuple{(),Tuple{}}(())
+function NamedTuple()
+    NamedTuple{(), Tuple{}}(())
+end
 
 """
     NamedTuple{names}(args::Tuple)
@@ -554,7 +671,10 @@ eval(Core, :(NamedTuple{names,T}(args::T) where {names, T <: Tuple} =
 
 import .Intrinsics: eq_int, trunc_int, lshr_int, sub_int, shl_int, bitcast, sext_int, zext_int, and_int
 
-throw_inexacterror(f::Symbol, @nospecialize(T), val) = (@_noinline_meta; throw(InexactError(f, T, val)))
+function throw_inexacterror(f::Symbol, @nospecialize(T), val)
+    @_noinline_meta
+    throw(InexactError(f, T, val))
+end
 
 function is_top_bit_set(x)
     @_inline_meta
@@ -588,156 +708,434 @@ function checked_trunc_uint(::Type{To}, x::From) where {To,From}
     y
 end
 
-toInt8(x::Int8)       = x
-toInt8(x::Int16)      = checked_trunc_sint(Int8, x)
-toInt8(x::Int32)      = checked_trunc_sint(Int8, x)
-toInt8(x::Int64)      = checked_trunc_sint(Int8, x)
-toInt8(x::Int128)     = checked_trunc_sint(Int8, x)
-toInt8(x::UInt8)      = bitcast(Int8, check_top_bit(x))
-toInt8(x::UInt16)     = checked_trunc_sint(Int8, check_top_bit(x))
-toInt8(x::UInt32)     = checked_trunc_sint(Int8, check_top_bit(x))
-toInt8(x::UInt64)     = checked_trunc_sint(Int8, check_top_bit(x))
-toInt8(x::UInt128)    = checked_trunc_sint(Int8, check_top_bit(x))
-toInt8(x::Bool)       = and_int(bitcast(Int8, x), Int8(1))
-toInt16(x::Int8)      = sext_int(Int16, x)
-toInt16(x::Int16)     = x
-toInt16(x::Int32)     = checked_trunc_sint(Int16, x)
-toInt16(x::Int64)     = checked_trunc_sint(Int16, x)
-toInt16(x::Int128)    = checked_trunc_sint(Int16, x)
-toInt16(x::UInt8)     = zext_int(Int16, x)
-toInt16(x::UInt16)    = bitcast(Int16, check_top_bit(x))
-toInt16(x::UInt32)    = checked_trunc_sint(Int16, check_top_bit(x))
-toInt16(x::UInt64)    = checked_trunc_sint(Int16, check_top_bit(x))
-toInt16(x::UInt128)   = checked_trunc_sint(Int16, check_top_bit(x))
-toInt16(x::Bool)      = and_int(zext_int(Int16, x), Int16(1))
-toInt32(x::Int8)      = sext_int(Int32, x)
-toInt32(x::Int16)     = sext_int(Int32, x)
-toInt32(x::Int32)     = x
-toInt32(x::Int64)     = checked_trunc_sint(Int32, x)
-toInt32(x::Int128)    = checked_trunc_sint(Int32, x)
-toInt32(x::UInt8)     = zext_int(Int32, x)
-toInt32(x::UInt16)    = zext_int(Int32, x)
-toInt32(x::UInt32)    = bitcast(Int32, check_top_bit(x))
-toInt32(x::UInt64)    = checked_trunc_sint(Int32, check_top_bit(x))
-toInt32(x::UInt128)   = checked_trunc_sint(Int32, check_top_bit(x))
-toInt32(x::Bool)      = and_int(zext_int(Int32, x), Int32(1))
-toInt64(x::Int8)      = sext_int(Int64, x)
-toInt64(x::Int16)     = sext_int(Int64, x)
-toInt64(x::Int32)     = sext_int(Int64, x)
-toInt64(x::Int64)     = x
-toInt64(x::Int128)    = checked_trunc_sint(Int64, x)
-toInt64(x::UInt8)     = zext_int(Int64, x)
-toInt64(x::UInt16)    = zext_int(Int64, x)
-toInt64(x::UInt32)    = zext_int(Int64, x)
-toInt64(x::UInt64)    = bitcast(Int64, check_top_bit(x))
-toInt64(x::UInt128)   = checked_trunc_sint(Int64, check_top_bit(x))
-toInt64(x::Bool)      = and_int(zext_int(Int64, x), Int64(1))
-toInt128(x::Int8)     = sext_int(Int128, x)
-toInt128(x::Int16)    = sext_int(Int128, x)
-toInt128(x::Int32)    = sext_int(Int128, x)
-toInt128(x::Int64)    = sext_int(Int128, x)
-toInt128(x::Int128)   = x
-toInt128(x::UInt8)    = zext_int(Int128, x)
-toInt128(x::UInt16)   = zext_int(Int128, x)
-toInt128(x::UInt32)   = zext_int(Int128, x)
-toInt128(x::UInt64)   = zext_int(Int128, x)
-toInt128(x::UInt128)  = bitcast(Int128, check_top_bit(x))
-toInt128(x::Bool)     = and_int(zext_int(Int128, x), Int128(1))
-toUInt8(x::Int8)      = bitcast(UInt8, check_top_bit(x))
-toUInt8(x::Int16)     = checked_trunc_uint(UInt8, x)
-toUInt8(x::Int32)     = checked_trunc_uint(UInt8, x)
-toUInt8(x::Int64)     = checked_trunc_uint(UInt8, x)
-toUInt8(x::Int128)    = checked_trunc_uint(UInt8, x)
-toUInt8(x::UInt8)     = x
-toUInt8(x::UInt16)    = checked_trunc_uint(UInt8, x)
-toUInt8(x::UInt32)    = checked_trunc_uint(UInt8, x)
-toUInt8(x::UInt64)    = checked_trunc_uint(UInt8, x)
-toUInt8(x::UInt128)   = checked_trunc_uint(UInt8, x)
-toUInt8(x::Bool)      = and_int(bitcast(UInt8, x), UInt8(1))
-toUInt16(x::Int8)     = sext_int(UInt16, check_top_bit(x))
-toUInt16(x::Int16)    = bitcast(UInt16, check_top_bit(x))
-toUInt16(x::Int32)    = checked_trunc_uint(UInt16, x)
-toUInt16(x::Int64)    = checked_trunc_uint(UInt16, x)
-toUInt16(x::Int128)   = checked_trunc_uint(UInt16, x)
-toUInt16(x::UInt8)    = zext_int(UInt16, x)
-toUInt16(x::UInt16)   = x
-toUInt16(x::UInt32)   = checked_trunc_uint(UInt16, x)
-toUInt16(x::UInt64)   = checked_trunc_uint(UInt16, x)
-toUInt16(x::UInt128)  = checked_trunc_uint(UInt16, x)
-toUInt16(x::Bool)     = and_int(zext_int(UInt16, x), UInt16(1))
-toUInt32(x::Int8)     = sext_int(UInt32, check_top_bit(x))
-toUInt32(x::Int16)    = sext_int(UInt32, check_top_bit(x))
-toUInt32(x::Int32)    = bitcast(UInt32, check_top_bit(x))
-toUInt32(x::Int64)    = checked_trunc_uint(UInt32, x)
-toUInt32(x::Int128)   = checked_trunc_uint(UInt32, x)
-toUInt32(x::UInt8)    = zext_int(UInt32, x)
-toUInt32(x::UInt16)   = zext_int(UInt32, x)
-toUInt32(x::UInt32)   = x
-toUInt32(x::UInt64)   = checked_trunc_uint(UInt32, x)
-toUInt32(x::UInt128)  = checked_trunc_uint(UInt32, x)
-toUInt32(x::Bool)     = and_int(zext_int(UInt32, x), UInt32(1))
-toUInt64(x::Int8)     = sext_int(UInt64, check_top_bit(x))
-toUInt64(x::Int16)    = sext_int(UInt64, check_top_bit(x))
-toUInt64(x::Int32)    = sext_int(UInt64, check_top_bit(x))
-toUInt64(x::Int64)    = bitcast(UInt64, check_top_bit(x))
-toUInt64(x::Int128)   = checked_trunc_uint(UInt64, x)
-toUInt64(x::UInt8)    = zext_int(UInt64, x)
-toUInt64(x::UInt16)   = zext_int(UInt64, x)
-toUInt64(x::UInt32)   = zext_int(UInt64, x)
-toUInt64(x::UInt64)   = x
-toUInt64(x::UInt128)  = checked_trunc_uint(UInt64, x)
-toUInt64(x::Bool)     = and_int(zext_int(UInt64, x), UInt64(1))
-toUInt128(x::Int8)    = sext_int(UInt128, check_top_bit(x))
-toUInt128(x::Int16)   = sext_int(UInt128, check_top_bit(x))
-toUInt128(x::Int32)   = sext_int(UInt128, check_top_bit(x))
-toUInt128(x::Int64)   = sext_int(UInt128, check_top_bit(x))
-toUInt128(x::Int128)  = bitcast(UInt128, check_top_bit(x))
-toUInt128(x::UInt8)   = zext_int(UInt128, x)
-toUInt128(x::UInt16)  = zext_int(UInt128, x)
-toUInt128(x::UInt32)  = zext_int(UInt128, x)
-toUInt128(x::UInt64)  = zext_int(UInt128, x)
-toUInt128(x::UInt128) = x
-toUInt128(x::Bool)    = and_int(zext_int(UInt128, x), UInt128(1))
+function toInt8(x::Int8)
+    x
+end
+function toInt8(x::Int16)
+    checked_trunc_sint(Int8, x)
+end
+function toInt8(x::Int32)
+    checked_trunc_sint(Int8, x)
+end
+function toInt8(x::Int64)
+    checked_trunc_sint(Int8, x)
+end
+function toInt8(x::Int128)
+    checked_trunc_sint(Int8, x)
+end
+function toInt8(x::UInt8)
+    bitcast(Int8, check_top_bit(x))
+end
+function toInt8(x::UInt16)
+    checked_trunc_sint(Int8, check_top_bit(x))
+end
+function toInt8(x::UInt32)
+    checked_trunc_sint(Int8, check_top_bit(x))
+end
+function toInt8(x::UInt64)
+    checked_trunc_sint(Int8, check_top_bit(x))
+end
+function toInt8(x::UInt128)
+    checked_trunc_sint(Int8, check_top_bit(x))
+end
+function toInt8(x::Bool)
+    and_int(bitcast(Int8, x), Int8(1))
+end
+function toInt16(x::Int8)
+    sext_int(Int16, x)
+end
+function toInt16(x::Int16)
+    x
+end
+function toInt16(x::Int32)
+    checked_trunc_sint(Int16, x)
+end
+function toInt16(x::Int64)
+    checked_trunc_sint(Int16, x)
+end
+function toInt16(x::Int128)
+    checked_trunc_sint(Int16, x)
+end
+function toInt16(x::UInt8)
+    zext_int(Int16, x)
+end
+function toInt16(x::UInt16)
+    bitcast(Int16, check_top_bit(x))
+end
+function toInt16(x::UInt32)
+    checked_trunc_sint(Int16, check_top_bit(x))
+end
+function toInt16(x::UInt64)
+    checked_trunc_sint(Int16, check_top_bit(x))
+end
+function toInt16(x::UInt128)
+    checked_trunc_sint(Int16, check_top_bit(x))
+end
+function toInt16(x::Bool)
+    and_int(zext_int(Int16, x), Int16(1))
+end
+function toInt32(x::Int8)
+    sext_int(Int32, x)
+end
+function toInt32(x::Int16)
+    sext_int(Int32, x)
+end
+function toInt32(x::Int32)
+    x
+end
+function toInt32(x::Int64)
+    checked_trunc_sint(Int32, x)
+end
+function toInt32(x::Int128)
+    checked_trunc_sint(Int32, x)
+end
+function toInt32(x::UInt8)
+    zext_int(Int32, x)
+end
+function toInt32(x::UInt16)
+    zext_int(Int32, x)
+end
+function toInt32(x::UInt32)
+    bitcast(Int32, check_top_bit(x))
+end
+function toInt32(x::UInt64)
+    checked_trunc_sint(Int32, check_top_bit(x))
+end
+function toInt32(x::UInt128)
+    checked_trunc_sint(Int32, check_top_bit(x))
+end
+function toInt32(x::Bool)
+    and_int(zext_int(Int32, x), Int32(1))
+end
+function toInt64(x::Int8)
+    sext_int(Int64, x)
+end
+function toInt64(x::Int16)
+    sext_int(Int64, x)
+end
+function toInt64(x::Int32)
+    sext_int(Int64, x)
+end
+function toInt64(x::Int64)
+    x
+end
+function toInt64(x::Int128)
+    checked_trunc_sint(Int64, x)
+end
+function toInt64(x::UInt8)
+    zext_int(Int64, x)
+end
+function toInt64(x::UInt16)
+    zext_int(Int64, x)
+end
+function toInt64(x::UInt32)
+    zext_int(Int64, x)
+end
+function toInt64(x::UInt64)
+    bitcast(Int64, check_top_bit(x))
+end
+function toInt64(x::UInt128)
+    checked_trunc_sint(Int64, check_top_bit(x))
+end
+function toInt64(x::Bool)
+    and_int(zext_int(Int64, x), Int64(1))
+end
+function toInt128(x::Int8)
+    sext_int(Int128, x)
+end
+function toInt128(x::Int16)
+    sext_int(Int128, x)
+end
+function toInt128(x::Int32)
+    sext_int(Int128, x)
+end
+function toInt128(x::Int64)
+    sext_int(Int128, x)
+end
+function toInt128(x::Int128)
+    x
+end
+function toInt128(x::UInt8)
+    zext_int(Int128, x)
+end
+function toInt128(x::UInt16)
+    zext_int(Int128, x)
+end
+function toInt128(x::UInt32)
+    zext_int(Int128, x)
+end
+function toInt128(x::UInt64)
+    zext_int(Int128, x)
+end
+function toInt128(x::UInt128)
+    bitcast(Int128, check_top_bit(x))
+end
+function toInt128(x::Bool)
+    and_int(zext_int(Int128, x), Int128(1))
+end
+function toUInt8(x::Int8)
+    bitcast(UInt8, check_top_bit(x))
+end
+function toUInt8(x::Int16)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::Int32)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::Int64)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::Int128)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::UInt8)
+    x
+end
+function toUInt8(x::UInt16)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::UInt32)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::UInt64)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::UInt128)
+    checked_trunc_uint(UInt8, x)
+end
+function toUInt8(x::Bool)
+    and_int(bitcast(UInt8, x), UInt8(1))
+end
+function toUInt16(x::Int8)
+    sext_int(UInt16, check_top_bit(x))
+end
+function toUInt16(x::Int16)
+    bitcast(UInt16, check_top_bit(x))
+end
+function toUInt16(x::Int32)
+    checked_trunc_uint(UInt16, x)
+end
+function toUInt16(x::Int64)
+    checked_trunc_uint(UInt16, x)
+end
+function toUInt16(x::Int128)
+    checked_trunc_uint(UInt16, x)
+end
+function toUInt16(x::UInt8)
+    zext_int(UInt16, x)
+end
+function toUInt16(x::UInt16)
+    x
+end
+function toUInt16(x::UInt32)
+    checked_trunc_uint(UInt16, x)
+end
+function toUInt16(x::UInt64)
+    checked_trunc_uint(UInt16, x)
+end
+function toUInt16(x::UInt128)
+    checked_trunc_uint(UInt16, x)
+end
+function toUInt16(x::Bool)
+    and_int(zext_int(UInt16, x), UInt16(1))
+end
+function toUInt32(x::Int8)
+    sext_int(UInt32, check_top_bit(x))
+end
+function toUInt32(x::Int16)
+    sext_int(UInt32, check_top_bit(x))
+end
+function toUInt32(x::Int32)
+    bitcast(UInt32, check_top_bit(x))
+end
+function toUInt32(x::Int64)
+    checked_trunc_uint(UInt32, x)
+end
+function toUInt32(x::Int128)
+    checked_trunc_uint(UInt32, x)
+end
+function toUInt32(x::UInt8)
+    zext_int(UInt32, x)
+end
+function toUInt32(x::UInt16)
+    zext_int(UInt32, x)
+end
+function toUInt32(x::UInt32)
+    x
+end
+function toUInt32(x::UInt64)
+    checked_trunc_uint(UInt32, x)
+end
+function toUInt32(x::UInt128)
+    checked_trunc_uint(UInt32, x)
+end
+function toUInt32(x::Bool)
+    and_int(zext_int(UInt32, x), UInt32(1))
+end
+function toUInt64(x::Int8)
+    sext_int(UInt64, check_top_bit(x))
+end
+function toUInt64(x::Int16)
+    sext_int(UInt64, check_top_bit(x))
+end
+function toUInt64(x::Int32)
+    sext_int(UInt64, check_top_bit(x))
+end
+function toUInt64(x::Int64)
+    bitcast(UInt64, check_top_bit(x))
+end
+function toUInt64(x::Int128)
+    checked_trunc_uint(UInt64, x)
+end
+function toUInt64(x::UInt8)
+    zext_int(UInt64, x)
+end
+function toUInt64(x::UInt16)
+    zext_int(UInt64, x)
+end
+function toUInt64(x::UInt32)
+    zext_int(UInt64, x)
+end
+function toUInt64(x::UInt64)
+    x
+end
+function toUInt64(x::UInt128)
+    checked_trunc_uint(UInt64, x)
+end
+function toUInt64(x::Bool)
+    and_int(zext_int(UInt64, x), UInt64(1))
+end
+function toUInt128(x::Int8)
+    sext_int(UInt128, check_top_bit(x))
+end
+function toUInt128(x::Int16)
+    sext_int(UInt128, check_top_bit(x))
+end
+function toUInt128(x::Int32)
+    sext_int(UInt128, check_top_bit(x))
+end
+function toUInt128(x::Int64)
+    sext_int(UInt128, check_top_bit(x))
+end
+function toUInt128(x::Int128)
+    bitcast(UInt128, check_top_bit(x))
+end
+function toUInt128(x::UInt8)
+    zext_int(UInt128, x)
+end
+function toUInt128(x::UInt16)
+    zext_int(UInt128, x)
+end
+function toUInt128(x::UInt32)
+    zext_int(UInt128, x)
+end
+function toUInt128(x::UInt64)
+    zext_int(UInt128, x)
+end
+function toUInt128(x::UInt128)
+    x
+end
+function toUInt128(x::Bool)
+    and_int(zext_int(UInt128, x), UInt128(1))
+end
 
 # TODO: this is here to work around the 4 method limit in inference (#23210).
 const BuiltinInts = Union{Int128, Int16, Int32, Int64, Int8, UInt128, UInt16, UInt32, UInt64, UInt8, Bool}
-Int8(x::BuiltinInts)    = toInt8(x)::Int8
-Int16(x::BuiltinInts)   = toInt16(x)::Int16
-Int32(x::BuiltinInts)   = toInt32(x)::Int32
-Int64(x::BuiltinInts)   = toInt64(x)::Int64
-Int128(x::BuiltinInts)  = toInt128(x)::Int128
-UInt8(x::BuiltinInts)   = toUInt8(x)::UInt8
-UInt16(x::BuiltinInts)  = toUInt16(x)::UInt16
-UInt32(x::BuiltinInts)  = toUInt32(x)::UInt32
-UInt64(x::BuiltinInts)  = toUInt64(x)::UInt64
-UInt128(x::BuiltinInts) = toUInt128(x)::UInt128
+function Int8(x::BuiltinInts)
+    toInt8(x)::Int8
+end
+function Int16(x::BuiltinInts)
+    toInt16(x)::Int16
+end
+function Int32(x::BuiltinInts)
+    toInt32(x)::Int32
+end
+function Int64(x::BuiltinInts)
+    toInt64(x)::Int64
+end
+function Int128(x::BuiltinInts)
+    toInt128(x)::Int128
+end
+function UInt8(x::BuiltinInts)
+    toUInt8(x)::UInt8
+end
+function UInt16(x::BuiltinInts)
+    toUInt16(x)::UInt16
+end
+function UInt32(x::BuiltinInts)
+    toUInt32(x)::UInt32
+end
+function UInt64(x::BuiltinInts)
+    toUInt64(x)::UInt64
+end
+function UInt128(x::BuiltinInts)
+    toUInt128(x)::UInt128
+end
 
-(::Type{T})(x::T) where {T<:Number} = x
+function (::Type{T})(x::T) where T <: Number
+    x
+end
 
-Int(x::Ptr)  = bitcast(Int, x)
-UInt(x::Ptr) = bitcast(UInt, x)
+function Int(x::Ptr)
+    bitcast(Int, x)
+end
+function UInt(x::Ptr)
+    bitcast(UInt, x)
+end
 if Int === Int32
 Int64(x::Ptr) = Int64(UInt32(x))
 UInt64(x::Ptr) = UInt64(UInt32(x))
 end
-Ptr{T}(x::Union{Int,UInt,Ptr}) where {T} = bitcast(Ptr{T}, x)
-Ptr{T}() where {T} = Ptr{T}(0)
+function Ptr{T}(x::Union{Int, UInt, Ptr}) where T
+    bitcast(Ptr{T}, x)
+end
+function Ptr{T}() where T
+    Ptr{T}(0)
+end
 
-Signed(x::UInt8)    = Int8(x)
-Unsigned(x::Int8)   = UInt8(x)
-Signed(x::UInt16)   = Int16(x)
-Unsigned(x::Int16)  = UInt16(x)
-Signed(x::UInt32)   = Int32(x)
-Unsigned(x::Int32)  = UInt32(x)
-Signed(x::UInt64)   = Int64(x)
-Unsigned(x::Int64)  = UInt64(x)
-Signed(x::UInt128)  = Int128(x)
-Unsigned(x::Int128) = UInt128(x)
+function Signed(x::UInt8)
+    Int8(x)
+end
+function Unsigned(x::Int8)
+    UInt8(x)
+end
+function Signed(x::UInt16)
+    Int16(x)
+end
+function Unsigned(x::Int16)
+    UInt16(x)
+end
+function Signed(x::UInt32)
+    Int32(x)
+end
+function Unsigned(x::Int32)
+    UInt32(x)
+end
+function Signed(x::UInt64)
+    Int64(x)
+end
+function Unsigned(x::Int64)
+    UInt64(x)
+end
+function Signed(x::UInt128)
+    Int128(x)
+end
+function Unsigned(x::Int128)
+    UInt128(x)
+end
 
-Signed(x::Union{Float32, Float64, Bool})   = Int(x)
-Unsigned(x::Union{Float32, Float64, Bool}) = UInt(x)
+function Signed(x::Union{Float32, Float64, Bool})
+    Int(x)
+end
+function Unsigned(x::Union{Float32, Float64, Bool})
+    UInt(x)
+end
 
-Integer(x::Integer) = x
-Integer(x::Union{Float32, Float64}) = Int(x)
+function Integer(x::Integer)
+    x
+end
+function Integer(x::Union{Float32, Float64})
+    Int(x)
+end
 
 ccall(:jl_set_istopmod, Cvoid, (Any, Bool), Core, true)

@@ -122,12 +122,22 @@ false
 """
 isequal(x, y) = x == y
 
-signequal(x, y) = signbit(x)::Bool == signbit(y)::Bool
-signless(x, y) = signbit(x)::Bool & !signbit(y)::Bool
+function signequal(x, y)
+    signbit(x)::Bool == signbit(y)::Bool
+end
+function signless(x, y)
+    signbit(x)::Bool & !(signbit(y)::Bool)
+end
 
-isequal(x::AbstractFloat, y::AbstractFloat) = (isnan(x) & isnan(y)) | signequal(x, y) & (x == y)
-isequal(x::Real,          y::AbstractFloat) = (isnan(x) & isnan(y)) | signequal(x, y) & (x == y)
-isequal(x::AbstractFloat, y::Real         ) = (isnan(x) & isnan(y)) | signequal(x, y) & (x == y)
+function isequal(x::AbstractFloat, y::AbstractFloat)
+    isnan(x) & isnan(y) | signequal(x, y) & (x == y)
+end
+function isequal(x::Real, y::AbstractFloat)
+    isnan(x) & isnan(y) | signequal(x, y) & (x == y)
+end
+function isequal(x::AbstractFloat, y::Real)
+    isnan(x) & isnan(y) | signequal(x, y) & (x == y)
+end
 
 """
     isless(x, y)
@@ -153,9 +163,15 @@ Types with a partial order should implement [`<`](@ref).
 """
 function isless end
 
-isless(x::AbstractFloat, y::AbstractFloat) = (!isnan(x) & (isnan(y) | signless(x, y))) | (x < y)
-isless(x::Real,          y::AbstractFloat) = (!isnan(x) & (isnan(y) | signless(x, y))) | (x < y)
-isless(x::AbstractFloat, y::Real         ) = (!isnan(x) & (isnan(y) | signless(x, y))) | (x < y)
+function isless(x::AbstractFloat, y::AbstractFloat)
+    !(isnan(x)) & (isnan(y) | signless(x, y)) | (x < y)
+end
+function isless(x::Real, y::AbstractFloat)
+    !(isnan(x)) & (isnan(y) | signless(x, y)) | (x < y)
+end
+function isless(x::AbstractFloat, y::Real)
+    !(isnan(x)) & (isnan(y) | signless(x, y)) | (x < y)
+end
 
 
 function ==(T::Type, S::Type)
@@ -166,8 +182,12 @@ function !=(T::Type, S::Type)
     @_pure_meta
     !(T == S)
 end
-==(T::TypeVar, S::Type) = false
-==(T::Type, S::TypeVar) = false
+function ==(T::TypeVar, S::Type)
+    false
+end
+function ==(T::Type, S::TypeVar)
+    false
+end
 
 ## comparison fallbacks ##
 
@@ -343,7 +363,9 @@ const ≥ = >=
 
 # this definition allows Number types to implement < instead of isless,
 # which is more idiomatic:
-isless(x::Real, y::Real) = x<y
+function isless(x::Real, y::Real)
+    x < y
+end
 
 """
     ifelse(condition::Bool, x, y)
@@ -391,7 +413,9 @@ respectively. The first argument specifies a less-than comparison function to us
 cmp(<, x, y) = (x < y) ? -1 : ifelse(y < x, 1, 0)
 
 # cmp returns -1, 0, +1 indicating ordering
-cmp(x::Integer, y::Integer) = ifelse(isless(x, y), -1, ifelse(isless(y, x), 1, 0))
+function cmp(x::Integer, y::Integer)
+    ifelse(isless(x, y), -1, ifelse(isless(y, x), 1, 0))
+end
 
 """
     max(x, y, ...)
@@ -483,8 +507,13 @@ function _extrema_itr(f, itr)
     return (vmin, vmax)
 end
 
-extrema(x::Real) = (x, x)
-extrema(f, x::Real) = (y = f(x); (y, y))
+function extrema(x::Real)
+    (x, x)
+end
+function extrema(f, x::Real)
+    y = f(x)
+    (y, y)
+end
 
 ## definitions providing basic traits of arithmetic operators ##
 
@@ -501,20 +530,36 @@ julia> identity("Well, what did you expect?")
 """
 identity(x) = x
 
-+(x::Number) = x
-*(x::Number) = x
-(&)(x::Integer) = x
-(|)(x::Integer) = x
-xor(x::Integer) = x
+function +(x::Number)
+    x
+end
+function *(x::Number)
+    x
+end
+function &(x::Integer)
+    x
+end
+function |(x::Integer)
+    x
+end
+function xor(x::Integer)
+    x
+end
 
 const ⊻ = xor
 
 # foldl for argument lists. expand recursively up to a point, then
 # switch to a loop. this allows small cases like `a+b+c+d` to be inlined
 # efficiently, without a major slowdown for `+(x...)` when `x` is big.
-afoldl(op,a) = a
-afoldl(op,a,b) = op(a,b)
-afoldl(op,a,b,c...) = afoldl(op, op(a,b), c...)
+function afoldl(op, a)
+    a
+end
+function afoldl(op, a, b)
+    op(a, b)
+end
+function afoldl(op, a, b, c...)
+    afoldl(op, op(a, b), c...)
+end
 function afoldl(op,a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,qs...)
     y = op(op(op(op(op(op(op(op(op(op(op(op(op(op(op(a,b),c),d),e),f),g),h),i),j),k),l),m),n),o),p)
     for x in qs; y = op(y,x); end
@@ -599,7 +644,13 @@ function <<(x::Integer, c::Unsigned)
     end
     c <= typemax(UInt) ? x << (c % UInt) : zero(x) << UInt(0)
 end
-<<(x::Integer, c::Int) = c >= 0 ? x << unsigned(c) : x >> unsigned(-c)
+function <<(x::Integer, c::Int)
+    if c >= 0
+        x << unsigned(c)
+    else
+        x >> unsigned(-c)
+    end
+end
 
 """
     >>(x, n)
@@ -640,7 +691,13 @@ function >>(x::Integer, c::Integer)
     (x >= 0 || c < 0) && return zero(x) >> 0
     oftype(x, -1)
 end
->>(x::Integer, c::Int) = c >= 0 ? x >> unsigned(c) : x << unsigned(-c)
+function >>(x::Integer, c::Int)
+    if c >= 0
+        x >> unsigned(c)
+    else
+        x << unsigned(-c)
+    end
+end
 
 """
     >>>(x, n)
@@ -680,12 +737,20 @@ function >>>(x::Integer, c::Unsigned)
     end
     c <= typemax(UInt) ? x >>> (c % UInt) : zero(x) >>> 0
 end
->>>(x::Integer, c::Int) = c >= 0 ? x >>> unsigned(c) : x << unsigned(-c)
+function >>>(x::Integer, c::Int)
+    if c >= 0
+        x >>> unsigned(c)
+    else
+        x << unsigned(-c)
+    end
+end
 
 # fallback div, fld, and cld implementations
 # NOTE: C89 fmod() and x87 FPREM implicitly provide truncating float division,
 # so it is used here as the basis of float div().
-div(x::T, y::T) where {T<:Real} = convert(T,round((x-rem(x,y))/y))
+function div(x::T, y::T) where T <: Real
+    convert(T, round((x - rem(x, y)) / y))
+end
 
 """
     fld(x, y)
@@ -714,7 +779,9 @@ julia> cld(5.5,2.2)
 cld(x::T, y::T) where {T<:Real} = convert(T,round((x-modCeil(x,y))/y))
 #rem(x::T, y::T) where {T<:Real} = convert(T,x-y*trunc(x/y))
 #mod(x::T, y::T) where {T<:Real} = convert(T,x-y*floor(x/y))
-modCeil(x::T, y::T) where {T<:Real} = convert(T,x-y*ceil(x/y))
+function modCeil(x::T, y::T) where T <: Real
+    convert(T, x - y * ceil(x / y))
+end
 
 # operator alias
 
@@ -836,7 +903,9 @@ julia> widen(1.5f0)
 ```
 """
 widen(x::T) where {T} = convert(widen(T), x)
-widen(x::Type{T}) where {T} = throw(MethodError(widen, (T,)))
+function widen(x::Type{T}) where T
+    throw(MethodError(widen, (T,)))
+end
 
 # function pipelining
 
@@ -908,7 +977,9 @@ struct Fix1{F,T} <: Function
     Fix1(f::Type{F}, x::T) where {F,T} = new{Type{F},T}(f, x)
 end
 
-(f::Fix1)(y) = f.f(f.x, y)
+function (f::Fix1)(y)
+    f.f(f.x, y)
+end
 
 """
     Fix2(f, x)
@@ -925,7 +996,9 @@ struct Fix2{F,T} <: Function
     Fix2(f::Type{F}, x::T) where {F,T} = new{Type{F},T}(f, x)
 end
 
-(f::Fix2)(y) = f.f(y, f.x)
+function (f::Fix2)(y)
+    f.f(y, f.x)
+end
 
 """
     isequal(x)
@@ -1064,9 +1137,15 @@ function in(x, itr)
 end
 
 const ∈ = in
-∋(itr, x) = ∈(x, itr)
-∉(x, itr) = !∈(x, itr)
-∌(itr, x) = !∋(itr, x)
+function ∋(itr, x)
+    x ∈ itr
+end
+function ∉(x, itr)
+    !(x ∈ itr)
+end
+function ∌(itr, x)
+    !(itr ∋ x)
+end
 
 """
     in(item, collection) -> Bool

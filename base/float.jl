@@ -48,11 +48,15 @@ A not-a-number value of type [`Float64`](@ref).
 NaN, NaN64
 
 ## conversions to floating-point ##
-Float16(x::Integer) = convert(Float16, convert(Float32, x))
+function Float16(x::Integer)
+    convert(Float16, convert(Float32, x))
+end
 for t in (Int8, Int16, Int32, Int64, Int128, UInt8, UInt16, UInt32, UInt64, UInt128)
     @eval promote_rule(::Type{Float16}, ::Type{$t}) = Float16
 end
-promote_rule(::Type{Float16}, ::Type{Bool}) = Float16
+function promote_rule(::Type{Float16}, ::Type{Bool})
+    Float16
+end
 
 for t1 in (Float32, Float64)
     for st in (Int8, Int16, Int32, Int64)
@@ -68,14 +72,34 @@ for t1 in (Float32, Float64)
         end
     end
 end
-(::Type{T})(x::Float16) where {T<:Integer} = T(Float32(x))
+function (::Type{T})(x::Float16) where T <: Integer
+    T(Float32(x))
+end
 
-Bool(x::Real) = x==0 ? false : x==1 ? true : throw(InexactError(:Bool, Bool, x))
+function Bool(x::Real)
+    if x == 0
+        false
+    else
+        if x == 1
+            true
+        else
+            throw(InexactError(:Bool, Bool, x))
+        end
+    end
+end
 
-promote_rule(::Type{Float64}, ::Type{UInt128}) = Float64
-promote_rule(::Type{Float64}, ::Type{Int128}) = Float64
-promote_rule(::Type{Float32}, ::Type{UInt128}) = Float32
-promote_rule(::Type{Float32}, ::Type{Int128}) = Float32
+function promote_rule(::Type{Float64}, ::Type{UInt128})
+    Float64
+end
+function promote_rule(::Type{Float64}, ::Type{Int128})
+    Float64
+end
+function promote_rule(::Type{Float32}, ::Type{UInt128})
+    Float32
+end
+function promote_rule(::Type{Float32}, ::Type{Int128})
+    Float32
+end
 
 function Float64(x::UInt128)
     x == 0 && return 0.0
@@ -242,26 +266,66 @@ let _basetable = Vector{UInt16}(undef, 512),
 end
 
 #convert(::Type{Float16}, x::Float32) = fptrunc(Float16, x)
-Float32(x::Float64) = fptrunc(Float32, x)
-Float16(x::Float64) = Float16(Float32(x))
+function Float32(x::Float64)
+    fptrunc(Float32, x)
+end
+function Float16(x::Float64)
+    Float16(Float32(x))
+end
 
 #convert(::Type{Float32}, x::Float16) = fpext(Float32, x)
-Float64(x::Float32) = fpext(Float64, x)
-Float64(x::Float16) = Float64(Float32(x))
+function Float64(x::Float32)
+    fpext(Float64, x)
+end
+function Float64(x::Float16)
+    Float64(Float32(x))
+end
 
-AbstractFloat(x::Bool)    = Float64(x)
-AbstractFloat(x::Int8)    = Float64(x)
-AbstractFloat(x::Int16)   = Float64(x)
-AbstractFloat(x::Int32)   = Float64(x)
-AbstractFloat(x::Int64)   = Float64(x) # LOSSY
-AbstractFloat(x::Int128)  = Float64(x) # LOSSY
-AbstractFloat(x::UInt8)   = Float64(x)
-AbstractFloat(x::UInt16)  = Float64(x)
-AbstractFloat(x::UInt32)  = Float64(x)
-AbstractFloat(x::UInt64)  = Float64(x) # LOSSY
-AbstractFloat(x::UInt128) = Float64(x) # LOSSY
+function AbstractFloat(x::Bool)
+    Float64(x)
+end
+function AbstractFloat(x::Int8)
+    Float64(x)
+end
+function AbstractFloat(x::Int16)
+    Float64(x)
+end
+function AbstractFloat(x::Int32)
+    Float64(x)
+end
+function AbstractFloat(x::Int64)
+    Float64(x)
+end # LOSSY
+function AbstractFloat(x::Int128)
+    Float64(x)
+end # LOSSY
+function AbstractFloat(x::UInt8)
+    Float64(x)
+end
+function AbstractFloat(x::UInt16)
+    Float64(x)
+end
+function AbstractFloat(x::UInt32)
+    Float64(x)
+end
+function AbstractFloat(x::UInt64)
+    Float64(x)
+end # LOSSY
+function AbstractFloat(x::UInt128)
+    Float64(x)
+end # LOSSY
 
-Bool(x::Float16) = x==0 ? false : x==1 ? true : throw(InexactError(:Bool, Bool, x))
+function Bool(x::Float16)
+    if x == 0
+        false
+    else
+        if x == 1
+            true
+        else
+            throw(InexactError(:Bool, Bool, x))
+        end
+    end
+end
 
 """
     float(x)
@@ -286,7 +350,9 @@ Float64
 ```
 """
 float(::Type{T}) where {T<:Number} = typeof(float(zero(T)))
-float(::Type{T}) where {T<:AbstractFloat} = T
+function float(::Type{T}) where T <: AbstractFloat
+    T
+end
 
 """
     unsafe_trunc(T, x)
@@ -340,68 +406,158 @@ function unsafe_trunc(::Type{Int128}, x::Float32)
     copysign(unsafe_trunc(UInt128,x) % Int128, x)
 end
 
-unsafe_trunc(::Type{UInt128}, x::Float16) = unsafe_trunc(UInt128, Float32(x))
-unsafe_trunc(::Type{Int128}, x::Float16) = unsafe_trunc(Int128, Float32(x))
+function unsafe_trunc(::Type{UInt128}, x::Float16)
+    unsafe_trunc(UInt128, Float32(x))
+end
+function unsafe_trunc(::Type{Int128}, x::Float16)
+    unsafe_trunc(Int128, Float32(x))
+end
 
 # matches convert methods
 # also determines floor, ceil, round
-trunc(::Type{Signed}, x::Float32) = trunc(Int,x)
-trunc(::Type{Signed}, x::Float64) = trunc(Int,x)
-trunc(::Type{Unsigned}, x::Float32) = trunc(UInt,x)
-trunc(::Type{Unsigned}, x::Float64) = trunc(UInt,x)
-trunc(::Type{Integer}, x::Float32) = trunc(Int,x)
-trunc(::Type{Integer}, x::Float64) = trunc(Int,x)
-trunc(::Type{T}, x::Float16) where {T<:Integer} = trunc(T, Float32(x))
+function trunc(::Type{Signed}, x::Float32)
+    trunc(Int, x)
+end
+function trunc(::Type{Signed}, x::Float64)
+    trunc(Int, x)
+end
+function trunc(::Type{Unsigned}, x::Float32)
+    trunc(UInt, x)
+end
+function trunc(::Type{Unsigned}, x::Float64)
+    trunc(UInt, x)
+end
+function trunc(::Type{Integer}, x::Float32)
+    trunc(Int, x)
+end
+function trunc(::Type{Integer}, x::Float64)
+    trunc(Int, x)
+end
+function trunc(::Type{T}, x::Float16) where T <: Integer
+    trunc(T, Float32(x))
+end
 
 # fallbacks
-floor(::Type{T}, x::AbstractFloat) where {T<:Integer} = trunc(T,round(x, RoundDown))
-floor(::Type{T}, x::Float16) where {T<:Integer} = floor(T, Float32(x))
-ceil(::Type{T}, x::AbstractFloat) where {T<:Integer} = trunc(T,round(x, RoundUp))
-ceil(::Type{T}, x::Float16) where {T<:Integer} = ceil(T, Float32(x))
-round(::Type{T}, x::AbstractFloat) where {T<:Integer} = trunc(T,round(x, RoundNearest))
-round(::Type{T}, x::Float16) where {T<:Integer} = round(T, Float32(x))
+function floor(::Type{T}, x::AbstractFloat) where T <: Integer
+    trunc(T, round(x, RoundDown))
+end
+function floor(::Type{T}, x::Float16) where T <: Integer
+    floor(T, Float32(x))
+end
+function ceil(::Type{T}, x::AbstractFloat) where T <: Integer
+    trunc(T, round(x, RoundUp))
+end
+function ceil(::Type{T}, x::Float16) where T <: Integer
+    ceil(T, Float32(x))
+end
+function round(::Type{T}, x::AbstractFloat) where T <: Integer
+    trunc(T, round(x, RoundNearest))
+end
+function round(::Type{T}, x::Float16) where T <: Integer
+    round(T, Float32(x))
+end
 
-round(x::Float64, r::RoundingMode{:ToZero})  = trunc_llvm(x)
-round(x::Float32, r::RoundingMode{:ToZero})  = trunc_llvm(x)
-round(x::Float64, r::RoundingMode{:Down})    = floor_llvm(x)
-round(x::Float32, r::RoundingMode{:Down})    = floor_llvm(x)
-round(x::Float64, r::RoundingMode{:Up})      = ceil_llvm(x)
-round(x::Float32, r::RoundingMode{:Up})      = ceil_llvm(x)
-round(x::Float64, r::RoundingMode{:Nearest}) = rint_llvm(x)
-round(x::Float32, r::RoundingMode{:Nearest}) = rint_llvm(x)
+function round(x::Float64, r::RoundingMode{:ToZero})
+    trunc_llvm(x)
+end
+function round(x::Float32, r::RoundingMode{:ToZero})
+    trunc_llvm(x)
+end
+function round(x::Float64, r::RoundingMode{:Down})
+    floor_llvm(x)
+end
+function round(x::Float32, r::RoundingMode{:Down})
+    floor_llvm(x)
+end
+function round(x::Float64, r::RoundingMode{:Up})
+    ceil_llvm(x)
+end
+function round(x::Float32, r::RoundingMode{:Up})
+    ceil_llvm(x)
+end
+function round(x::Float64, r::RoundingMode{:Nearest})
+    rint_llvm(x)
+end
+function round(x::Float32, r::RoundingMode{:Nearest})
+    rint_llvm(x)
+end
 
-round(x::Float16, r::RoundingMode{:ToZero}) = Float16(round(Float32(x), r))
-round(x::Float16, r::RoundingMode{:Down}) = Float16(round(Float32(x), r))
-round(x::Float16, r::RoundingMode{:Up}) = Float16(round(Float32(x), r))
-round(x::Float16, r::RoundingMode{:Nearest}) = Float16(round(Float32(x), r))
+function round(x::Float16, r::RoundingMode{:ToZero})
+    Float16(round(Float32(x), r))
+end
+function round(x::Float16, r::RoundingMode{:Down})
+    Float16(round(Float32(x), r))
+end
+function round(x::Float16, r::RoundingMode{:Up})
+    Float16(round(Float32(x), r))
+end
+function round(x::Float16, r::RoundingMode{:Nearest})
+    Float16(round(Float32(x), r))
+end
 
 ## floating point promotions ##
-promote_rule(::Type{Float32}, ::Type{Float16}) = Float32
-promote_rule(::Type{Float64}, ::Type{Float16}) = Float64
-promote_rule(::Type{Float64}, ::Type{Float32}) = Float64
+function promote_rule(::Type{Float32}, ::Type{Float16})
+    Float32
+end
+function promote_rule(::Type{Float64}, ::Type{Float16})
+    Float64
+end
+function promote_rule(::Type{Float64}, ::Type{Float32})
+    Float64
+end
 
-widen(::Type{Float16}) = Float32
-widen(::Type{Float32}) = Float64
+function widen(::Type{Float16})
+    Float32
+end
+function widen(::Type{Float32})
+    Float64
+end
 
 ## floating point arithmetic ##
--(x::Float64) = neg_float(x)
--(x::Float32) = neg_float(x)
--(x::Float16) = reinterpret(Float16, reinterpret(UInt16, x) ⊻ 0x8000)
+function -(x::Float64)
+    neg_float(x)
+end
+function -(x::Float32)
+    neg_float(x)
+end
+function -(x::Float16)
+    reinterpret(Float16, reinterpret(UInt16, x) ⊻ 0x8000)
+end
 
 for op in (:+, :-, :*, :/, :\, :^)
     @eval ($op)(a::Float16, b::Float16) = Float16(($op)(Float32(a), Float32(b)))
 end
-+(x::Float32, y::Float32) = add_float(x, y)
-+(x::Float64, y::Float64) = add_float(x, y)
--(x::Float32, y::Float32) = sub_float(x, y)
--(x::Float64, y::Float64) = sub_float(x, y)
-*(x::Float32, y::Float32) = mul_float(x, y)
-*(x::Float64, y::Float64) = mul_float(x, y)
-/(x::Float32, y::Float32) = div_float(x, y)
-/(x::Float64, y::Float64) = div_float(x, y)
+function +(x::Float32, y::Float32)
+    add_float(x, y)
+end
+function +(x::Float64, y::Float64)
+    add_float(x, y)
+end
+function -(x::Float32, y::Float32)
+    sub_float(x, y)
+end
+function -(x::Float64, y::Float64)
+    sub_float(x, y)
+end
+function *(x::Float32, y::Float32)
+    mul_float(x, y)
+end
+function *(x::Float64, y::Float64)
+    mul_float(x, y)
+end
+function /(x::Float32, y::Float32)
+    div_float(x, y)
+end
+function /(x::Float64, y::Float64)
+    div_float(x, y)
+end
 
-muladd(x::Float32, y::Float32, z::Float32) = muladd_float(x, y, z)
-muladd(x::Float64, y::Float64, z::Float64) = muladd_float(x, y, z)
+function muladd(x::Float32, y::Float32, z::Float32)
+    muladd_float(x, y, z)
+end
+function muladd(x::Float64, y::Float64, z::Float64)
+    muladd_float(x, y, z)
+end
 function muladd(a::Float16, b::Float16, c::Float16)
     Float16(muladd(Float32(a), Float32(b), Float32(c)))
 end
@@ -416,10 +572,16 @@ for func in (:div,:fld,:cld,:rem,:mod)
     end
 end
 
-rem(x::Float32, y::Float32) = rem_float(x, y)
-rem(x::Float64, y::Float64) = rem_float(x, y)
+function rem(x::Float32, y::Float32)
+    rem_float(x, y)
+end
+function rem(x::Float64, y::Float64)
+    rem_float(x, y)
+end
 
-cld(x::T, y::T) where {T<:AbstractFloat} = -fld(-x,y)
+function cld(x::T, y::T) where T <: AbstractFloat
+    -(fld(-x, y))
+end
 
 function mod(x::T, y::T) where T<:AbstractFloat
     r = rem(x,y)
@@ -444,19 +606,43 @@ function ==(x::Float16, y::Float16)
     end
     return ix == iy
 end
-==(x::Float32, y::Float32) = eq_float(x, y)
-==(x::Float64, y::Float64) = eq_float(x, y)
-!=(x::Float32, y::Float32) = ne_float(x, y)
-!=(x::Float64, y::Float64) = ne_float(x, y)
-<( x::Float32, y::Float32) = lt_float(x, y)
-<( x::Float64, y::Float64) = lt_float(x, y)
-<=(x::Float32, y::Float32) = le_float(x, y)
-<=(x::Float64, y::Float64) = le_float(x, y)
+function ==(x::Float32, y::Float32)
+    eq_float(x, y)
+end
+function ==(x::Float64, y::Float64)
+    eq_float(x, y)
+end
+function !=(x::Float32, y::Float32)
+    ne_float(x, y)
+end
+function !=(x::Float64, y::Float64)
+    ne_float(x, y)
+end
+function <(x::Float32, y::Float32)
+    lt_float(x, y)
+end
+function <(x::Float64, y::Float64)
+    lt_float(x, y)
+end
+function <=(x::Float32, y::Float32)
+    le_float(x, y)
+end
+function <=(x::Float64, y::Float64)
+    le_float(x, y)
+end
 
-isequal(x::Float32, y::Float32) = fpiseq(x, y)
-isequal(x::Float64, y::Float64) = fpiseq(x, y)
-isless( x::Float32, y::Float32) = fpislt(x, y)
-isless( x::Float64, y::Float64) = fpislt(x, y)
+function isequal(x::Float32, y::Float32)
+    fpiseq(x, y)
+end
+function isequal(x::Float64, y::Float64)
+    fpiseq(x, y)
+end
+function isless(x::Float32, y::Float32)
+    fpislt(x, y)
+end
+function isless(x::Float64, y::Float64)
+    fpislt(x, y)
+end
 for op in (:<, :<=, :isless)
     @eval ($op)(a::Float16, b::Float16) = ($op)(Float32(a), Float32(b))
 end
@@ -517,9 +703,15 @@ for op in (:(==), :<, :<=)
 end
 
 
-abs(x::Float16) = reinterpret(Float16, reinterpret(UInt16, x) & 0x7fff)
-abs(x::Float32) = abs_float(x)
-abs(x::Float64) = abs_float(x)
+function abs(x::Float16)
+    reinterpret(Float16, reinterpret(UInt16, x) & 0x7fff)
+end
+function abs(x::Float32)
+    abs_float(x)
+end
+function abs(x::Float64)
+    abs_float(x)
+end
 
 """
     isnan(f) -> Bool
@@ -527,8 +719,12 @@ abs(x::Float64) = abs_float(x)
 Test whether a floating point number is not a number (NaN).
 """
 isnan(x::AbstractFloat) = x != x
-isnan(x::Float16) = reinterpret(UInt16,x)&0x7fff > 0x7c00
-isnan(x::Real) = false
+function isnan(x::Float16)
+    reinterpret(UInt16, x) & 0x7fff > 0x7c00
+end
+function isnan(x::Real)
+    false
+end
 
 """
     isfinite(f) -> Bool
@@ -545,9 +741,15 @@ false
 ```
 """
 isfinite(x::AbstractFloat) = x - x == 0
-isfinite(x::Float16) = reinterpret(UInt16,x)&0x7c00 != 0x7c00
-isfinite(x::Real) = decompose(x)[3] != 0
-isfinite(x::Integer) = true
+function isfinite(x::Float16)
+    reinterpret(UInt16, x) & 0x7c00 != 0x7c00
+end
+function isfinite(x::Real)
+    (decompose(x))[3] != 0
+end
+function isfinite(x::Integer)
+    true
+end
 
 """
     isinf(f) -> Bool
@@ -558,15 +760,31 @@ isinf(x::Real) = !isnan(x) & !isfinite(x)
 
 ## hashing small, built-in numeric types ##
 
-hx(a::UInt64, b::Float64, h::UInt) = hash_uint64((3a + reinterpret(UInt64,b)) - h)
+function hx(a::UInt64, b::Float64, h::UInt)
+    hash_uint64((3a + reinterpret(UInt64, b)) - h)
+end
 const hx_NaN = hx(UInt64(0), NaN, UInt(0  ))
 
-hash(x::UInt64,  h::UInt) = hx(x, Float64(x), h)
-hash(x::Int64,   h::UInt) = hx(reinterpret(UInt64, abs(x)), Float64(x), h)
-hash(x::Float64, h::UInt) = isnan(x) ? (hx_NaN ⊻ h) : hx(fptoui(UInt64, abs(x)), x, h)
+function hash(x::UInt64, h::UInt)
+    hx(x, Float64(x), h)
+end
+function hash(x::Int64, h::UInt)
+    hx(reinterpret(UInt64, abs(x)), Float64(x), h)
+end
+function hash(x::Float64, h::UInt)
+    if isnan(x)
+        hx_NaN ⊻ h
+    else
+        hx(fptoui(UInt64, abs(x)), x, h)
+    end
+end
 
-hash(x::Union{Bool,Int8,UInt8,Int16,UInt16,Int32,UInt32}, h::UInt) = hash(Int64(x), h)
-hash(x::Float32, h::UInt) = hash(Float64(x), h)
+function hash(x::Union{Bool, Int8, UInt8, Int16, UInt16, Int32, UInt32}, h::UInt)
+    hash(Int64(x), h)
+end
+function hash(x::Float32, h::UInt)
+    hash(Float64(x), h)
+end
 
 """
     precision(num::AbstractFloat)
@@ -576,10 +794,18 @@ the mantissa.
 """
 function precision end
 
-precision(::Type{Float16}) = 11
-precision(::Type{Float32}) = 24
-precision(::Type{Float64}) = 53
-precision(::T) where {T<:AbstractFloat} = precision(T)
+function precision(::Type{Float16})
+    11
+end
+function precision(::Type{Float32})
+    24
+end
+function precision(::Type{Float64})
+    53
+end
+function precision(::T) where T <: AbstractFloat
+    precision(T)
+end
 
 """
     uabs(x::Integer)
@@ -590,7 +816,9 @@ signed integer, so that `abs(typemin(x)) == typemin(x) < 0`, in which case the r
 `uabs(x)` will be an unsigned integer of the same size.
 """
 uabs(x::Integer) = abs(x)
-uabs(x::BitSigned) = unsigned(abs(x))
+function uabs(x::BitSigned)
+    unsigned(abs(x))
+end
 
 
 """
@@ -766,8 +994,12 @@ julia> floatmax(Float32)
 """
 floatmax(x::T) where {T<:AbstractFloat} = floatmax(T)
 
-floatmin() = floatmin(Float64)
-floatmax() = floatmax(Float64)
+function floatmin()
+    floatmin(Float64)
+end
+function floatmax()
+    floatmax(Float64)
+end
 
 """
     eps(::Type{T}) where T<:AbstractFloat
@@ -841,42 +1073,92 @@ eps(::AbstractFloat)
 
 
 ## byte order swaps for arbitrary-endianness serialization/deserialization ##
-bswap(x::IEEEFloat) = bswap_int(x)
+function bswap(x::IEEEFloat)
+    bswap_int(x)
+end
 
 # bit patterns
-reinterpret(::Type{Unsigned}, x::Float64) = reinterpret(UInt64, x)
-reinterpret(::Type{Unsigned}, x::Float32) = reinterpret(UInt32, x)
-reinterpret(::Type{Signed}, x::Float64) = reinterpret(Int64, x)
-reinterpret(::Type{Signed}, x::Float32) = reinterpret(Int32, x)
+function reinterpret(::Type{Unsigned}, x::Float64)
+    reinterpret(UInt64, x)
+end
+function reinterpret(::Type{Unsigned}, x::Float32)
+    reinterpret(UInt32, x)
+end
+function reinterpret(::Type{Signed}, x::Float64)
+    reinterpret(Int64, x)
+end
+function reinterpret(::Type{Signed}, x::Float32)
+    reinterpret(Int32, x)
+end
 
-sign_mask(::Type{Float64}) =        0x8000_0000_0000_0000
-exponent_mask(::Type{Float64}) =    0x7ff0_0000_0000_0000
-exponent_one(::Type{Float64}) =     0x3ff0_0000_0000_0000
-exponent_half(::Type{Float64}) =    0x3fe0_0000_0000_0000
-significand_mask(::Type{Float64}) = 0x000f_ffff_ffff_ffff
+function sign_mask(::Type{Float64})
+    0x8000000000000000
+end
+function exponent_mask(::Type{Float64})
+    0x7ff0000000000000
+end
+function exponent_one(::Type{Float64})
+    0x3ff0000000000000
+end
+function exponent_half(::Type{Float64})
+    0x3fe0000000000000
+end
+function significand_mask(::Type{Float64})
+    0x000fffffffffffff
+end
 
-sign_mask(::Type{Float32}) =        0x8000_0000
-exponent_mask(::Type{Float32}) =    0x7f80_0000
-exponent_one(::Type{Float32}) =     0x3f80_0000
-exponent_half(::Type{Float32}) =    0x3f00_0000
-significand_mask(::Type{Float32}) = 0x007f_ffff
+function sign_mask(::Type{Float32})
+    0x80000000
+end
+function exponent_mask(::Type{Float32})
+    0x7f800000
+end
+function exponent_one(::Type{Float32})
+    0x3f800000
+end
+function exponent_half(::Type{Float32})
+    0x3f000000
+end
+function significand_mask(::Type{Float32})
+    0x007fffff
+end
 
-sign_mask(::Type{Float16}) =        0x8000
-exponent_mask(::Type{Float16}) =    0x7c00
-exponent_one(::Type{Float16}) =     0x3c00
-exponent_half(::Type{Float16}) =    0x3800
-significand_mask(::Type{Float16}) = 0x03ff
+function sign_mask(::Type{Float16})
+    0x8000
+end
+function exponent_mask(::Type{Float16})
+    0x7c00
+end
+function exponent_one(::Type{Float16})
+    0x3c00
+end
+function exponent_half(::Type{Float16})
+    0x3800
+end
+function significand_mask(::Type{Float16})
+    0x03ff
+end
 
 # integer size of float
-uinttype(::Type{Float64}) = UInt64
-uinttype(::Type{Float32}) = UInt32
-uinttype(::Type{Float16}) = UInt16
+function uinttype(::Type{Float64})
+    UInt64
+end
+function uinttype(::Type{Float32})
+    UInt32
+end
+function uinttype(::Type{Float16})
+    UInt16
+end
 
-Base.iszero(x::Float16) = reinterpret(UInt16, x) & ~sign_mask(Float16) == 0x0000
+function Base.iszero(x::Float16)
+    reinterpret(UInt16, x) & ~(sign_mask(Float16)) == 0x0000
+end
 
 ## Array operations on floating point numbers ##
 
-float(A::AbstractArray{<:AbstractFloat}) = A
+function float(A::AbstractArray{<:AbstractFloat})
+    A
+end
 
 function float(A::AbstractArray{T}) where T
     if !isconcretetype(T)
@@ -885,10 +1167,15 @@ function float(A::AbstractArray{T}) where T
     convert(AbstractArray{typeof(float(zero(T)))}, A)
 end
 
-float(r::StepRange) = float(r.start):float(r.step):float(last(r))
-float(r::UnitRange) = float(r.start):float(last(r))
-float(r::StepRangeLen{T}) where {T} =
+function float(r::StepRange)
+    float(r.start):float(r.step):float(last(r))
+end
+function float(r::UnitRange)
+    float(r.start):float(last(r))
+end
+function float(r::StepRangeLen{T}) where T
     StepRangeLen{typeof(float(T(r.ref)))}(float(r.ref), float(r.step), length(r), r.offset)
+end
 function float(r::LinRange)
     LinRange(float(r.start), float(r.stop), length(r))
 end

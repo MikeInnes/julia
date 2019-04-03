@@ -29,14 +29,30 @@ also be used to open streams, with the `RawFD` describing
 the OS file backing the stream.
 """
 primitive type RawFD 32 end
-RawFD(fd::Integer) = bitcast(RawFD, Cint(fd))
-RawFD(fd::RawFD) = fd
-Base.cconvert(::Type{Cint}, fd::RawFD) = bitcast(Cint, fd)
+function RawFD(fd::Integer)
+    bitcast(RawFD, Cint(fd))
+end
+function RawFD(fd::RawFD)
+    fd
+end
+function Base.cconvert(::Type{Cint}, fd::RawFD)
+    bitcast(Cint, fd)
+end
 
-dup(x::RawFD) = ccall((@static Sys.iswindows() ? :_dup : :dup), RawFD, (RawFD,), x)
-dup(src::RawFD, target::RawFD) = systemerror("dup", -1 ==
-    ccall((@static Sys.iswindows() ? :_dup2 : :dup2), Int32,
-                (RawFD, RawFD), src, target))
+function dup(x::RawFD)
+    ccall(@static(if Sys.iswindows()
+                :_dup
+            else
+                :dup
+            end), RawFD, (RawFD,), x)
+end
+function dup(src::RawFD, target::RawFD)
+    systemerror("dup", -1 == ccall(@static(if Sys.iswindows()
+                        :_dup2
+                    else
+                        :dup2
+                    end), Int32, (RawFD, RawFD), src, target))
+end
 
 # Wrapper for an OS file descriptor (for Windows)
 if Sys.iswindows()
@@ -74,8 +90,24 @@ struct FILE
     ptr::Ptr{Cvoid}
 end
 
-modestr(s::IO) = modestr(isreadable(s), iswritable(s))
-modestr(r::Bool, w::Bool) = r ? (w ? "r+" : "r") : (w ? "w" : throw(ArgumentError("neither readable nor writable")))
+function modestr(s::IO)
+    modestr(isreadable(s), iswritable(s))
+end
+function modestr(r::Bool, w::Bool)
+    if r
+        if w
+            "r+"
+        else
+            "r"
+        end
+    else
+        if w
+            "w"
+        else
+            throw(ArgumentError("neither readable nor writable"))
+        end
+    end
+end
 
 function FILE(fd::RawFD, mode)
     FILEp = ccall((@static Sys.iswindows() ? :_fdopen : :fdopen), Ptr{Cvoid}, (Cint, Cstring), fd, mode)
@@ -89,8 +121,12 @@ function FILE(s::IO)
     f
 end
 
-Base.unsafe_convert(T::Union{Type{Ptr{Cvoid}},Type{Ptr{FILE}}}, f::FILE) = convert(T, f.ptr)
-Base.close(f::FILE) = systemerror("fclose", ccall(:fclose, Cint, (Ptr{Cvoid},), f.ptr) != 0)
+function Base.unsafe_convert(T::Union{Type{Ptr{Cvoid}}, Type{Ptr{FILE}}}, f::FILE)
+    convert(T, f.ptr)
+end
+function Base.close(f::FILE)
+    systemerror("fclose", ccall(:fclose, Cint, (Ptr{Cvoid},), f.ptr) != 0)
+end
 
 function Base.seek(h::FILE, offset::Integer)
     systemerror("fseek", ccall(:fseek, Cint, (Ptr{Cvoid}, Clong, Cint),
@@ -98,7 +134,9 @@ function Base.seek(h::FILE, offset::Integer)
     h
 end
 
-Base.position(h::FILE) = ccall(:ftell, Clong, (Ptr{Cvoid},), h.ptr)
+function Base.position(h::FILE)
+    ccall(:ftell, Clong, (Ptr{Cvoid},), h.ptr)
+end
 
 # flush C stdio output from external libraries
 
@@ -178,7 +216,9 @@ string using the given format. Supported formats are the same as those in the st
 library.
 """
 strftime(t) = strftime("%c", t)
-strftime(fmt::AbstractString, t::Real) = strftime(fmt, TmStruct(t))
+function strftime(fmt::AbstractString, t::Real)
+    strftime(fmt, TmStruct(t))
+end
 # Use wcsftime instead of strftime to support different locales
 function strftime(fmt::AbstractString, tm::TmStruct)
     wctimestr = Vector{Cwchar_t}(undef, 128)
@@ -276,7 +316,9 @@ sets it. Specifically, you cannot call `errno` at the next prompt in a REPL, bec
 code is executed between prompts.
 """
 errno() = ccall(:jl_errno, Cint, ())
-errno(e::Integer) = ccall(:jl_set_errno, Cvoid, (Cint,), e)
+function errno(e::Integer)
+    ccall(:jl_set_errno, Cvoid, (Cint,), e)
+end
 
 """
     strerror(n=errno())
@@ -284,7 +326,9 @@ errno(e::Integer) = ccall(:jl_set_errno, Cvoid, (Cint,), e)
 Convert a system call error code to a descriptive string
 """
 strerror(e::Integer) = unsafe_string(ccall(:strerror, Cstring, (Int32,), e))
-strerror() = strerror(errno())
+function strerror()
+    strerror(errno())
+end
 
 """
     GetLastError()
@@ -358,8 +402,12 @@ Call `calloc` from the C standard library.
 """
 calloc(num::Integer, size::Integer) = ccall(:calloc, Ptr{Cvoid}, (Csize_t, Csize_t), num, size)
 
-free(p::Cstring) = free(convert(Ptr{UInt8}, p))
-free(p::Cwstring) = free(convert(Ptr{Cwchar_t}, p))
+function free(p::Cstring)
+    free(convert(Ptr{UInt8}, p))
+end
+function free(p::Cwstring)
+    free(convert(Ptr{Cwchar_t}, p))
+end
 
 ## Random numbers ##
 
@@ -373,8 +421,12 @@ by composing two calls to `rand()`. `T` can be `UInt32` or `Float64`.
 """
 rand() = ccall(:rand, Cint, ())
 # RAND_MAX at least 2^15-1 in theory, but we assume 2^16-1 (in practice, it's 2^31-1)
-rand(::Type{UInt32}) = ((rand() % UInt32) << 16) ⊻ (rand() % UInt32)
-rand(::Type{Float64}) = rand(UInt32) / 2^32
+function rand(::Type{UInt32})
+    rand() % UInt32 << 16 ⊻ rand() % UInt32
+end
+function rand(::Type{Float64})
+    rand(UInt32) / 2 ^ 32
+end
 
 """
     srand([seed])

@@ -88,12 +88,24 @@ function grisu(v::AbstractFloat,mode,requested_digits,buffer=DIGITSs[Threads.thr
     return len-1, point, neg
 end
 
-nanstr(x::AbstractFloat) = "NaN"
-nanstr(x::Float32) = "NaN32"
-nanstr(x::Float16) = "NaN16"
-infstr(x::AbstractFloat) = "Inf"
-infstr(x::Float32) = "Inf32"
-infstr(x::Float16) = "Inf16"
+function nanstr(x::AbstractFloat)
+    "NaN"
+end
+function nanstr(x::Float32)
+    "NaN32"
+end
+function nanstr(x::Float16)
+    "NaN16"
+end
+function infstr(x::AbstractFloat)
+    "Inf"
+end
+function infstr(x::Float32)
+    "Inf32"
+end
+function infstr(x::Float16)
+    "Inf16"
+end
 
 function _show(io::IO, x::AbstractFloat, mode, n::Int, typed, compact)
     isnan(x) && return print(io, typed ? nanstr(x) : "NaN")
@@ -176,8 +188,12 @@ function Base.show(io::IO, x::Float16)
     end
 end
 
-Base.print(io::IO, x::Float32) = _show(io, x, SHORTEST, 0, false, false)
-Base.print(io::IO, x::Float16) = _show(io, x, SHORTEST, 0, false, false)
+function Base.print(io::IO, x::Float32)
+    _show(io, x, SHORTEST, 0, false, false)
+end
+function Base.print(io::IO, x::Float16)
+    _show(io, x, SHORTEST, 0, false, false)
+end
 
 # normal:
 #   0 < pt < len        ####.####           len+1
@@ -236,6 +252,8 @@ Print the shortest possible representation, with the minimum number of consecuti
 digits, of number `x`, ensuring that it would parse to the exact same number.
 """
 print_shortest(io::IO, x::AbstractFloat, dot::Bool) = _print_shortest(io, x, dot, SHORTEST, 0)
-print_shortest(io::IO, x::Union{AbstractFloat,Integer}) = print_shortest(io, float(x), false)
+function print_shortest(io::IO, x::Union{AbstractFloat, Integer})
+    print_shortest(io, float(x), false)
+end
 
 end # module

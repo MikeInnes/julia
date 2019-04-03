@@ -70,9 +70,13 @@ function print_stmt(io::IO, idx::Int, @nospecialize(stmt), used::BitSet, maxleng
     nothing
 end
 
-show_unquoted(io::IO, val::Argument, indent::Int, prec::Int) = show_unquoted(io, Core.SlotNumber(val.n), indent, prec)
+function show_unquoted(io::IO, val::Argument, indent::Int, prec::Int)
+    show_unquoted(io, Core.SlotNumber(val.n), indent, prec)
+end
 
-show_unquoted(io::IO, stmt::PhiNode, indent::Int, ::Int) = show_unquoted_phinode(io, stmt, indent, "%")
+function show_unquoted(io::IO, stmt::PhiNode, indent::Int, ::Int)
+    show_unquoted_phinode(io, stmt, indent, "%")
+end
 function show_unquoted_phinode(io::IO, stmt::PhiNode, indent::Int, prefix::String)
     args = map(1:length(stmt.edges)) do i
         e = stmt.edges[i]
@@ -122,7 +126,9 @@ function show_unquoted(io::IO, stmt::ReturnNode, indent::Int, ::Int)
     end
 end
 
-show_unquoted(io::IO, stmt::GotoIfNot, indent::Int, ::Int) = show_unquoted_gotoifnot(io, stmt, indent, "%")
+function show_unquoted(io::IO, stmt::GotoIfNot, indent::Int, ::Int)
+    show_unquoted_gotoifnot(io, stmt, indent, "%")
+end
 function show_unquoted_gotoifnot(io::IO, stmt::GotoIfNot, indent::Int, prefix::String)
     print(io, "goto ", prefix, stmt.dest, " if not ")
     show_unquoted(io, stmt.cond, indent)
@@ -153,10 +159,18 @@ function default_expr_type_printer(io::IO, @nospecialize(typ), used::Bool)
     nothing
 end
 
-normalize_method_name(m::Method) = m.name
-normalize_method_name(m::MethodInstance) = (m.def::Method).name
-normalize_method_name(m::Symbol) = m
-normalize_method_name(m) = Symbol("")
+function normalize_method_name(m::Method)
+    m.name
+end
+function normalize_method_name(m::MethodInstance)
+    (m.def::Method).name
+end
+function normalize_method_name(m::Symbol)
+    m
+end
+function normalize_method_name(m)
+    Symbol("")
+end
 @noinline method_name(m::LineInfoNode) = normalize_method_name(m.method)
 
 # converts the linetable for line numbers
@@ -328,10 +342,14 @@ function compute_ir_line_annotations(code::Union{IRCode, CodeInfo})
     return (loc_annotations, loc_methods, loc_lineno)
 end
 
-Base.show(io::IO, code::IRCode) = show_ir(io, code)
+function Base.show(io::IO, code::IRCode)
+    show_ir(io, code)
+end
 
 
-lineinfo_disabled(io::IO, linestart::String, lineidx::Int32) = ""
+function lineinfo_disabled(io::IO, linestart::String, lineidx::Int32)
+    ""
+end
 
 function DILineInfoPrinter(linetable::Vector, showtypes::Bool=false)
     context = LineInfoNode[]

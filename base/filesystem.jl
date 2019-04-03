@@ -66,7 +66,9 @@ if OS_HANDLE !== RawFD
     File(fd::RawFD) = File(Libc._get_osfhandle(fd))
 end
 
-rawhandle(file::File) = file.handle
+function rawhandle(file::File)
+    file.handle
+end
 
 # Filesystem.open, not Base.open
 function open(path::AbstractString, flags::Integer, mode::Integer=0)
@@ -85,7 +87,9 @@ function open(path::AbstractString, flags::Integer, mode::Integer=0)
     return File(OS_HANDLE(@static Sys.iswindows() ? Ptr{Cvoid}(handle) : Cint(handle)))
 end
 
-isopen(f::File) = f.open
+function isopen(f::File)
+    f.open
+end
 
 function check_open(f::File)
     if !isopen(f)
@@ -126,7 +130,9 @@ function unsafe_write(f::File, buf::Ptr{UInt8}, len::UInt, offset::Int64=Int64(-
     return len
 end
 
-write(f::File, c::UInt8) = write(f, Ref{UInt8}(c))
+function write(f::File, c::UInt8)
+    write(f, Ref{UInt8}(c))
+end
 
 function truncate(f::File, n::Integer)
     check_open(f)
@@ -176,7 +182,9 @@ function read(f::File, ::Type{Char})
     end
     return reinterpret(Char, c)
 end
-read(f::File, ::Type{T}) where {T<:AbstractChar} = T(read(f, Char)) # fallback
+function read(f::File, ::Type{T}) where T <: AbstractChar
+    T(read(f, Char))
+end # fallback
 
 function unsafe_read(f::File, p::Ptr{UInt8}, nel::UInt)
     check_open(f)
@@ -187,9 +195,13 @@ function unsafe_read(f::File, p::Ptr{UInt8}, nel::UInt)
     nothing
 end
 
-bytesavailable(f::File) = max(0, filesize(f) - position(f)) # position can be > filesize
+function bytesavailable(f::File)
+    max(0, filesize(f) - position(f))
+end # position can be > filesize
 
-eof(f::File) = bytesavailable(f) == 0
+function eof(f::File)
+    bytesavailable(f) == 0
+end
 
 function readbytes!(f::File, b::Array{UInt8}, nb=length(b))
     nr = min(nb, bytesavailable(f))
@@ -201,9 +213,15 @@ function readbytes!(f::File, b::Array{UInt8}, nb=length(b))
     uv_error("read", ret)
     return ret
 end
-read(io::File) = read!(io, Base.StringVector(bytesavailable(io)))
-readavailable(io::File) = read(io)
-read(io::File, nb::Integer) = read!(io, Base.StringVector(min(nb, bytesavailable(io))))
+function read(io::File)
+    read!(io, Base.StringVector(bytesavailable(io)))
+end
+function readavailable(io::File)
+    read(io)
+end
+function read(io::File, nb::Integer)
+    read!(io, Base.StringVector(min(nb, bytesavailable(io))))
+end
 
 const SEEK_SET = Int32(0)
 const SEEK_CUR = Int32(1)
@@ -234,7 +252,11 @@ function position(f::File)
     return ret
 end
 
-fd(f::File) = f.handle
-stat(f::File) = stat(f.handle)
+function fd(f::File)
+    f.handle
+end
+function stat(f::File)
+    stat(f.handle)
+end
 
 end

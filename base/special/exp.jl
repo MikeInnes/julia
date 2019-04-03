@@ -35,19 +35,35 @@ const LN2 = 6.931471805599453094172321214581765680755001343602552541206800094933
 const LOG2_E = 1.442695040888963407359924681001892137426646
 
 # log(2) into upper and lower bits
-LN2U(::Type{Float64}) = 6.93147180369123816490e-1
-LN2U(::Type{Float32}) = 6.9313812256f-1
+function LN2U(::Type{Float64})
+    0.6931471803691238
+end
+function LN2U(::Type{Float32})
+    0.6931381f0
+end
 
-LN2L(::Type{Float64}) = 1.90821492927058770002e-10
-LN2L(::Type{Float32}) = 9.0580006145f-6
+function LN2L(::Type{Float64})
+    1.9082149292705877e-10
+end
+function LN2L(::Type{Float32})
+    9.058001f-6
+end
 
 # max and min arguments
-MAX_EXP(::Type{Float64}) = 7.09782712893383996732e2 # log 2^1023*(2-2^-52)
-MAX_EXP(::Type{Float32}) = 88.72283905206835f0      # log 2^127 *(2-2^-23)
+function MAX_EXP(::Type{Float64})
+    709.782712893384
+end # log 2^1023*(2-2^-52)
+function MAX_EXP(::Type{Float32})
+    88.72284f0
+end      # log 2^127 *(2-2^-23)
 
 # one less than the min exponent since we can sqeeze a bit more from the exp function
-MIN_EXP(::Type{Float64}) = -7.451332191019412076235e2 # log 2^-1075
-MIN_EXP(::Type{Float32}) = -103.97207708f0            # log 2^-150
+function MIN_EXP(::Type{Float64})
+    -745.1332191019412
+end # log 2^-1075
+function MIN_EXP(::Type{Float32})
+    -103.97208f0
+end            # log 2^-150
 
 @inline exp_kernel(x::Float64) = @horner(x, 1.66666666666666019037e-1,
     -2.77777777770155933842e-3, 6.61375632143793436117e-5,

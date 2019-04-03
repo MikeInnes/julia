@@ -71,7 +71,9 @@ function stride(a::Union{DenseArray,StridedReshapedArray,StridedReinterpretArray
     return s
 end
 
-strides(a::Union{DenseArray,StridedReshapedArray,StridedReinterpretArray}) = size_to_strides(1, size(a)...)
+function strides(a::Union{DenseArray, StridedReshapedArray, StridedReinterpretArray})
+    size_to_strides(1, size(a)...)
+end
 
 function check_readable(a::ReinterpretArray{T, N, S} where N) where {T,S}
     # See comment in check_writable
@@ -92,18 +94,28 @@ function check_writable(a::ReinterpretArray{T, N, S} where N) where {T,S}
     end
 end
 
-IndexStyle(a::ReinterpretArray) = IndexStyle(a.parent)
+function IndexStyle(a::ReinterpretArray)
+    IndexStyle(a.parent)
+end
 
-parent(a::ReinterpretArray) = a.parent
-dataids(a::ReinterpretArray) = dataids(a.parent)
-unaliascopy(a::ReinterpretArray{T}) where {T} = reinterpret(T, unaliascopy(a.parent))
+function parent(a::ReinterpretArray)
+    a.parent
+end
+function dataids(a::ReinterpretArray)
+    dataids(a.parent)
+end
+function unaliascopy(a::ReinterpretArray{T}) where T
+    reinterpret(T, unaliascopy(a.parent))
+end
 
 function size(a::ReinterpretArray{T,N,S} where {N}) where {T,S}
     psize = size(a.parent)
     size1 = div(psize[1]*sizeof(S), sizeof(T))
     tuple(size1, tail(psize)...)
 end
-size(a::ReinterpretArray{T,0}) where {T} = ()
+function size(a::ReinterpretArray{T, 0}) where T
+    ()
+end
 
 function axes(a::ReinterpretArray{T,N,S} where {N}) where {T,S}
     paxs = axes(a.parent)
@@ -111,10 +123,16 @@ function axes(a::ReinterpretArray{T,N,S} where {N}) where {T,S}
     size1 = div(l*sizeof(S), sizeof(T))
     tuple(oftype(paxs[1], f:f+size1-1), tail(paxs)...)
 end
-axes(a::ReinterpretArray{T,0}) where {T} = ()
+function axes(a::ReinterpretArray{T, 0}) where T
+    ()
+end
 
-elsize(::Type{<:ReinterpretArray{T}}) where {T} = sizeof(T)
-unsafe_convert(::Type{Ptr{T}}, a::ReinterpretArray{T,N,S} where N) where {T,S} = Ptr{T}(unsafe_convert(Ptr{S},a.parent))
+function elsize(::Type{<:ReinterpretArray{T}}) where T
+    sizeof(T)
+end
+function unsafe_convert(::Type{Ptr{T}}, a::(ReinterpretArray{T, N, S} where N)) where {T, S}
+    Ptr{T}(unsafe_convert(Ptr{S}, a.parent))
+end
 
 @inline @propagate_inbounds getindex(a::ReinterpretArray{T,0}) where {T} = reinterpret(T, a.parent[])
 @inline @propagate_inbounds getindex(a::ReinterpretArray) = a[1]
@@ -263,9 +281,15 @@ struct CyclePadding{P}
     padding::P
     total_size::Int
 end
-eltype(::Type{<:CyclePadding}) = Padding
-IteratorSize(::Type{<:CyclePadding}) = IsInfinite()
-isempty(cp::CyclePadding) = isempty(cp.padding)
+function eltype(::Type{<:CyclePadding})
+    Padding
+end
+function IteratorSize(::Type{<:CyclePadding})
+    IsInfinite()
+end
+function isempty(cp::CyclePadding)
+    isempty(cp.padding)
+end
 function iterate(cp::CyclePadding)
     y = iterate(cp.padding)
     y === nothing && return nothing

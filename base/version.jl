@@ -56,14 +56,25 @@ struct VersionNumber
         new(major, minor, patch, pre, bld)
     end
 end
-VersionNumber(major::Integer, minor::Integer = 0, patch::Integer = 0,
-        pre::Tuple{Vararg{Union{Integer,AbstractString}}} = (),
-        bld::Tuple{Vararg{Union{Integer,AbstractString}}} = ()) =
-    VersionNumber(VInt(major), VInt(minor), VInt(patch),
-        map(x->x isa Integer ? UInt64(x) : String(x), pre),
-        map(x->x isa Integer ? UInt64(x) : String(x), bld))
+function VersionNumber(major::Integer, minor::Integer=0, patch::Integer=0, pre::Tuple{Vararg{Union{Integer, AbstractString}}}=(), bld::Tuple{Vararg{Union{Integer, AbstractString}}}=())
+    VersionNumber(VInt(major), VInt(minor), VInt(patch), map((x->begin
+                    if x isa Integer
+                        UInt64(x)
+                    else
+                        String(x)
+                    end
+                end), pre), map((x->begin
+                    if x isa Integer
+                        UInt64(x)
+                    else
+                        String(x)
+                    end
+                end), bld))
+end
 
-VersionNumber(v::Tuple) = VersionNumber(v...)
+function VersionNumber(v::Tuple)
+    VersionNumber(v...)
+end
 
 function print(io::IO, v::VersionNumber)
     v == typemax(VersionNumber) && return print(io, "∞")
@@ -81,9 +92,13 @@ function print(io::IO, v::VersionNumber)
         join(io, v.build,'.')
     end
 end
-show(io::IO, v::VersionNumber) = print(io, "v\"", v, "\"")
+function show(io::IO, v::VersionNumber)
+    print(io, "v\"", v, "\"")
+end
 
-Broadcast.broadcastable(v::VersionNumber) = Ref(v)
+function Broadcast.broadcastable(v::VersionNumber)
+    Ref(v)
+end
 
 const VERSION_REGEX = r"^
     v?                                      # prefix        (optional)
@@ -137,17 +152,35 @@ v"2.0.1-rc1"
 """
 macro v_str(v); VersionNumber(v); end
 
-typemin(::Type{VersionNumber}) = v"0-"
+function typemin(::Type{VersionNumber})
+    @v_str "0-"
+end
 
 function typemax(::Type{VersionNumber})
     ∞ = typemax(VInt)
     VersionNumber(∞, ∞, ∞, (), ("",))
 end
 
-ident_cmp(a::Integer, b::Integer) = cmp(a, b)
-ident_cmp(a::Integer, b::String ) = isempty(b) ? +1 : -1
-ident_cmp(a::String,  b::Integer) = isempty(a) ? -1 : +1
-ident_cmp(a::String,  b::String ) = cmp(a, b)
+function ident_cmp(a::Integer, b::Integer)
+    cmp(a, b)
+end
+function ident_cmp(a::Integer, b::String)
+    if isempty(b)
+        1
+    else
+        -1
+    end
+end
+function ident_cmp(a::String, b::Integer)
+    if isempty(a)
+        -1
+    else
+        1
+    end
+end
+function ident_cmp(a::String, b::String)
+    cmp(a, b)
+end
 
 function ident_cmp(
     A::Tuple{Vararg{Union{Integer,String}}},
@@ -170,7 +203,9 @@ function ==(a::VersionNumber, b::VersionNumber)
     return true
 end
 
-issupbuild(v::VersionNumber) = length(v.build)==1 && isempty(v.build[1])
+function issupbuild(v::VersionNumber)
+    length(v.build) == 1 && isempty(v.build[1])
+end
 
 function isless(a::VersionNumber, b::VersionNumber)
     (a.major < b.major) && return true
@@ -200,16 +235,44 @@ function hash(v::VersionNumber, h::UInt)
     h = hash(v.build, ~h)
 end
 
-lowerbound(v::VersionNumber) = VersionNumber(v.major, v.minor, v.patch, ("",), ())
-upperbound(v::VersionNumber) = VersionNumber(v.major, v.minor, v.patch, (), ("",))
+function lowerbound(v::VersionNumber)
+    VersionNumber(v.major, v.minor, v.patch, ("",), ())
+end
+function upperbound(v::VersionNumber)
+    VersionNumber(v.major, v.minor, v.patch, (), ("",))
+end
 
-thispatch(v::VersionNumber) = VersionNumber(v.major, v.minor, v.patch)
-thisminor(v::VersionNumber) = VersionNumber(v.major, v.minor, 0)
-thismajor(v::VersionNumber) = VersionNumber(v.major, 0, 0)
+function thispatch(v::VersionNumber)
+    VersionNumber(v.major, v.minor, v.patch)
+end
+function thisminor(v::VersionNumber)
+    VersionNumber(v.major, v.minor, 0)
+end
+function thismajor(v::VersionNumber)
+    VersionNumber(v.major, 0, 0)
+end
 
-nextpatch(v::VersionNumber) = v < thispatch(v) ? thispatch(v) : VersionNumber(v.major, v.minor, v.patch+1)
-nextminor(v::VersionNumber) = v < thisminor(v) ? thisminor(v) : VersionNumber(v.major, v.minor+1, 0)
-nextmajor(v::VersionNumber) = v < thismajor(v) ? thismajor(v) : VersionNumber(v.major+1, 0, 0)
+function nextpatch(v::VersionNumber)
+    if v < thispatch(v)
+        thispatch(v)
+    else
+        VersionNumber(v.major, v.minor, v.patch + 1)
+    end
+end
+function nextminor(v::VersionNumber)
+    if v < thisminor(v)
+        thisminor(v)
+    else
+        VersionNumber(v.major, v.minor + 1, 0)
+    end
+end
+function nextmajor(v::VersionNumber)
+    if v < thismajor(v)
+        thismajor(v)
+    else
+        VersionNumber(v.major + 1, 0, 0)
+    end
+end
 
 function check_new_version(existing::Vector{VersionNumber}, ver::VersionNumber)
     if isempty(existing)

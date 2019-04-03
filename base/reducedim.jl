@@ -3,19 +3,23 @@
 ## Functions to compute the reduced shape
 
 # for reductions that expand 0 dims to 1
-reduced_index(i::OneTo) = OneTo(1)
-reduced_index(i::Union{Slice, IdentityUnitRange}) = first(i):first(i)
-reduced_index(i::AbstractUnitRange) =
-    throw(ArgumentError(
-"""
-No method is implemented for reducing index range of type $typeof(i). Please implement
-reduced_index for this index type or report this as an issue.
-"""
-    ))
-reduced_indices(a::AbstractArray, region) = reduced_indices(axes(a), region)
+function reduced_index(i::OneTo)
+    OneTo(1)
+end
+function reduced_index(i::Union{Slice, IdentityUnitRange})
+    first(i):first(i)
+end
+function reduced_index(i::AbstractUnitRange)
+    throw(ArgumentError("No method is implemented for reducing index range of type $(typeof)(i). Please implement\nreduced_index for this index type or report this as an issue.\n"))
+end
+function reduced_indices(a::AbstractArray, region)
+    reduced_indices(axes(a), region)
+end
 
 # for reductions that keep 0 dims as 0
-reduced_indices0(a::AbstractArray, region) = reduced_indices0(axes(a), region)
+function reduced_indices0(a::AbstractArray, region)
+    reduced_indices0(axes(a), region)
+end
 
 function reduced_indices(inds::Indices{N}, d::Int) where N
     d < 1 && throw(ArgumentError("dimension must be ≥ 1, got $d"))
@@ -89,21 +93,39 @@ for (Op, initval) in ((:(typeof(&)), true), (:(typeof(|)), false))
 end
 
 # reducedim_initarray is called by
-reducedim_initarray(A::AbstractArray, region, init, ::Type{R}) where {R} = fill!(similar(A,R,reduced_indices(A,region)), init)
-reducedim_initarray(A::AbstractArray, region, init::T) where {T} = reducedim_initarray(A, region, init, T)
+function reducedim_initarray(A::AbstractArray, region, init, ::Type{R}) where R
+    fill!(similar(A, R, reduced_indices(A, region)), init)
+end
+function reducedim_initarray(A::AbstractArray, region, init::T) where T
+    reducedim_initarray(A, region, init, T)
+end
 
 # TODO: better way to handle reducedim initialization
 #
 # The current scheme is basically following Steven G. Johnson's original implementation
 #
-promote_union(T::Union) = promote_type(promote_union(T.a), promote_union(T.b))
-promote_union(T) = T
+function promote_union(T::Union)
+    promote_type(promote_union(T.a), promote_union(T.b))
+end
+function promote_union(T)
+    T
+end
 
-_realtype(::Type{<:Complex}) = Real
-_realtype(::Type{Complex{T}}) where T<:Real = T
-_realtype(T::Type) = T
-_realtype(::Union{typeof(abs),typeof(abs2)}, T) = _realtype(T)
-_realtype(::Any, T) = T
+function _realtype(::Type{<:Complex})
+    Real
+end
+function _realtype(::Type{Complex{T}}) where T <: Real
+    T
+end
+function _realtype(T::Type)
+    T
+end
+function _realtype(::Union{typeof(abs), typeof(abs2)}, T)
+    _realtype(T)
+end
+function _realtype(::Any, T)
+    T
+end
 
 function reducedim_init(f, op::Union{typeof(+),typeof(add_sum)}, A::AbstractArray, region)
     _reducedim_init(f, op, zero, sum, A, region)
@@ -153,11 +175,16 @@ for (f1, f2, initval) in ((:min, :max, :Inf), (:max, :min, :(-Inf)))
         end
     end
 end
-reducedim_init(f::Union{typeof(abs),typeof(abs2)}, op::typeof(max), A::AbstractArray{T}, region) where {T} =
+function reducedim_init(f::Union{typeof(abs), typeof(abs2)}, op::typeof(max), A::AbstractArray{T}, region) where T
     reducedim_initarray(A, region, zero(f(zero(T))), _realtype(f, T))
+end
 
-reducedim_init(f, op::typeof(&), A::AbstractArray, region) = reducedim_initarray(A, region, true)
-reducedim_init(f, op::typeof(|), A::AbstractArray, region) = reducedim_initarray(A, region, false)
+function reducedim_init(f, op::typeof(&), A::AbstractArray, region)
+    reducedim_initarray(A, region, true)
+end
+function reducedim_init(f, op::typeof(|), A::AbstractArray, region)
+    reducedim_initarray(A, region, false)
+end
 
 # specialize to make initialization more efficient for common cases
 
@@ -179,8 +206,12 @@ end
 
 ## generic (map)reduction
 
-has_fast_linear_indexing(a::AbstractArray) = false
-has_fast_linear_indexing(a::Array) = true
+function has_fast_linear_indexing(a::AbstractArray)
+    false
+end
+function has_fast_linear_indexing(a::Array)
+    true
+end
 
 function check_reducedims(R, A)
     # Check whether R has compatible dimensions w.r.t. A for reduction
@@ -225,13 +256,23 @@ function mapfirst!(f, R::AbstractArray, A::AbstractArray{<:Any,N}) where {N}
 end
 # We know that the axes of R and A are compatible, but R might have a different number of
 # dimensions than A, which is trickier than it seems due to offset arrays and type stability
-_firstreducedslice(::Tuple{}, a::Tuple{}) = ()
-_firstreducedslice(::Tuple, ::Tuple{}) = ()
+function _firstreducedslice(::Tuple{}, a::Tuple{})
+    ()
+end
+function _firstreducedslice(::Tuple, ::Tuple{})
+    ()
+end
 @inline _firstreducedslice(::Tuple{}, a::Tuple) = (_firstslice(a[1]), _firstreducedslice((), tail(a))...)
 @inline _firstreducedslice(r::Tuple, a::Tuple) = (length(r[1])==1 ? _firstslice(a[1]) : r[1], _firstreducedslice(tail(r), tail(a))...)
-_firstslice(i::OneTo) = OneTo(1)
-_firstslice(i::Slice) = Slice(_firstslice(i.indices))
-_firstslice(i) = i[firstindex(i):firstindex(i)]
+function _firstslice(i::OneTo)
+    OneTo(1)
+end
+function _firstslice(i::Slice)
+    Slice(_firstslice(i.indices))
+end
+function _firstslice(i)
+    i[firstindex(i):firstindex(i)]
+end
 
 function _mapreducedim!(f, op, R::AbstractArray, A::AbstractArray)
     lsiz = check_reducedims(R,A)
@@ -271,11 +312,14 @@ function _mapreducedim!(f, op, R::AbstractArray, A::AbstractArray)
     return R
 end
 
-mapreducedim!(f, op, R::AbstractArray, A::AbstractArray) =
-    (_mapreducedim!(f, op, R, A); R)
+function mapreducedim!(f, op, R::AbstractArray, A::AbstractArray)
+    _mapreducedim!(f, op, R, A)
+    R
+end
 
-reducedim!(op, R::AbstractArray{RT}, A::AbstractArray) where {RT} =
+function reducedim!(op, R::AbstractArray{RT}, A::AbstractArray) where RT
     mapreducedim!(identity, op, R, A)
+end
 
 """
     mapreduce(f, op, A::AbstractArray; dims=:, [init])
@@ -303,15 +347,21 @@ julia> mapreduce(isodd, |, a, dims=1)
 """
 mapreduce(f, op, A::AbstractArray; dims=:, kw...) = _mapreduce_dim(f, op, kw.data, A, dims)
 
-_mapreduce_dim(f, op, nt::NamedTuple{(:init,)}, A::AbstractArray, ::Colon) = mapfoldl(f, op, A; nt...)
+function _mapreduce_dim(f, op, nt::NamedTuple{(:init,)}, A::AbstractArray, ::Colon)
+    mapfoldl(f, op, A; nt...)
+end
 
-_mapreduce_dim(f, op, ::NamedTuple{()}, A::AbstractArray, ::Colon) = _mapreduce(f, op, IndexStyle(A), A)
+function _mapreduce_dim(f, op, ::NamedTuple{()}, A::AbstractArray, ::Colon)
+    _mapreduce(f, op, IndexStyle(A), A)
+end
 
-_mapreduce_dim(f, op, nt::NamedTuple{(:init,)}, A::AbstractArray, dims) =
+function _mapreduce_dim(f, op, nt::NamedTuple{(:init,)}, A::AbstractArray, dims)
     mapreducedim!(f, op, reducedim_initarray(A, dims, nt.init), A)
+end
 
-_mapreduce_dim(f, op, ::NamedTuple{()}, A::AbstractArray, dims) =
+function _mapreduce_dim(f, op, ::NamedTuple{()}, A::AbstractArray, dims)
     mapreducedim!(f, op, reducedim_init(f, op, A, dims), A)
+end
 
 """
     reduce(f, A; dims=:, [init])
@@ -654,12 +704,24 @@ for (fname, _fname, op) in [(:sum,     :_sum,     :add_sum), (:prod,    :_prod, 
     end
 end
 
-any(a::AbstractArray; dims=:)              = _any(a, dims)
-any(f::Function, a::AbstractArray; dims=:) = _any(f, a, dims)
-_any(a, ::Colon)                           = _any(identity, a, :)
-all(a::AbstractArray; dims=:)              = _all(a, dims)
-all(f::Function, a::AbstractArray; dims=:) = _all(f, a, dims)
-_all(a, ::Colon)                           = _all(identity, a, :)
+function any(a::AbstractArray; dims=:)
+    _any(a, dims)
+end
+function any(f::Function, a::AbstractArray; dims=:)
+    _any(f, a, dims)
+end
+function _any(a, ::Colon)
+    _any(identity, a, :)
+end
+function all(a::AbstractArray; dims=:)
+    _all(a, dims)
+end
+function all(f::Function, a::AbstractArray; dims=:)
+    _all(f, a, dims)
+end
+function _all(a, ::Colon)
+    _all(identity, a, :)
+end
 
 for (fname, op) in [(:sum, :add_sum), (:prod, :mul_prod),
                     (:maximum, :max), (:minimum, :min),
@@ -776,7 +838,9 @@ function _findmin(A, region)
     end
 end
 
-isgreater(a, b) = isless(b,a)
+function isgreater(a, b)
+    isless(b, a)
+end
 
 """
     findmax!(rval, rind, A) -> (maxval, index)
@@ -825,7 +889,9 @@ function _findmax(A, region)
     end
 end
 
-reducedim1(R, A) = length(axes1(R)) == 1
+function reducedim1(R, A)
+    length(axes1(R)) == 1
+end
 
 """
     argmin(A; dims) -> indices

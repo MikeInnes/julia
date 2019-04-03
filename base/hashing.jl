@@ -16,11 +16,15 @@ Typically, any type that implements `hash` should also implement its own `==` (h
 values inside heterogeneous arrays.
 """
 hash(x::Any) = hash(x, zero(UInt))
-hash(w::WeakRef, h::UInt) = hash(w.value, h)
+function hash(w::WeakRef, h::UInt)
+    hash(w.value, h)
+end
 
 ## hashing general objects ##
 
-hash(@nospecialize(x), h::UInt) = hash_uint(3h - objectid(x))
+function hash(@nospecialize(x), h::UInt)
+    hash_uint(3h - objectid(x))
+end
 
 ## core data hashing functions ##
 

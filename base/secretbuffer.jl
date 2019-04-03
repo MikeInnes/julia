@@ -61,7 +61,9 @@ function SecretBuffer(str::String)
     seek(s, 0)
     s
 end
-convert(::Type{SecretBuffer}, s::AbstractString) = SecretBuffer(String(s))
+function convert(::Type{SecretBuffer}, s::AbstractString)
+    SecretBuffer(String(s))
+end
 
 """
     SecretBuffer!(data::Vector{UInt8})
@@ -79,7 +81,9 @@ function SecretBuffer!(d::Vector{UInt8})
     s
 end
 
-unsafe_SecretBuffer!(s::Cstring) = unsafe_SecretBuffer!(convert(Ptr{UInt8}, s), ccall(:strlen, Cint, (Cstring,), s))
+function unsafe_SecretBuffer!(s::Cstring)
+    unsafe_SecretBuffer!(convert(Ptr{UInt8}, s), ccall(:strlen, Cint, (Cstring,), s))
+end
 function unsafe_SecretBuffer!(p::Ptr{UInt8}, len=1)
     s = SecretBuffer(sizehint=len)
     for i in 1:len
@@ -91,10 +95,14 @@ function unsafe_SecretBuffer!(p::Ptr{UInt8}, len=1)
 end
 
 
-show(io::IO, s::SecretBuffer) = print(io, "SecretBuffer(\"*******\")")
+function show(io::IO, s::SecretBuffer)
+    print(io, "SecretBuffer(\"*******\")")
+end
 
 # Unlike other IO objects, equality is computed by value for convenience
-==(s1::SecretBuffer, s2::SecretBuffer) = (s1.ptr == s2.ptr) && (s1.size == s2.size) && (UInt8(0) == _bufcmp(s1.data, s2.data, min(s1.size, s2.size)))
+function ==(s1::SecretBuffer, s2::SecretBuffer)
+    s1.ptr == s2.ptr && (s1.size == s2.size && UInt8(0) == _bufcmp(s1.data, s2.data, min(s1.size, s2.size)))
+end
 # Also attempt a constant time buffer comparison algorithm — the length of the secret might be
 # inferred by a timing attack, but not its values.
 @noinline function _bufcmp(data1::Vector{UInt8}, data2::Vector{UInt8}, sz::Int)
@@ -106,7 +114,9 @@ show(io::IO, s::SecretBuffer) = print(io, "SecretBuffer(\"*******\")")
 end
 # All SecretBuffers hash the same to avoid leaking information or breaking consistency with ==
 const _sb_hash = UInt === UInt32 ? 0x111c0925 : 0xb06061e370557428
-hash(s::SecretBuffer, h::UInt) = hash(_sb_hash, h)
+function hash(s::SecretBuffer, h::UInt)
+    hash(_sb_hash, h)
+end
 
 
 function write(io::SecretBuffer, b::UInt8)
@@ -131,7 +141,9 @@ function write(io::IO, s::SecretBuffer)
     return nb
 end
 
-cconvert(::Type{Cstring}, s::SecretBuffer) = unsafe_convert(Cstring, s)
+function cconvert(::Type{Cstring}, s::SecretBuffer)
+    unsafe_convert(Cstring, s)
+end
 function unsafe_convert(::Type{Cstring}, s::SecretBuffer)
     # Ensure that no nuls appear in the valid region
     if any(==(0x00), s.data[i] for i in 1:s.size)
@@ -146,14 +158,29 @@ function unsafe_convert(::Type{Cstring}, s::SecretBuffer)
     return Cstring(unsafe_convert(Ptr{Cchar}, s.data))
 end
 
-seek(io::SecretBuffer, n::Integer) = (io.ptr = max(min(n+1, io.size+1), 1); io)
-seekend(io::SecretBuffer) = seek(io, io.size+1)
-skip(io::SecretBuffer, n::Integer) = seek(io, position(io) + n)
+function seek(io::SecretBuffer, n::Integer)
+    io.ptr = max(min(n + 1, io.size + 1), 1)
+    io
+end
+function seekend(io::SecretBuffer)
+    seek(io, io.size + 1)
+end
+function skip(io::SecretBuffer, n::Integer)
+    seek(io, position(io) + n)
+end
 
-bytesavailable(io::SecretBuffer) = io.size - io.ptr + 1
-position(io::SecretBuffer) = io.ptr-1
-eof(io::SecretBuffer) = io.ptr > io.size
-isempty(io::SecretBuffer) = io.size == 0
+function bytesavailable(io::SecretBuffer)
+    (io.size - io.ptr) + 1
+end
+function position(io::SecretBuffer)
+    io.ptr - 1
+end
+function eof(io::SecretBuffer)
+    io.ptr > io.size
+end
+function isempty(io::SecretBuffer)
+    io.size == 0
+end
 function peek(io::SecretBuffer)
     eof(io) && throw(EOFError())
     return io.data[io.ptr]
@@ -177,7 +204,9 @@ function shred!(s::SecretBuffer)
     return s
 end
 
-isshredded(s::SecretBuffer) = all(iszero, s.data)
+function isshredded(s::SecretBuffer)
+    all(iszero, s.data)
+end
 
 function shred!(f::Function, x)
     try

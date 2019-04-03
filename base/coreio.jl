@@ -1,27 +1,59 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-print(xs...)   = print(stdout::IO, xs...)
-println(xs...) = println(stdout::IO, xs...)
-println(io::IO) = print(io, '\n')
+function print(xs...)
+    print(stdout::IO, xs...)
+end
+function println(xs...)
+    println(stdout::IO, xs...)
+end
+function println(io::IO)
+    print(io, '\n')
+end
 
 function show end
 function repr end
 
 struct DevNull <: IO end
 const devnull = DevNull()
-isreadable(::DevNull) = false
-iswritable(::DevNull) = true
-isopen(::DevNull) = true
-read(::DevNull, ::Type{UInt8}) = throw(EOFError())
-write(::DevNull, ::UInt8) = 1
-unsafe_write(::DevNull, ::Ptr{UInt8}, n::UInt)::Int = n
-close(::DevNull) = nothing
-flush(::DevNull) = nothing
-wait_connected(::DevNull) = nothing
-wait_readnb(::DevNull) = wait()
-wait_readbyte(::DevNull) = wait()
-wait_close(::DevNull) = wait()
-eof(::DevNull) = true
+function isreadable(::DevNull)
+    false
+end
+function iswritable(::DevNull)
+    true
+end
+function isopen(::DevNull)
+    true
+end
+function read(::DevNull, ::Type{UInt8})
+    throw(EOFError())
+end
+function write(::DevNull, ::UInt8)
+    1
+end
+function unsafe_write(::DevNull, ::Ptr{UInt8}, n::UInt)::Int
+    n
+end
+function close(::DevNull)
+    nothing
+end
+function flush(::DevNull)
+    nothing
+end
+function wait_connected(::DevNull)
+    nothing
+end
+function wait_readnb(::DevNull)
+    wait()
+end
+function wait_readbyte(::DevNull)
+    wait()
+end
+function wait_close(::DevNull)
+    wait()
+end
+function eof(::DevNull)
+    true
+end
 
 let CoreIO = Union{Core.CoreSTDOUT, Core.CoreSTDERR}
     global write, unsafe_write

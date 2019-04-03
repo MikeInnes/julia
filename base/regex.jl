@@ -62,7 +62,9 @@ function Regex(pattern::AbstractString, flags::AbstractString)
     end
     Regex(pattern, options, DEFAULT_MATCH_OPTS)
 end
-Regex(pattern::AbstractString) = Regex(pattern, DEFAULT_COMPILER_OPTS, DEFAULT_MATCH_OPTS)
+function Regex(pattern::AbstractString)
+    Regex(pattern, DEFAULT_COMPILER_OPTS, DEFAULT_MATCH_OPTS)
+end
 
 function compile(regex::Regex)
     if regex.regex == C_NULL
@@ -154,13 +156,17 @@ function show(io::IO, m::RegexMatch)
 end
 
 # Capture group extraction
-getindex(m::RegexMatch, idx::Integer) = m.captures[idx]
+function getindex(m::RegexMatch, idx::Integer)
+    m.captures[idx]
+end
 function getindex(m::RegexMatch, name::Symbol)
     idx = PCRE.substring_number_from_name(m.regex.regex, name)
     idx <= 0 && error("no capture group named $name found in regex")
     m[idx]
 end
-getindex(m::RegexMatch, name::AbstractString) = m[Symbol(name)]
+function getindex(m::RegexMatch, name::AbstractString)
+    m[Symbol(name)]
+end
 
 function occursin(r::Regex, s::AbstractString; offset::Integer=0)
     compile(r)
@@ -287,10 +293,12 @@ function match(re::Regex, str::Union{SubString{String}, String}, idx::Integer, a
     RegexMatch(mat, cap, ovec[1]+1, off, re)
 end
 
-match(r::Regex, s::AbstractString) = match(r, s, firstindex(s))
-match(r::Regex, s::AbstractString, i::Integer) = throw(ArgumentError(
-    "regex matching is only available for the String type; use String(s) to convert"
-))
+function match(r::Regex, s::AbstractString)
+    match(r, s, firstindex(s))
+end
+function match(r::Regex, s::AbstractString, i::Integer)
+    throw(ArgumentError("regex matching is only available for the String type; use String(s) to convert"))
+end
 
 # TODO: return only start index and update deprecation
 function findnext(re::Regex, str::Union{String,SubString}, idx::Integer)
@@ -305,10 +313,12 @@ function findnext(re::Regex, str::Union{String,SubString}, idx::Integer)
         nothing
     end
 end
-findnext(r::Regex, s::AbstractString, idx::Integer) = throw(ArgumentError(
-    "regex search is only available for the String type; use String(s) to convert"
-))
-findfirst(r::Regex, s::AbstractString) = findnext(r,s,firstindex(s))
+function findnext(r::Regex, s::AbstractString, idx::Integer)
+    throw(ArgumentError("regex search is only available for the String type; use String(s) to convert"))
+end
+function findfirst(r::Regex, s::AbstractString)
+    findnext(r, s, firstindex(s))
+end
 
 """
     SubstitutionString(substr)
@@ -333,11 +343,21 @@ struct SubstitutionString{T<:AbstractString} <: AbstractString
     string::T
 end
 
-ncodeunits(s::SubstitutionString) = ncodeunits(s.string)
-codeunit(s::SubstitutionString) = codeunit(s.string)
-codeunit(s::SubstitutionString, i::Integer) = codeunit(s.string, i)
-isvalid(s::SubstitutionString, i::Integer) = isvalid(s.string, i)
-iterate(s::SubstitutionString, i::Integer...) = iterate(s.string, i...)
+function ncodeunits(s::SubstitutionString)
+    ncodeunits(s.string)
+end
+function codeunit(s::SubstitutionString)
+    codeunit(s.string)
+end
+function codeunit(s::SubstitutionString, i::Integer)
+    codeunit(s.string, i)
+end
+function isvalid(s::SubstitutionString, i::Integer)
+    isvalid(s.string, i)
+end
+function iterate(s::SubstitutionString, i::Integer...)
+    iterate(s.string, i...)
+end
 
 function show(io::IO, s::SubstitutionString)
     print(io, "s")
@@ -360,7 +380,9 @@ julia> replace(msg, r"#(.+)# from (?<from>\\w+)" => s"FROM: \\g<from>; MESSAGE: 
 """
 macro s_str(string) SubstitutionString(string) end
 
-replace_err(repl) = error("Bad replacement string: $repl")
+function replace_err(repl)
+    error("Bad replacement string: $(repl)")
+end
 
 function _write_capture(io, re, group)
     len = PCRE.substring_length_bynumber(re.match_data, group)
@@ -439,9 +461,16 @@ struct RegexMatchIterator
         new(regex, string, ovr)
     end
 end
-compile(itr::RegexMatchIterator) = (compile(itr.regex); itr)
-eltype(::Type{RegexMatchIterator}) = RegexMatch
-IteratorSize(::Type{RegexMatchIterator}) = SizeUnknown()
+function compile(itr::RegexMatchIterator)
+    compile(itr.regex)
+    itr
+end
+function eltype(::Type{RegexMatchIterator})
+    RegexMatch
+end
+function IteratorSize(::Type{RegexMatchIterator})
+    SizeUnknown()
+end
 
 function iterate(itr::RegexMatchIterator, (offset,prevempty)=(1,false))
     opts_nonempty = UInt32(PCRE.ANCHORED | PCRE.NOTEMPTY_ATSTART)

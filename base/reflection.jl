@@ -98,9 +98,15 @@ since it is not idiomatic to explicitly export names from `Main`.
 names(m::Module; all::Bool = false, imported::Bool = false) =
     sort!(ccall(:jl_module_names, Array{Symbol,1}, (Any, Cint, Cint), m, all, imported))
 
-isexported(m::Module, s::Symbol) = ccall(:jl_module_exports_p, Cint, (Any, Any), m, s) != 0
-isdeprecated(m::Module, s::Symbol) = ccall(:jl_is_binding_deprecated, Cint, (Any, Any), m, s) != 0
-isbindingresolved(m::Module, var::Symbol) = ccall(:jl_binding_resolved_p, Cint, (Any, Any), m, var) != 0
+function isexported(m::Module, s::Symbol)
+    ccall(:jl_module_exports_p, Cint, (Any, Any), m, s) != 0
+end
+function isdeprecated(m::Module, s::Symbol)
+    ccall(:jl_is_binding_deprecated, Cint, (Any, Any), m, s) != 0
+end
+function isbindingresolved(m::Module, var::Symbol)
+    ccall(:jl_binding_resolved_p, Cint, (Any, Any), m, var) != 0
+end
 
 function binding_module(m::Module, s::Symbol)
     p = ccall(:jl_get_module_of_binding, Ptr{Cvoid}, (Any, Any), m, s)
@@ -154,9 +160,16 @@ function fieldname(t::DataType, i::Integer)
     return names[i]::Symbol
 end
 
-fieldname(t::UnionAll, i::Integer) = fieldname(unwrap_unionall(t), i)
-fieldname(t::Type{<:Tuple}, i::Integer) =
-    i < 1 || i > fieldcount(t) ? throw(BoundsError(t, i)) : Int(i)
+function fieldname(t::UnionAll, i::Integer)
+    fieldname(unwrap_unionall(t), i)
+end
+function fieldname(t::Type{<:Tuple}, i::Integer)
+    if i < 1 || i > fieldcount(t)
+        throw(BoundsError(t, i))
+    else
+        Int(i)
+    end
+end
 
 """
     fieldnames(x::DataType)
@@ -171,10 +184,15 @@ julia> fieldnames(Rational)
 """
 fieldnames(t::DataType) = (fieldcount(t); # error check to make sure type is specific enough
                            (_fieldnames(t)...,))
-fieldnames(t::UnionAll) = fieldnames(unwrap_unionall(t))
-fieldnames(::Core.TypeofBottom) =
+function fieldnames(t::UnionAll)
+    fieldnames(unwrap_unionall(t))
+end
+function fieldnames(::Core.TypeofBottom)
     throw(ArgumentError("The empty type does not have field names since it does not have instances."))
-fieldnames(t::Type{<:Tuple}) = ntuple(identity, fieldcount(t))
+end
+function fieldnames(t::Type{<:Tuple})
+    ntuple(identity, fieldcount(t))
+end
 
 """
     hasfield(T::Type, name::Symbol)
@@ -208,7 +226,9 @@ julia> nameof(Foo.S{T} where T)
 ```
 """
 nameof(t::DataType) = t.name.name
-nameof(t::UnionAll) = nameof(unwrap_unionall(t))::Symbol
+function nameof(t::UnionAll)
+    nameof(unwrap_unionall(t))::Symbol
+end
 
 """
     parentmodule(t::DataType) -> Module
@@ -230,7 +250,9 @@ Foo
 ```
 """
 parentmodule(t::DataType) = t.name.module
-parentmodule(t::UnionAll) = parentmodule(unwrap_unionall(t))
+function parentmodule(t::UnionAll)
+    parentmodule(unwrap_unionall(t))
+end
 
 """
     isconst(m::Module, s::Symbol) -> Bool
@@ -463,9 +485,15 @@ and has no subtypes (or supertypes) which could appear in a call.
 """
 isdispatchtuple(@nospecialize(t)) = (@_pure_meta; isa(t, DataType) && t.isdispatchtuple)
 
-iskindtype(@nospecialize t) = (t === DataType || t === UnionAll || t === Union || t === typeof(Bottom))
-isconcretedispatch(@nospecialize t) = isconcretetype(t) && !iskindtype(t)
-has_free_typevars(@nospecialize(t)) = ccall(:jl_has_free_typevars, Cint, (Any,), t) != 0
+function iskindtype(@nospecialize(t))
+    t === DataType || (t === UnionAll || (t === Union || t === typeof(Bottom)))
+end
+function isconcretedispatch(@nospecialize(t))
+    isconcretetype(t) && !(iskindtype(t))
+end
+function has_free_typevars(@nospecialize(t))
+    ccall(:jl_has_free_typevars, Cint, (Any,), t) != 0
+end
 
 # equivalent to isa(v, Type) && isdispatchtuple(Tuple{v}) || v === Union{}
 # and is thus perhaps most similar to the old (pre-1.0) `isleaftype` query
@@ -633,7 +661,9 @@ function fieldindex(T::DataType, name::Symbol, err::Bool=true)
     return Int(ccall(:jl_field_index, Cint, (Any, Any, Cint), T, name, err)+1)
 end
 
-argument_datatype(@nospecialize t) = ccall(:jl_argument_datatype, Any, (Any,), t)
+function argument_datatype(@nospecialize(t))
+    ccall(:jl_argument_datatype, Any, (Any,), t)
+end
 function argument_mt(@nospecialize t)
     dt = argument_datatype(t)
     (dt === nothing || !isdefined(dt.name, :mt)) && return nothing
@@ -784,17 +814,34 @@ function code_lowered(@nospecialize(f), @nospecialize(t=Tuple); generated::Bool=
     end
 end
 
-isgenerated(m::Method) = isdefined(m, :generator)
-isgenerated(m::Core.MethodInstance) = isgenerated(m.def)
+function isgenerated(m::Method)
+    isdefined(m, :generator)
+end
+function isgenerated(m::Core.MethodInstance)
+    isgenerated(m.def)
+end
 
 # low-level method lookup functions used by the compiler
 
-unionlen(x::Union) = unionlen(x.a) + unionlen(x.b)
-unionlen(@nospecialize(x)) = 1
+function unionlen(x::Union)
+    unionlen(x.a) + unionlen(x.b)
+end
+function unionlen(@nospecialize(x))
+    1
+end
 
-_uniontypes(x::Union, ts) = (_uniontypes(x.a,ts); _uniontypes(x.b,ts); ts)
-_uniontypes(@nospecialize(x), ts) = (push!(ts, x); ts)
-uniontypes(@nospecialize(x)) = _uniontypes(x, Any[])
+function _uniontypes(x::Union, ts)
+    _uniontypes(x.a, ts)
+    _uniontypes(x.b, ts)
+    ts
+end
+function _uniontypes(@nospecialize(x), ts)
+    push!(ts, x)
+    ts
+end
+function uniontypes(@nospecialize(x))
+    _uniontypes(x, Any[])
+end
 
 function _methods(@nospecialize(f), @nospecialize(t), lim::Int, world::UInt)
     tt = signature_type(f, t)
@@ -816,10 +863,18 @@ mutable struct MethodList
     mt::Core.MethodTable
 end
 
-length(m::MethodList) = length(m.ms)
-isempty(m::MethodList) = isempty(m.ms)
-iterate(m::MethodList, s...) = iterate(m.ms, s...)
-eltype(::Type{MethodList}) = Method
+function length(m::MethodList)
+    length(m.ms)
+end
+function isempty(m::MethodList)
+    isempty(m.ms)
+end
+function iterate(m::MethodList, s...)
+    iterate(m.ms, s...)
+end
+function eltype(::Type{MethodList})
+    Method
+end
 
 function MethodList(mt::Core.MethodTable)
     ms = Method[]
@@ -845,7 +900,9 @@ function methods(@nospecialize(f), @nospecialize(t))
     return MethodList(Method[m[3] for m in _methods(f, t, -1, world)], typeof(f).name.mt)
 end
 
-methods(f::Core.Builtin) = MethodList(Method[], typeof(f).name.mt)
+function methods(f::Core.Builtin)
+    MethodList(Method[], ((typeof(f)).name).mt)
+end
 
 function methods_including_ambiguous(@nospecialize(f), @nospecialize(t))
     tt = signature_type(f, t)
@@ -896,14 +953,30 @@ function length(mt::Core.MethodTable)
     end
     return n::Int
 end
-isempty(mt::Core.MethodTable) = (mt.defs === nothing)
+function isempty(mt::Core.MethodTable)
+    mt.defs === nothing
+end
 
-uncompressed_ast(m::Method) = isdefined(m, :source) ? uncompressed_ast(m, m.source) :
-                              isdefined(m, :generator) ? error("Method is @generated; try `code_lowered` instead.") :
-                              error("Code for this Method is not available.")
-uncompressed_ast(m::Method, s::CodeInfo) = copy(s)
-uncompressed_ast(m::Method, s::Array{UInt8,1}) = ccall(:jl_uncompress_ast, Any, (Any, Any), m, s)::CodeInfo
-uncompressed_ast(m::Core.MethodInstance) = uncompressed_ast(m.def)
+function uncompressed_ast(m::Method)
+    if isdefined(m, :source)
+        uncompressed_ast(m, m.source)
+    else
+        if isdefined(m, :generator)
+            error("Method is @generated; try `code_lowered` instead.")
+        else
+            error("Code for this Method is not available.")
+        end
+    end
+end
+function uncompressed_ast(m::Method, s::CodeInfo)
+    copy(s)
+end
+function uncompressed_ast(m::Method, s::Array{UInt8, 1})
+    ccall(:jl_uncompress_ast, Any, (Any, Any), m, s)::CodeInfo
+end
+function uncompressed_ast(m::Core.MethodInstance)
+    uncompressed_ast(m.def)
+end
 
 function method_instances(@nospecialize(f), @nospecialize(t), world::UInt = typemax(UInt))
     tt = signature_type(f, t)
@@ -944,7 +1017,9 @@ struct CodegenParams
 end
 
 const SLOT_USED = 0x8
-ast_slotflag(@nospecialize(code), i) = ccall(:jl_ast_slotflag, UInt8, (Any, Csize_t), code, i - 1)
+function ast_slotflag(@nospecialize(code), i)
+    ccall(:jl_ast_slotflag, UInt8, (Any, Csize_t), code, i - 1)
+end
 
 """
     may_invoke_generator(method, atypes, sparams)
@@ -1112,7 +1187,9 @@ Get the name of a generic `Function` as a symbol, or `:anonymous`.
 """
 nameof(f::Function) = (typeof(f).name.mt::Core.MethodTable).name
 
-functionloc(m::Core.MethodInstance) = functionloc(m.def)
+function functionloc(m::Core.MethodInstance)
+    functionloc(m.def)
+end
 
 """
     functionloc(m::Method)
@@ -1297,15 +1374,31 @@ function has_bottom_parameter(t::Type)
     end
     ret
 end
-has_bottom_parameter(t::UnionAll) = has_bottom_parameter(unwrap_unionall(t))
-has_bottom_parameter(t::Union) = has_bottom_parameter(t.a) & has_bottom_parameter(t.b)
-has_bottom_parameter(t::TypeVar) = t.ub == Bottom || has_bottom_parameter(t.ub)
-has_bottom_parameter(::Any) = false
+function has_bottom_parameter(t::UnionAll)
+    has_bottom_parameter(unwrap_unionall(t))
+end
+function has_bottom_parameter(t::Union)
+    has_bottom_parameter(t.a) & has_bottom_parameter(t.b)
+end
+function has_bottom_parameter(t::TypeVar)
+    t.ub == Bottom || has_bottom_parameter(t.ub)
+end
+function has_bottom_parameter(::Any)
+    false
+end
 
-min_world(m::Method) = reinterpret(UInt, m.min_world)
-max_world(m::Method) = reinterpret(UInt, m.max_world)
-min_world(m::Core.MethodInstance) = reinterpret(UInt, m.min_world)
-max_world(m::Core.MethodInstance) = reinterpret(UInt, m.max_world)
+function min_world(m::Method)
+    reinterpret(UInt, m.min_world)
+end
+function max_world(m::Method)
+    reinterpret(UInt, m.max_world)
+end
+function min_world(m::Core.MethodInstance)
+    reinterpret(UInt, m.min_world)
+end
+function max_world(m::Core.MethodInstance)
+    reinterpret(UInt, m.max_world)
+end
 
 """
     propertynames(x, private=false)
@@ -1321,8 +1414,12 @@ fieldnames intended for internal use, pass `true` for the optional second argume
 REPL tab completion on `x.` shows only the `private=false` properties.
 """
 propertynames(x) = fieldnames(typeof(x))
-propertynames(m::Module) = names(m)
-propertynames(x, private) = propertynames(x) # ignore private flag by default
+function propertynames(m::Module)
+    names(m)
+end
+function propertynames(x, private)
+    propertynames(x)
+end # ignore private flag by default
 
 """
     hasproperty(x, s::Symbol)

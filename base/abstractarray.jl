@@ -11,9 +11,15 @@ Supertype for `N`-dimensional arrays (or array-like types) with elements of type
 """
 AbstractArray
 
-convert(::Type{T}, a::T) where {T<:AbstractArray} = a
-convert(::Type{AbstractArray{T}}, a::AbstractArray) where {T} = AbstractArray{T}(a)
-convert(::Type{AbstractArray{T,N}}, a::AbstractArray{<:Any,N}) where {T,N} = AbstractArray{T,N}(a)
+function convert(::Type{T}, a::T) where T <: AbstractArray
+    a
+end
+function convert(::Type{AbstractArray{T}}, a::AbstractArray) where T
+    AbstractArray{T}(a)
+end
+function convert(::Type{AbstractArray{T, N}}, a::AbstractArray{<:Any, N}) where {T, N}
+    AbstractArray{T, N}(a)
+end
 
 """
     size(A::AbstractArray, [dim])
@@ -83,29 +89,62 @@ Return `true` if the indices of `A` start with something other than 1 along any 
 If multiple arguments are passed, equivalent to `has_offset_axes(A) | has_offset_axes(B) | ...`.
 """
 has_offset_axes(A)    = _tuple_any(x->first(x)!=1, axes(A))
-has_offset_axes(A...) = _tuple_any(has_offset_axes, A)
-has_offset_axes(::Colon) = false
+function has_offset_axes(A...)
+    _tuple_any(has_offset_axes, A)
+end
+function has_offset_axes(::Colon)
+    false
+end
 
-require_one_based_indexing(A...) = !has_offset_axes(A...) || throw(ArgumentError("offset arrays are not supported but got an array with index other than 1"))
+function require_one_based_indexing(A...)
+    !(has_offset_axes(A...)) || throw(ArgumentError("offset arrays are not supported but got an array with index other than 1"))
+end
 
 # Performance optimization: get rid of a branch on `d` in `axes(A, d)`
 # for d=1. 1d arrays are heavily used, and the first dimension comes up
 # in other applications.
-axes1(A::AbstractArray{<:Any,0}) = OneTo(1)
-axes1(A::AbstractArray) = (@_inline_meta; axes(A)[1])
-axes1(iter) = OneTo(length(iter))
+function axes1(A::AbstractArray{<:Any, 0})
+    OneTo(1)
+end
+function axes1(A::AbstractArray)
+    @_inline_meta
+    (axes(A))[1]
+end
+function axes1(iter)
+    OneTo(length(iter))
+end
 
-unsafe_indices(A) = axes(A)
-unsafe_indices(r::AbstractRange) = (OneTo(unsafe_length(r)),) # Ranges use checked_sub for size
+function unsafe_indices(A)
+    axes(A)
+end
+function unsafe_indices(r::AbstractRange)
+    (OneTo(unsafe_length(r)),)
+end # Ranges use checked_sub for size
 
-keys(a::AbstractArray) = CartesianIndices(axes(a))
-keys(a::AbstractVector) = LinearIndices(a)
+function keys(a::AbstractArray)
+    CartesianIndices(axes(a))
+end
+function keys(a::AbstractVector)
+    LinearIndices(a)
+end
 
-prevind(::AbstractArray, i::Integer) = Int(i)-1
-nextind(::AbstractArray, i::Integer) = Int(i)+1
+function prevind(::AbstractArray, i::Integer)
+    Int(i) - 1
+end
+function nextind(::AbstractArray, i::Integer)
+    Int(i) + 1
+end
 
-eltype(::Type{<:AbstractArray{E}}) where {E} = @isdefined(E) ? E : Any
-elsize(A::AbstractArray) = elsize(typeof(A))
+function eltype(::Type{<:AbstractArray{E}}) where E
+    if @isdefined(E)
+        E
+    else
+        Any
+    end
+end
+function elsize(A::AbstractArray)
+    elsize(typeof(A))
+end
 
 """
     ndims(A::AbstractArray) -> Integer
@@ -121,7 +160,9 @@ julia> ndims(A)
 ```
 """
 ndims(::AbstractArray{T,N}) where {T,N} = N
-ndims(::Type{<:AbstractArray{T,N}}) where {T,N} = N
+function ndims(::Type{<:AbstractArray{T, N}}) where {T, N}
+    N
+end
 
 """
     length(collection) -> Integer
@@ -161,10 +202,15 @@ julia> length([1 2; 3 4])
 length(t::AbstractArray) = (@_inline_meta; prod(size(t)))
 
 # `eachindex` is mostly an optimization of `keys`
-eachindex(itrs...) = keys(itrs...)
+function eachindex(itrs...)
+    keys(itrs...)
+end
 
 # eachindex iterates over all indices. IndexCartesian definitions are later.
-eachindex(A::AbstractVector) = (@_inline_meta(); axes1(A))
+function eachindex(A::AbstractVector)
+    @_inline_meta
+    axes1(A)
+end
 
 @noinline function throw_eachindex_mismatch(::IndexLinear, A...)
     throw(DimensionMismatch("all inputs to eachindex must have the same indices, got $(join(LinearIndices.(A), ", ", " and "))"))
@@ -219,8 +265,14 @@ function eachindex(A::AbstractArray, B::AbstractArray...)
     @_inline_meta
     eachindex(IndexStyle(A,B...), A, B...)
 end
-eachindex(::IndexLinear, A::AbstractArray) = (@_inline_meta; OneTo(length(A)))
-eachindex(::IndexLinear, A::AbstractVector) = (@_inline_meta; axes1(A))
+function eachindex(::IndexLinear, A::AbstractArray)
+    @_inline_meta
+    OneTo(length(A))
+end
+function eachindex(::IndexLinear, A::AbstractVector)
+    @_inline_meta
+    axes1(A)
+end
 function eachindex(::IndexLinear, A::AbstractArray, B::AbstractArray...)
     @_inline_meta
     indsA = eachindex(IndexLinear(), A)
@@ -232,10 +284,14 @@ function _all_match_first(f::F, inds, A, B...) where F<:Function
     @_inline_meta
     (inds == f(A)) & _all_match_first(f, inds, B...)
 end
-_all_match_first(f::F, inds) where F<:Function = true
+function _all_match_first(f::F, inds) where F <: Function
+    true
+end
 
 # keys with an IndexStyle
-keys(s::IndexStyle, A::AbstractArray, B::AbstractArray...) = eachindex(s, A, B...)
+function keys(s::IndexStyle, A::AbstractArray, B::AbstractArray...)
+    eachindex(s, A, B...)
+end
 
 """
     lastindex(collection) -> Integer
@@ -256,7 +312,10 @@ julia> lastindex(rand(3,4,5), 2)
 ```
 """
 lastindex(a::AbstractArray) = (@_inline_meta; last(eachindex(IndexLinear(), a)))
-lastindex(a::AbstractArray, d) = (@_inline_meta; last(axes(a, d)))
+function lastindex(a::AbstractArray, d)
+    @_inline_meta
+    last(axes(a, d))
+end
 
 """
     firstindex(collection) -> Integer
@@ -274,9 +333,14 @@ julia> firstindex(rand(3,4,5), 2)
 ```
 """
 firstindex(a::AbstractArray) = (@_inline_meta; first(eachindex(IndexLinear(), a)))
-firstindex(a::AbstractArray, d) = (@_inline_meta; first(axes(a, d)))
+function firstindex(a::AbstractArray, d)
+    @_inline_meta
+    first(axes(a, d))
+end
 
-first(a::AbstractArray) = a[first(eachindex(a))]
+function first(a::AbstractArray)
+    a[first(eachindex(a))]
+end
 
 """
     first(coll)
@@ -351,8 +415,12 @@ julia> stride(A,3)
 stride(A::AbstractArray, k::Integer) = strides(A)[k]
 
 @inline size_to_strides(s, d, sz...) = (s, size_to_strides(s * d, sz...)...)
-size_to_strides(s, d) = (s,)
-size_to_strides(s) = ()
+function size_to_strides(s, d)
+    (s,)
+end
+function size_to_strides(s)
+    ()
+end
 
 
 function isassigned(a::AbstractArray, i::Integer...)
@@ -487,10 +555,20 @@ function checkbounds_indices(::Type{Bool}, ::Tuple{}, I::Tuple)
     @_inline_meta
     checkindex(Bool, OneTo(1), I[1]) & checkbounds_indices(Bool, (), tail(I))
 end
-checkbounds_indices(::Type{Bool}, IA::Tuple, ::Tuple{}) = (@_inline_meta; all(x->unsafe_length(x)==1, IA))
-checkbounds_indices(::Type{Bool}, ::Tuple{}, ::Tuple{}) = true
+function checkbounds_indices(::Type{Bool}, IA::Tuple, ::Tuple{})
+    @_inline_meta
+    all((x->begin
+                unsafe_length(x) == 1
+            end), IA)
+end
+function checkbounds_indices(::Type{Bool}, ::Tuple{}, ::Tuple{})
+    true
+end
 
-throw_boundserror(A, I) = (@_noinline_meta; throw(BoundsError(A, I)))
+function throw_boundserror(A, I)
+    @_noinline_meta
+    throw(BoundsError(A, I))
+end
 
 # check along a single dimension
 """
@@ -512,15 +590,25 @@ false
 """
 checkindex(::Type{Bool}, inds::AbstractUnitRange, i) =
     throw(ArgumentError("unable to check bounds for indices of type $(typeof(i))"))
-checkindex(::Type{Bool}, inds::AbstractUnitRange, i::Real) = (first(inds) <= i) & (i <= last(inds))
-checkindex(::Type{Bool}, inds::AbstractUnitRange, ::Colon) = true
-checkindex(::Type{Bool}, inds::AbstractUnitRange, ::Slice) = true
+function checkindex(::Type{Bool}, inds::AbstractUnitRange, i::Real)
+    (first(inds) <= i) & (i <= last(inds))
+end
+function checkindex(::Type{Bool}, inds::AbstractUnitRange, ::Colon)
+    true
+end
+function checkindex(::Type{Bool}, inds::AbstractUnitRange, ::Slice)
+    true
+end
 function checkindex(::Type{Bool}, inds::AbstractUnitRange, r::AbstractRange)
     @_propagate_inbounds_meta
     isempty(r) | (checkindex(Bool, inds, first(r)) & checkindex(Bool, inds, last(r)))
 end
-checkindex(::Type{Bool}, indx::AbstractUnitRange, I::AbstractVector{Bool}) = indx == axes1(I)
-checkindex(::Type{Bool}, indx::AbstractUnitRange, I::AbstractArray{Bool}) = false
+function checkindex(::Type{Bool}, indx::AbstractUnitRange, I::AbstractVector{Bool})
+    indx == axes1(I)
+end
+function checkindex(::Type{Bool}, indx::AbstractUnitRange, I::AbstractArray{Bool})
+    false
+end
 function checkindex(::Type{Bool}, inds::AbstractUnitRange, I::AbstractArray)
     @_inline_meta
     b = true
@@ -578,27 +666,53 @@ julia> similar(falses(10), Float64, 2, 4)
 
 """
 similar(a::AbstractArray{T}) where {T}                             = similar(a, T)
-similar(a::AbstractArray, ::Type{T}) where {T}                     = similar(a, T, to_shape(axes(a)))
-similar(a::AbstractArray{T}, dims::Tuple) where {T}                = similar(a, T, to_shape(dims))
-similar(a::AbstractArray{T}, dims::DimOrInd...) where {T}          = similar(a, T, to_shape(dims))
-similar(a::AbstractArray, ::Type{T}, dims::DimOrInd...) where {T}  = similar(a, T, to_shape(dims))
+function similar(a::AbstractArray, ::Type{T}) where T
+    similar(a, T, to_shape(axes(a)))
+end
+function similar(a::AbstractArray{T}, dims::Tuple) where T
+    similar(a, T, to_shape(dims))
+end
+function similar(a::AbstractArray{T}, dims::DimOrInd...) where T
+    similar(a, T, to_shape(dims))
+end
+function similar(a::AbstractArray, ::Type{T}, dims::DimOrInd...) where T
+    similar(a, T, to_shape(dims))
+end
 # Similar supports specifying dims as either Integers or AbstractUnitRanges or any mixed combination
 # thereof. Ideally, we'd just convert Integers to OneTos and then call a canonical method with the axes,
 # but we don't want to require all AbstractArray subtypes to dispatch on Base.OneTo. So instead we
 # define this method to convert supported axes to Ints, with the expectation that an offset array
 # package will define a method with dims::Tuple{Union{Integer, UnitRange}, Vararg{Union{Integer, UnitRange}}}
-similar(a::AbstractArray, ::Type{T}, dims::Tuple{Union{Integer, OneTo}, Vararg{Union{Integer, OneTo}}}) where {T} = similar(a, T, to_shape(dims))
+function similar(a::AbstractArray, ::Type{T}, dims::Tuple{Union{Integer, OneTo}, Vararg{Union{Integer, OneTo}}}) where T
+    similar(a, T, to_shape(dims))
+end
 # similar creates an Array by default
-similar(a::AbstractArray, ::Type{T}, dims::Dims{N}) where {T,N}    = Array{T,N}(undef, dims)
+function similar(a::AbstractArray, ::Type{T}, dims::Dims{N}) where {T, N}
+    Array{T, N}(undef, dims)
+end
 
-to_shape(::Tuple{}) = ()
-to_shape(dims::Dims) = dims
-to_shape(dims::DimsOrInds) = map(to_shape, dims)::DimsOrInds
+function to_shape(::Tuple{})
+    ()
+end
+function to_shape(dims::Dims)
+    dims
+end
+function to_shape(dims::DimsOrInds)
+    map(to_shape, dims)::DimsOrInds
+end
 # each dimension
-to_shape(i::Int) = i
-to_shape(i::Integer) = Int(i)
-to_shape(r::OneTo) = Int(last(r))
-to_shape(r::AbstractUnitRange) = r
+function to_shape(i::Int)
+    i
+end
+function to_shape(i::Integer)
+    Int(i)
+end
+function to_shape(r::OneTo)
+    Int(last(r))
+end
+function to_shape(r::AbstractUnitRange)
+    r
+end
 
 """
     similar(storagetype, axes)
@@ -623,8 +737,12 @@ would create a 1-dimensional logical array whose indices match those
 of the columns of `A`.
 """
 similar(::Type{T}, dims::DimOrInd...) where {T<:AbstractArray} = similar(T, dims)
-similar(::Type{T}, shape::Tuple{Union{Integer, OneTo}, Vararg{Union{Integer, OneTo}}}) where {T<:AbstractArray} = similar(T, to_shape(shape))
-similar(::Type{T}, dims::Dims) where {T<:AbstractArray} = T(undef, dims)
+function similar(::Type{T}, shape::Tuple{Union{Integer, OneTo}, Vararg{Union{Integer, OneTo}}}) where T <: AbstractArray
+    similar(T, to_shape(shape))
+end
+function similar(::Type{T}, dims::Dims) where T <: AbstractArray
+    T(undef, dims)
+end
 
 """
     empty(v::AbstractVector, [eltype])
@@ -644,8 +762,12 @@ julia> empty([1.0, 2.0, 3.0], String)
 empty(a::AbstractVector{T}, ::Type{U}=T) where {T,U} = Vector{U}()
 
 # like empty, but should return a mutable collection, a Vector by default
-emptymutable(a::AbstractVector{T}, ::Type{U}=T) where {T,U} = Vector{U}()
-emptymutable(itr, ::Type{U}) where {U} = Vector{U}()
+function emptymutable(a::AbstractVector{T}, ::Type{U}=T) where {T, U}
+    Vector{U}()
+end
+function emptymutable(itr, ::Type{U}) where U
+    Vector{U}()
+end
 
 """
     copy!(dst, src) -> dst
@@ -751,8 +873,9 @@ end
 ## copy between abstract arrays - generally more efficient
 ## since a single index variable can be used.
 
-copyto!(dest::AbstractArray, src::AbstractArray) =
+function copyto!(dest::AbstractArray, src::AbstractArray)
     copyto!(IndexStyle(dest), dest, IndexStyle(src), src)
+end
 
 function copyto!(::IndexStyle, dest::AbstractArray, ::IndexStyle, src::AbstractArray)
     destinds, srcinds = LinearIndices(dest), LinearIndices(src)
@@ -853,9 +976,13 @@ function copymutable(a::AbstractArray)
     @_propagate_inbounds_meta
     copyto!(similar(a), a)
 end
-copymutable(itr) = collect(itr)
+function copymutable(itr)
+    collect(itr)
+end
 
-zero(x::AbstractArray{T}) where {T} = fill!(similar(x), zero(T))
+function zero(x::AbstractArray{T}) where T
+    fill!(similar(x), zero(T))
+end
 
 ## iteration support for arrays by iterating over `eachindex` in the array ##
 # Allows fast iteration by default for both IndexLinear and IndexCartesian arrays
@@ -869,14 +996,22 @@ function iterate(A::AbstractArray, state=(eachindex(A),))
     A[y[1]], (state[1], tail(y)...)
 end
 
-isempty(a::AbstractArray) = (length(a) == 0)
+function isempty(a::AbstractArray)
+    length(a) == 0
+end
 
 
 ## range conversions ##
 
-map(::Type{T}, r::StepRange) where {T<:Real} = T(r.start):T(r.step):T(last(r))
-map(::Type{T}, r::UnitRange) where {T<:Real} = T(r.start):T(last(r))
-map(::Type{T}, r::StepRangeLen) where {T<:AbstractFloat} = convert(StepRangeLen{T}, r)
+function map(::Type{T}, r::StepRange) where T <: Real
+    T(r.start):T(r.step):T(last(r))
+end
+function map(::Type{T}, r::UnitRange) where T <: Real
+    T(r.start):T(last(r))
+end
+function map(::Type{T}, r::StepRangeLen) where T <: AbstractFloat
+    convert(StepRangeLen{T}, r)
+end
 function map(::Type{T}, r::LinRange) where T<:AbstractFloat
     LinRange(T(r.start), T(r.stop), length(r))
 end
@@ -886,7 +1021,9 @@ end
 # note: the following type definitions don't mean any AbstractArray is convertible to
 # a data Ref. they just map the array element type to the pointer type for
 # convenience in cases that work.
-pointer(x::AbstractArray{T}) where {T} = unsafe_convert(Ptr{T}, x)
+function pointer(x::AbstractArray{T}) where T
+    unsafe_convert(Ptr{T}, x)
+end
 function pointer(x::AbstractArray{T}, i::Integer) where T
     @_inline_meta
     unsafe_convert(Ptr{T}, x) + (i - first(LinearIndices(x)))*elsize(x)
@@ -941,28 +1078,45 @@ function unsafe_getindex(A::AbstractArray, I...)
     r
 end
 
-error_if_canonical_getindex(::IndexLinear, A::AbstractArray, ::Int) =
+function error_if_canonical_getindex(::IndexLinear, A::AbstractArray, ::Int)
     error("getindex not defined for ", typeof(A))
-error_if_canonical_getindex(::IndexCartesian, A::AbstractArray{T,N}, ::Vararg{Int,N}) where {T,N} =
+end
+function error_if_canonical_getindex(::IndexCartesian, A::AbstractArray{T, N}, ::Vararg{Int, N}) where {T, N}
     error("getindex not defined for ", typeof(A))
-error_if_canonical_getindex(::IndexStyle, ::AbstractArray, ::Any...) = nothing
+end
+function error_if_canonical_getindex(::IndexStyle, ::AbstractArray, ::Any...)
+    nothing
+end
 
 ## Internal definitions
-_getindex(::IndexStyle, A::AbstractArray, I...) =
+function _getindex(::IndexStyle, A::AbstractArray, I...)
     error("getindex for $(typeof(A)) with types $(typeof(I)) is not supported")
+end
 
 ## IndexLinear Scalar indexing: canonical method is one Int
-_getindex(::IndexLinear, A::AbstractArray, i::Int) = (@_propagate_inbounds_meta; getindex(A, i))
+function _getindex(::IndexLinear, A::AbstractArray, i::Int)
+    @_propagate_inbounds_meta
+    getindex(A, i)
+end
 function _getindex(::IndexLinear, A::AbstractArray, I::Vararg{Int,M}) where M
     @_inline_meta
     @boundscheck checkbounds(A, I...) # generally _to_linear_index requires bounds checking
     @inbounds r = getindex(A, _to_linear_index(A, I...))
     r
 end
-_to_linear_index(A::AbstractArray, i::Int) = i
-_to_linear_index(A::AbstractVector, i::Int, I::Int...) = i
-_to_linear_index(A::AbstractArray) = 1
-_to_linear_index(A::AbstractArray, I::Int...) = (@_inline_meta; _sub2ind(A, I...))
+function _to_linear_index(A::AbstractArray, i::Int)
+    i
+end
+function _to_linear_index(A::AbstractVector, i::Int, I::Int...)
+    i
+end
+function _to_linear_index(A::AbstractArray)
+    1
+end
+function _to_linear_index(A::AbstractArray, I::Int...)
+    @_inline_meta
+    _sub2ind(A, I...)
+end
 
 ## IndexCartesian Scalar indexing: Canonical method is full dimensionality of Ints
 function _getindex(::IndexCartesian, A::AbstractArray, I::Vararg{Int,M}) where M
@@ -975,29 +1129,56 @@ function _getindex(::IndexCartesian, A::AbstractArray{T,N}, I::Vararg{Int, N}) w
     @_propagate_inbounds_meta
     getindex(A, I...)
 end
-_to_subscript_indices(A::AbstractArray, i::Int) = (@_inline_meta; _unsafe_ind2sub(A, i))
-_to_subscript_indices(A::AbstractArray{T,N}) where {T,N} = (@_inline_meta; fill_to_length((), 1, Val(N)))
-_to_subscript_indices(A::AbstractArray{T,0}) where {T} = ()
-_to_subscript_indices(A::AbstractArray{T,0}, i::Int) where {T} = ()
-_to_subscript_indices(A::AbstractArray{T,0}, I::Int...) where {T} = ()
+function _to_subscript_indices(A::AbstractArray, i::Int)
+    @_inline_meta
+    _unsafe_ind2sub(A, i)
+end
+function _to_subscript_indices(A::AbstractArray{T, N}) where {T, N}
+    @_inline_meta
+    fill_to_length((), 1, Val(N))
+end
+function _to_subscript_indices(A::AbstractArray{T, 0}) where T
+    ()
+end
+function _to_subscript_indices(A::AbstractArray{T, 0}, i::Int) where T
+    ()
+end
+function _to_subscript_indices(A::AbstractArray{T, 0}, I::Int...) where T
+    ()
+end
 function _to_subscript_indices(A::AbstractArray{T,N}, I::Int...) where {T,N}
     @_inline_meta
     J, Jrem = IteratorsMD.split(I, Val(N))
     _to_subscript_indices(A, J, Jrem)
 end
-_to_subscript_indices(A::AbstractArray, J::Tuple, Jrem::Tuple{}) =
+function _to_subscript_indices(A::AbstractArray, J::Tuple, Jrem::Tuple{})
     __to_subscript_indices(A, axes(A), J, Jrem)
+end
 function __to_subscript_indices(A::AbstractArray,
         ::Tuple{AbstractUnitRange,Vararg{AbstractUnitRange}}, J::Tuple, Jrem::Tuple{})
     @_inline_meta
     (J..., map(first, tail(_remaining_size(J, axes(A))))...)
 end
-_to_subscript_indices(A, J::Tuple, Jrem::Tuple) = J # already bounds-checked, safe to drop
-_to_subscript_indices(A::AbstractArray{T,N}, I::Vararg{Int,N}) where {T,N} = I
-_remaining_size(::Tuple{Any}, t::Tuple) = t
-_remaining_size(h::Tuple, t::Tuple) = (@_inline_meta; _remaining_size(tail(h), tail(t)))
-_unsafe_ind2sub(::Tuple{}, i) = () # _ind2sub may throw(BoundsError()) in this case
-_unsafe_ind2sub(sz, i) = (@_inline_meta; _ind2sub(sz, i))
+function _to_subscript_indices(A, J::Tuple, Jrem::Tuple)
+    J
+end # already bounds-checked, safe to drop
+function _to_subscript_indices(A::AbstractArray{T, N}, I::Vararg{Int, N}) where {T, N}
+    I
+end
+function _remaining_size(::Tuple{Any}, t::Tuple)
+    t
+end
+function _remaining_size(h::Tuple, t::Tuple)
+    @_inline_meta
+    _remaining_size(tail(h), tail(t))
+end
+function _unsafe_ind2sub(::Tuple{}, i)
+    ()
+end # _ind2sub may throw(BoundsError()) in this case
+function _unsafe_ind2sub(sz, i)
+    @_inline_meta
+    _ind2sub(sz, i)
+end
 
 ## Setindex! is defined similarly. We first dispatch to an internal _setindex!
 # function that allows dispatch on array storage
@@ -1034,18 +1215,26 @@ function unsafe_setindex!(A::AbstractArray, v, I...)
     r
 end
 
-error_if_canonical_setindex(::IndexLinear, A::AbstractArray, ::Int) =
+function error_if_canonical_setindex(::IndexLinear, A::AbstractArray, ::Int)
     error("setindex! not defined for ", typeof(A))
-error_if_canonical_setindex(::IndexCartesian, A::AbstractArray{T,N}, ::Vararg{Int,N}) where {T,N} =
+end
+function error_if_canonical_setindex(::IndexCartesian, A::AbstractArray{T, N}, ::Vararg{Int, N}) where {T, N}
     error("setindex! not defined for ", typeof(A))
-error_if_canonical_setindex(::IndexStyle, ::AbstractArray, ::Any...) = nothing
+end
+function error_if_canonical_setindex(::IndexStyle, ::AbstractArray, ::Any...)
+    nothing
+end
 
 ## Internal definitions
-_setindex!(::IndexStyle, A::AbstractArray, v, I...) =
+function _setindex!(::IndexStyle, A::AbstractArray, v, I...)
     error("setindex! for $(typeof(A)) with types $(typeof(I)) is not supported")
+end
 
 ## IndexLinear Scalar indexing
-_setindex!(::IndexLinear, A::AbstractArray, v, i::Int) = (@_propagate_inbounds_meta; setindex!(A, v, i))
+function _setindex!(::IndexLinear, A::AbstractArray, v, i::Int)
+    @_propagate_inbounds_meta
+    setindex!(A, v, i)
+end
 function _setindex!(::IndexLinear, A::AbstractArray, v, I::Vararg{Int,M}) where M
     @_inline_meta
     @boundscheck checkbounds(A, I...)
@@ -1108,8 +1297,12 @@ provide a [`Base.unaliascopy`](@ref) implementation.
 See also [`Base.mightalias`](@ref).
 """
 unalias(dest, A::AbstractArray) = mightalias(dest, A) ? unaliascopy(A) : A
-unalias(dest, A::AbstractRange) = A
-unalias(dest, A) = A
+function unalias(dest, A::AbstractRange)
+    A
+end
+function unalias(dest, A)
+    A
+end
 
 """
     Base.unaliascopy(A)
@@ -1124,14 +1317,19 @@ much more common case where aliasing does not occur. By default,
 `Base.unaliascopy(A)`.
 """
 unaliascopy(A::Array) = copy(A)
-unaliascopy(A::AbstractArray)::typeof(A) = (@_noinline_meta; _unaliascopy(A, copy(A)))
-_unaliascopy(A::T, C::T) where {T} = C
-_unaliascopy(A, C) = throw(ArgumentError("""
-    an array of type `$(typeof(A).name)` shares memory with another argument and must
-    make a preventative copy of itself in order to maintain consistent semantics,
-    but `copy(A)` returns a new array of type `$(typeof(C))`. To fix, implement:
-        `Base.unaliascopy(A::$(typeof(A).name))::typeof(A)`"""))
-unaliascopy(A) = A
+function unaliascopy(A::AbstractArray)::typeof(A)
+    @_noinline_meta
+    _unaliascopy(A, copy(A))
+end
+function _unaliascopy(A::T, C::T) where T
+    C
+end
+function _unaliascopy(A, C)
+    throw(ArgumentError("an array of type `$((typeof(A)).name)` shares memory with another argument and must\nmake a preventative copy of itself in order to maintain consistent semantics,\nbut `copy(A)` returns a new array of type `$(typeof(C))`. To fix, implement:\n    `Base.unaliascopy(A::$((typeof(A)).name))::typeof(A)`"))
+end
+function unaliascopy(A)
+    A
+end
 
 """
     Base.mightalias(A::AbstractArray, B::AbstractArray)
@@ -1142,17 +1340,37 @@ By default, this simply checks if either of the arrays reference the same memory
 regions, as identified by their [`Base.dataids`](@ref).
 """
 mightalias(A::AbstractArray, B::AbstractArray) = !isbits(A) && !isbits(B) && !_isdisjoint(dataids(A), dataids(B))
-mightalias(x, y) = false
+function mightalias(x, y)
+    false
+end
 
-_isdisjoint(as::Tuple{}, bs::Tuple{}) = true
-_isdisjoint(as::Tuple{}, bs::Tuple{Any}) = true
-_isdisjoint(as::Tuple{}, bs::Tuple) = true
-_isdisjoint(as::Tuple{Any}, bs::Tuple{}) = true
-_isdisjoint(as::Tuple{Any}, bs::Tuple{Any}) = as[1] != bs[1]
-_isdisjoint(as::Tuple{Any}, bs::Tuple) = !(as[1] in bs)
-_isdisjoint(as::Tuple, bs::Tuple{}) = true
-_isdisjoint(as::Tuple, bs::Tuple{Any}) = !(bs[1] in as)
-_isdisjoint(as::Tuple, bs::Tuple) = !(as[1] in bs) && _isdisjoint(tail(as), bs)
+function _isdisjoint(as::Tuple{}, bs::Tuple{})
+    true
+end
+function _isdisjoint(as::Tuple{}, bs::Tuple{Any})
+    true
+end
+function _isdisjoint(as::Tuple{}, bs::Tuple)
+    true
+end
+function _isdisjoint(as::Tuple{Any}, bs::Tuple{})
+    true
+end
+function _isdisjoint(as::Tuple{Any}, bs::Tuple{Any})
+    as[1] != bs[1]
+end
+function _isdisjoint(as::Tuple{Any}, bs::Tuple)
+    !(as[1] in bs)
+end
+function _isdisjoint(as::Tuple, bs::Tuple{})
+    true
+end
+function _isdisjoint(as::Tuple, bs::Tuple{Any})
+    !(bs[1] in as)
+end
+function _isdisjoint(as::Tuple, bs::Tuple)
+    !(as[1] in bs) && _isdisjoint(tail(as), bs)
+end
 
 """
     Base.dataids(A::AbstractArray)
@@ -1165,18 +1383,42 @@ their component parts.  A typical definition for an array that wraps a parent is
 `Base.dataids(C::CustomArray) = dataids(C.parent)`.
 """
 dataids(A::AbstractArray) = (UInt(objectid(A)),)
-dataids(A::Array) = (UInt(pointer(A)),)
-dataids(::AbstractRange) = ()
-dataids(x) = ()
+function dataids(A::Array)
+    (UInt(pointer(A)),)
+end
+function dataids(::AbstractRange)
+    ()
+end
+function dataids(x)
+    ()
+end
 
 ## get (getindex with a default value) ##
 
 RangeVecIntList{A<:AbstractVector{Int}} = Union{Tuple{Vararg{Union{AbstractRange, AbstractVector{Int}}}},
     AbstractVector{UnitRange{Int}}, AbstractVector{AbstractRange{Int}}, AbstractVector{A}}
 
-get(A::AbstractArray, i::Integer, default) = checkbounds(Bool, A, i) ? A[i] : default
-get(A::AbstractArray, I::Tuple{}, default) = checkbounds(Bool, A) ? A[] : default
-get(A::AbstractArray, I::Dims, default) = checkbounds(Bool, A, I...) ? A[I...] : default
+function get(A::AbstractArray, i::Integer, default)
+    if checkbounds(Bool, A, i)
+        A[i]
+    else
+        default
+    end
+end
+function get(A::AbstractArray, I::Tuple{}, default)
+    if checkbounds(Bool, A)
+        A[]
+    else
+        default
+    end
+end
+function get(A::AbstractArray, I::Dims, default)
+    if checkbounds(Bool, A, I...)
+        A[I...]
+    else
+        default
+    end
+end
 
 function get!(X::AbstractVector{T}, A::AbstractVector, I::Union{AbstractRange,AbstractVector{Int}}, default::T) where T
     # 1d is not linear indexing
@@ -1196,7 +1438,9 @@ function get!(X::AbstractArray{T}, A::AbstractArray, I::Union{AbstractRange,Abst
     X
 end
 
-get(A::AbstractArray, I::AbstractRange, default) = get!(similar(A, typeof(default), index_shape(I)), A, I, default)
+function get(A::AbstractArray, I::AbstractRange, default)
+    get!(similar(A, typeof(default), index_shape(I)), A, I, default)
+end
 
 function get!(X::AbstractArray{T}, A::AbstractArray, I::RangeVecIntList, default::T) where T
     fill!(X, default)
@@ -1205,42 +1449,85 @@ function get!(X::AbstractArray{T}, A::AbstractArray, I::RangeVecIntList, default
     X
 end
 
-get(A::AbstractArray, I::RangeVecIntList, default) =
+function get(A::AbstractArray, I::RangeVecIntList, default)
     get!(similar(A, typeof(default), index_shape(I...)), A, I, default)
+end
 
 ## structured matrix methods ##
-replace_in_print_matrix(A::AbstractMatrix,i::Integer,j::Integer,s::AbstractString) = s
-replace_in_print_matrix(A::AbstractVector,i::Integer,j::Integer,s::AbstractString) = s
+function replace_in_print_matrix(A::AbstractMatrix, i::Integer, j::Integer, s::AbstractString)
+    s
+end
+function replace_in_print_matrix(A::AbstractVector, i::Integer, j::Integer, s::AbstractString)
+    s
+end
 
 ## Concatenation ##
-eltypeof(x) = typeof(x)
-eltypeof(x::AbstractArray) = eltype(x)
+function eltypeof(x)
+    typeof(x)
+end
+function eltypeof(x::AbstractArray)
+    eltype(x)
+end
 
-promote_eltypeof() = Bottom
-promote_eltypeof(v1, vs...) = promote_type(eltypeof(v1), promote_eltypeof(vs...))
+function promote_eltypeof()
+    Bottom
+end
+function promote_eltypeof(v1, vs...)
+    promote_type(eltypeof(v1), promote_eltypeof(vs...))
+end
 
-promote_eltype() = Bottom
-promote_eltype(v1, vs...) = promote_type(eltype(v1), promote_eltype(vs...))
+function promote_eltype()
+    Bottom
+end
+function promote_eltype(v1, vs...)
+    promote_type(eltype(v1), promote_eltype(vs...))
+end
 
 #TODO: ERROR CHECK
-_cat(catdim::Integer) = Vector{Any}()
+function _cat(catdim::Integer)
+    Vector{Any}()
+end
 
-typed_vcat(::Type{T}) where {T} = Vector{T}()
-typed_hcat(::Type{T}) where {T} = Vector{T}()
+function typed_vcat(::Type{T}) where T
+    Vector{T}()
+end
+function typed_hcat(::Type{T}) where T
+    Vector{T}()
+end
 
 ## cat: special cases
-vcat(X::T...) where {T}         = T[ X[i] for i=1:length(X) ]
-vcat(X::T...) where {T<:Number} = T[ X[i] for i=1:length(X) ]
-hcat(X::T...) where {T}         = T[ X[j] for i=1:1, j=1:length(X) ]
-hcat(X::T...) where {T<:Number} = T[ X[j] for i=1:1, j=1:length(X) ]
+function vcat(X::T...) where T
+    T[X[i] for i = 1:length(X)]
+end
+function vcat(X::T...) where T <: Number
+    T[X[i] for i = 1:length(X)]
+end
+function hcat(X::T...) where T
+    T[X[j] for i = 1:1, j = 1:length(X)]
+end
+function hcat(X::T...) where T <: Number
+    T[X[j] for i = 1:1, j = 1:length(X)]
+end
 
-vcat(X::Number...) = hvcat_fill(Vector{promote_typeof(X...)}(undef, length(X)), X)
-hcat(X::Number...) = hvcat_fill(Matrix{promote_typeof(X...)}(undef, 1,length(X)), X)
-typed_vcat(::Type{T}, X::Number...) where {T} = hvcat_fill(Vector{T}(undef, length(X)), X)
-typed_hcat(::Type{T}, X::Number...) where {T} = hvcat_fill(Matrix{T}(undef, 1,length(X)), X)
+function vcat(X::Number...)
+    hvcat_fill(Vector{promote_typeof(X...)}(undef, length(X)), X)
+end
+function hcat(X::Number...)
+    hvcat_fill(Matrix{promote_typeof(X...)}(undef, 1, length(X)), X)
+end
+function typed_vcat(::Type{T}, X::Number...) where T
+    hvcat_fill(Vector{T}(undef, length(X)), X)
+end
+function typed_hcat(::Type{T}, X::Number...) where T
+    hvcat_fill(Matrix{T}(undef, 1, length(X)), X)
+end
 
-vcat(V::AbstractVector...) = typed_vcat(promote_eltype(V...), V...)
-vcat(V::AbstractVector{T}...) where {T} = typed_vcat(T, V...)
+function vcat(V::AbstractVector...)
+    typed_vcat(promote_eltype(V...), V...)
+end
+function vcat(V::AbstractVector{T}...) where T
+    typed_vcat(T, V...)
+end
 
 # FIXME: this alias would better be Union{AbstractVector{T}, Tuple{Vararg{T}}}
 # and method signatures should do AbstractVecOrTuple{<:T} when they want covariance,
@@ -1263,10 +1550,16 @@ function _typed_vcat(::Type{T}, V::AbstractVecOrTuple{AbstractVector}) where T
     a
 end
 
-typed_hcat(::Type{T}, A::AbstractVecOrMat...) where {T} = _typed_hcat(T, A)
+function typed_hcat(::Type{T}, A::AbstractVecOrMat...) where T
+    _typed_hcat(T, A)
+end
 
-hcat(A::AbstractVecOrMat...) = typed_hcat(promote_eltype(A...), A...)
-hcat(A::AbstractVecOrMat{T}...) where {T} = typed_hcat(T, A...)
+function hcat(A::AbstractVecOrMat...)
+    typed_hcat(promote_eltype(A...), A...)
+end
+function hcat(A::AbstractVecOrMat{T}...) where T
+    typed_hcat(T, A...)
+end
 
 function _typed_hcat(::Type{T}, A::AbstractVecOrTuple{AbstractVecOrMat}) where T
     nargs = length(A)
@@ -1302,8 +1595,12 @@ function _typed_hcat(::Type{T}, A::AbstractVecOrTuple{AbstractVecOrMat}) where T
     return B
 end
 
-vcat(A::AbstractVecOrMat...) = typed_vcat(promote_eltype(A...), A...)
-vcat(A::AbstractVecOrMat{T}...) where {T} = typed_vcat(T, A...)
+function vcat(A::AbstractVecOrMat...)
+    typed_vcat(promote_eltype(A...), A...)
+end
+function vcat(A::AbstractVecOrMat{T}...) where T
+    typed_vcat(T, A...)
+end
 
 function _typed_vcat(::Type{T}, A::AbstractVecOrTuple{AbstractVecOrMat}) where T
     nargs = length(A)
@@ -1325,35 +1622,65 @@ function _typed_vcat(::Type{T}, A::AbstractVecOrTuple{AbstractVecOrMat}) where T
     return B
 end
 
-typed_vcat(::Type{T}, A::AbstractVecOrMat...) where {T} = _typed_vcat(T, A)
+function typed_vcat(::Type{T}, A::AbstractVecOrMat...) where T
+    _typed_vcat(T, A)
+end
 
-reduce(::typeof(vcat), A::AbstractVector{<:AbstractVecOrMat}) =
+function reduce(::typeof(vcat), A::AbstractVector{<:AbstractVecOrMat})
     _typed_vcat(mapreduce(eltype, promote_type, A), A)
+end
 
-reduce(::typeof(hcat), A::AbstractVector{<:AbstractVecOrMat}) =
+function reduce(::typeof(hcat), A::AbstractVector{<:AbstractVecOrMat})
     _typed_hcat(mapreduce(eltype, promote_type, A), A)
+end
 
 ## cat: general case
 
 # helper functions
-cat_size(A) = (1,)
-cat_size(A::AbstractArray) = size(A)
-cat_size(A, d) = 1
-cat_size(A::AbstractArray, d) = size(A, d)
+function cat_size(A)
+    (1,)
+end
+function cat_size(A::AbstractArray)
+    size(A)
+end
+function cat_size(A, d)
+    1
+end
+function cat_size(A::AbstractArray, d)
+    size(A, d)
+end
 
-cat_indices(A, d) = OneTo(1)
-cat_indices(A::AbstractArray, d) = axes(A, d)
+function cat_indices(A, d)
+    OneTo(1)
+end
+function cat_indices(A::AbstractArray, d)
+    axes(A, d)
+end
 
-cat_similar(A, T, shape) = Array{T}(undef, shape)
-cat_similar(A::AbstractArray, T, shape) = similar(A, T, shape)
+function cat_similar(A, T, shape)
+    Array{T}(undef, shape)
+end
+function cat_similar(A::AbstractArray, T, shape)
+    similar(A, T, shape)
+end
 
-cat_shape(dims, shape::Tuple) = shape
+function cat_shape(dims, shape::Tuple)
+    shape
+end
 @inline cat_shape(dims, shape::Tuple, nshape::Tuple, shapes::Tuple...) =
     cat_shape(dims, _cshp(1, dims, shape, nshape), shapes...)
 
-_cshp(ndim::Int, ::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
-_cshp(ndim::Int, ::Tuple{}, ::Tuple{}, nshape) = nshape
-_cshp(ndim::Int, dims, ::Tuple{}, ::Tuple{}) = ntuple(b -> 1, Val(length(dims)))
+function _cshp(ndim::Int, ::Tuple{}, ::Tuple{}, ::Tuple{})
+    ()
+end
+function _cshp(ndim::Int, ::Tuple{}, ::Tuple{}, nshape)
+    nshape
+end
+function _cshp(ndim::Int, dims, ::Tuple{}, ::Tuple{})
+    ntuple((b->begin
+                1
+            end), Val(length(dims)))
+end
 @inline _cshp(ndim::Int, dims, shape, ::Tuple{}) =
     (shape[1] + dims[1], _cshp(ndim + 1, tail(dims), tail(shape), ())...)
 @inline _cshp(ndim::Int, dims, ::Tuple{}, nshape) =
@@ -1373,8 +1700,13 @@ end
     (next, _cshp(ndim + 1, tail(dims), tail(shape), tail(nshape))...)
 end
 
-_cs(d, a, b) = (a == b ? a : throw(DimensionMismatch(
-    "mismatch in dimension $d (expected $a got $b)")))
+function _cs(d, a, b)
+    if a == b
+        a
+    else
+        throw(DimensionMismatch("mismatch in dimension $(d) (expected $(a) got $(b))"))
+    end
+end
 
 function dims2cat(::Val{n}) where {n}
     n <= 0 && throw(ArgumentError("cat dimension must be a positive integer, but got $n"))
@@ -1388,7 +1720,9 @@ function dims2cat(dims)
     ntuple(in(dims), maximum(dims))
 end
 
-_cat(dims, X...) = cat_t(promote_eltypeof(X...), X...; dims=dims)
+function _cat(dims, X...)
+    cat_t(promote_eltypeof(X...), X...; dims=dims)
+end
 
 @inline cat_t(::Type{T}, X...; dims) where {T} = _cat_t(dims, T, X...)
 @inline function _cat_t(dims, T::Type, X...)
@@ -1499,8 +1833,12 @@ julia> hcat(c...)
 """
 hcat(X...) = cat(X...; dims=Val(2))
 
-typed_vcat(T::Type, X...) = cat_t(T, X...; dims=Val(1))
-typed_hcat(T::Type, X...) = cat_t(T, X...; dims=Val(2))
+function typed_vcat(T::Type, X...)
+    cat_t(T, X...; dims=Val(1))
+end
+function typed_hcat(T::Type, X...)
+    cat_t(T, X...; dims=Val(2))
+end
 
 """
     cat(A...; dims=dims)
@@ -1518,23 +1856,49 @@ dimensions for every new input array and putting zero blocks elsewhere. For exam
 diagonal.
 """
 @inline cat(A...; dims) = _cat(dims, A...)
-_cat(catdims, A::AbstractArray{T}...) where {T} = cat_t(T, A...; dims=catdims)
+function _cat(catdims, A::AbstractArray{T}...) where T
+    cat_t(T, A...; dims=catdims)
+end
 
 # The specializations for 1 and 2 inputs are important
 # especially when running with --inline=no, see #11158
-vcat(A::AbstractArray) = cat(A; dims=Val(1))
-vcat(A::AbstractArray, B::AbstractArray) = cat(A, B; dims=Val(1))
-vcat(A::AbstractArray...) = cat(A...; dims=Val(1))
-hcat(A::AbstractArray) = cat(A; dims=Val(2))
-hcat(A::AbstractArray, B::AbstractArray) = cat(A, B; dims=Val(2))
-hcat(A::AbstractArray...) = cat(A...; dims=Val(2))
+function vcat(A::AbstractArray)
+    cat(A; dims=Val(1))
+end
+function vcat(A::AbstractArray, B::AbstractArray)
+    cat(A, B; dims=Val(1))
+end
+function vcat(A::AbstractArray...)
+    cat(A...; dims=Val(1))
+end
+function hcat(A::AbstractArray)
+    cat(A; dims=Val(2))
+end
+function hcat(A::AbstractArray, B::AbstractArray)
+    cat(A, B; dims=Val(2))
+end
+function hcat(A::AbstractArray...)
+    cat(A...; dims=Val(2))
+end
 
-typed_vcat(T::Type, A::AbstractArray) = cat_t(T, A; dims=Val(1))
-typed_vcat(T::Type, A::AbstractArray, B::AbstractArray) = cat_t(T, A, B; dims=Val(1))
-typed_vcat(T::Type, A::AbstractArray...) = cat_t(T, A...; dims=Val(1))
-typed_hcat(T::Type, A::AbstractArray) = cat_t(T, A; dims=Val(2))
-typed_hcat(T::Type, A::AbstractArray, B::AbstractArray) = cat_t(T, A, B; dims=Val(2))
-typed_hcat(T::Type, A::AbstractArray...) = cat_t(T, A...; dims=Val(2))
+function typed_vcat(T::Type, A::AbstractArray)
+    cat_t(T, A; dims=Val(1))
+end
+function typed_vcat(T::Type, A::AbstractArray, B::AbstractArray)
+    cat_t(T, A, B; dims=Val(1))
+end
+function typed_vcat(T::Type, A::AbstractArray...)
+    cat_t(T, A...; dims=Val(1))
+end
+function typed_hcat(T::Type, A::AbstractArray)
+    cat_t(T, A; dims=Val(2))
+end
+function typed_hcat(T::Type, A::AbstractArray, B::AbstractArray)
+    cat_t(T, A, B; dims=Val(2))
+end
+function typed_hcat(T::Type, A::AbstractArray...)
+    cat_t(T, A...; dims=Val(2))
+end
 
 # 2d horizontal and vertical concatenation
 
@@ -1586,7 +1950,9 @@ If the first argument is a single integer `n`, then all block rows are assumed t
 block columns.
 """
 hvcat(rows::Tuple{Vararg{Int}}, xs::AbstractVecOrMat...) = typed_hvcat(promote_eltype(xs...), rows, xs...)
-hvcat(rows::Tuple{Vararg{Int}}, xs::AbstractVecOrMat{T}...) where {T} = typed_hvcat(T, rows, xs...)
+function hvcat(rows::Tuple{Vararg{Int}}, xs::AbstractVecOrMat{T}...) where T
+    typed_hvcat(T, rows, xs...)
+end
 
 function typed_hvcat(::Type{T}, rows::Tuple{Vararg{Int}}, as::AbstractVecOrMat...) where T
     nbr = length(rows)  # number of block rows
@@ -1631,8 +1997,12 @@ function typed_hvcat(::Type{T}, rows::Tuple{Vararg{Int}}, as::AbstractVecOrMat..
     out
 end
 
-hvcat(rows::Tuple{Vararg{Int}}) = []
-typed_hvcat(::Type{T}, rows::Tuple{Vararg{Int}}) where {T} = Vector{T}()
+function hvcat(rows::Tuple{Vararg{Int}})
+    []
+end
+function typed_hvcat(::Type{T}, rows::Tuple{Vararg{Int}}) where T
+    Vector{T}()
+end
 
 function hvcat(rows::Tuple{Vararg{Int}}, xs::T...) where T<:Number
     nr = length(rows)
@@ -1667,8 +2037,12 @@ function hvcat_fill(a::Array, xs::Tuple)
     a
 end
 
-hvcat(rows::Tuple{Vararg{Int}}, xs::Number...) = typed_hvcat(promote_typeof(xs...), rows, xs...)
-hvcat(rows::Tuple{Vararg{Int}}, xs...) = typed_hvcat(promote_eltypeof(xs...), rows, xs...)
+function hvcat(rows::Tuple{Vararg{Int}}, xs::Number...)
+    typed_hvcat(promote_typeof(xs...), rows, xs...)
+end
+function hvcat(rows::Tuple{Vararg{Int}}, xs...)
+    typed_hvcat(promote_eltypeof(xs...), rows, xs...)
+end
 
 function typed_hvcat(::Type{T}, rows::Tuple{Vararg{Int}}, xs::Number...) where T
     nr = length(rows)
@@ -1720,7 +2094,9 @@ function cmp(A::AbstractVector, B::AbstractVector)
     return cmp(length(A), length(B))
 end
 
-isless(A::AbstractVector, B::AbstractVector) = cmp(A, B) < 0
+function isless(A::AbstractVector, B::AbstractVector)
+    cmp(A, B) < 0
+end
 
 function (==)(A::AbstractArray, B::AbstractArray)
     if axes(A) != axes(B)
@@ -1751,22 +2127,45 @@ function _ind2sub(A::AbstractArray, ind)
 end
 
 # 0-dimensional arrays and indexing with []
-_sub2ind(::Tuple{}) = 1
-_sub2ind(::DimsInteger) = 1
-_sub2ind(::Indices) = 1
-_sub2ind(::Tuple{}, I::Integer...) = (@_inline_meta; _sub2ind_recurse((), 1, 1, I...))
+function _sub2ind(::Tuple{})
+    1
+end
+function _sub2ind(::DimsInteger)
+    1
+end
+function _sub2ind(::Indices)
+    1
+end
+function _sub2ind(::Tuple{}, I::Integer...)
+    @_inline_meta
+    _sub2ind_recurse((), 1, 1, I...)
+end
 
 # Generic cases
-_sub2ind(dims::DimsInteger, I::Integer...) = (@_inline_meta; _sub2ind_recurse(dims, 1, 1, I...))
-_sub2ind(inds::Indices, I::Integer...) = (@_inline_meta; _sub2ind_recurse(inds, 1, 1, I...))
+function _sub2ind(dims::DimsInteger, I::Integer...)
+    @_inline_meta
+    _sub2ind_recurse(dims, 1, 1, I...)
+end
+function _sub2ind(inds::Indices, I::Integer...)
+    @_inline_meta
+    _sub2ind_recurse(inds, 1, 1, I...)
+end
 # In 1d, there's a question of whether we're doing cartesian indexing
 # or linear indexing. Support only the former.
-_sub2ind(inds::Indices{1}, I::Integer...) =
+function _sub2ind(inds::Indices{1}, I::Integer...)
     throw(ArgumentError("Linear indexing is not defined for one-dimensional arrays"))
-_sub2ind(inds::Tuple{OneTo}, I::Integer...) = (@_inline_meta; _sub2ind_recurse(inds, 1, 1, I...)) # only OneTo is safe
-_sub2ind(inds::Tuple{OneTo}, i::Integer)    = i
+end
+function _sub2ind(inds::Tuple{OneTo}, I::Integer...)
+    @_inline_meta
+    _sub2ind_recurse(inds, 1, 1, I...)
+end # only OneTo is safe
+function _sub2ind(inds::Tuple{OneTo}, i::Integer)
+    i
+end
 
-_sub2ind_recurse(::Any, L, ind) = ind
+function _sub2ind_recurse(::Any, L, ind)
+    ind
+end
 function _sub2ind_recurse(::Tuple{}, L, ind, i::Integer, I::Integer...)
     @_inline_meta
     _sub2ind_recurse((), L, ind+(i-1)*L, I...)
@@ -1777,20 +2176,48 @@ function _sub2ind_recurse(inds, L, ind, i::Integer, I::Integer...)
     _sub2ind_recurse(tail(inds), nextL(L, r1), ind+offsetin(i, r1)*L, I...)
 end
 
-nextL(L, l::Integer) = L*l
-nextL(L, r::AbstractUnitRange) = L*unsafe_length(r)
-nextL(L, r::Slice) = L*unsafe_length(r.indices)
-offsetin(i, l::Integer) = i-1
-offsetin(i, r::AbstractUnitRange) = i-first(r)
+function nextL(L, l::Integer)
+    L * l
+end
+function nextL(L, r::AbstractUnitRange)
+    L * unsafe_length(r)
+end
+function nextL(L, r::Slice)
+    L * unsafe_length(r.indices)
+end
+function offsetin(i, l::Integer)
+    i - 1
+end
+function offsetin(i, r::AbstractUnitRange)
+    i - first(r)
+end
 
-_ind2sub(::Tuple{}, ind::Integer) = (@_inline_meta; ind == 1 ? () : throw(BoundsError()))
-_ind2sub(dims::DimsInteger, ind::Integer) = (@_inline_meta; _ind2sub_recurse(dims, ind-1))
-_ind2sub(inds::Indices, ind::Integer)     = (@_inline_meta; _ind2sub_recurse(inds, ind-1))
-_ind2sub(inds::Indices{1}, ind::Integer) =
+function _ind2sub(::Tuple{}, ind::Integer)
+    @_inline_meta
+    if ind == 1
+        ()
+    else
+        throw(BoundsError())
+    end
+end
+function _ind2sub(dims::DimsInteger, ind::Integer)
+    @_inline_meta
+    _ind2sub_recurse(dims, ind - 1)
+end
+function _ind2sub(inds::Indices, ind::Integer)
+    @_inline_meta
+    _ind2sub_recurse(inds, ind - 1)
+end
+function _ind2sub(inds::Indices{1}, ind::Integer)
     throw(ArgumentError("Linear indexing is not defined for one-dimensional arrays"))
-_ind2sub(inds::Tuple{OneTo}, ind::Integer) = (ind,)
+end
+function _ind2sub(inds::Tuple{OneTo}, ind::Integer)
+    (ind,)
+end
 
-_ind2sub_recurse(::Tuple{}, ind) = (ind+1,)
+function _ind2sub_recurse(::Tuple{}, ind)
+    (ind + 1,)
+end
 function _ind2sub_recurse(indslast::NTuple{1}, ind)
     @_inline_meta
     (_lookup(ind, indslast[1]),)
@@ -1802,19 +2229,30 @@ function _ind2sub_recurse(inds, ind)
     (ind-l*indnext+f, _ind2sub_recurse(tail(inds), indnext)...)
 end
 
-_lookup(ind, d::Integer) = ind+1
-_lookup(ind, r::AbstractUnitRange) = ind+first(r)
-_div(ind, d::Integer) = div(ind, d), 1, d
-_div(ind, r::AbstractUnitRange) = (d = unsafe_length(r); (div(ind, d), first(r), d))
+function _lookup(ind, d::Integer)
+    ind + 1
+end
+function _lookup(ind, r::AbstractUnitRange)
+    ind + first(r)
+end
+function _div(ind, d::Integer)
+    (div(ind, d), 1, d)
+end
+function _div(ind, r::AbstractUnitRange)
+    d = unsafe_length(r)
+    (div(ind, d), first(r), d)
+end
 
 # Vectorized forms
 function _sub2ind(inds::Indices{1}, I1::AbstractVector{T}, I::AbstractVector{T}...) where T<:Integer
     throw(ArgumentError("Linear indexing is not defined for one-dimensional arrays"))
 end
-_sub2ind(inds::Tuple{OneTo}, I1::AbstractVector{T}, I::AbstractVector{T}...) where {T<:Integer} =
+function _sub2ind(inds::Tuple{OneTo}, I1::AbstractVector{T}, I::AbstractVector{T}...) where T <: Integer
     _sub2ind_vecs(inds, I1, I...)
-_sub2ind(inds::Union{DimsInteger,Indices}, I1::AbstractVector{T}, I::AbstractVector{T}...) where {T<:Integer} =
+end
+function _sub2ind(inds::Union{DimsInteger, Indices}, I1::AbstractVector{T}, I::AbstractVector{T}...) where T <: Integer
     _sub2ind_vecs(inds, I1, I...)
+end
 function _sub2ind_vecs(inds, I::AbstractVector...)
     I1 = I[1]
     Iinds = axes1(I1)
@@ -1835,9 +2273,17 @@ function _sub2ind!(Iout, inds, Iinds, I)
     Iout
 end
 
-sub2ind_vec(inds, i, I) = (@_inline_meta; _sub2ind(inds, _sub2ind_vec(i, I...)...))
-_sub2ind_vec(i, I1, I...) = (@_inline_meta; (I1[i], _sub2ind_vec(i, I...)...))
-_sub2ind_vec(i) = ()
+function sub2ind_vec(inds, i, I)
+    @_inline_meta
+    _sub2ind(inds, _sub2ind_vec(i, I...)...)
+end
+function _sub2ind_vec(i, I1, I...)
+    @_inline_meta
+    (I1[i], _sub2ind_vec(i, I...)...)
+end
+function _sub2ind_vec(i)
+    ()
+end
 
 function _ind2sub(inds::Union{DimsInteger{N},Indices{N}}, ind::AbstractVector{<:Integer}) where N
     M = length(ind)
@@ -1872,8 +2318,18 @@ julia> foreach(x -> println(x^2), a)
 ```
 """
 foreach(f) = (f(); nothing)
-foreach(f, itr) = (for x in itr; f(x); end; nothing)
-foreach(f, itrs...) = (for z in zip(itrs...); f(z...); end; nothing)
+function foreach(f, itr)
+    for x = itr
+        f(x)
+    end
+    nothing
+end
+function foreach(f, itrs...)
+    for z = zip(itrs...)
+        f(z...)
+    end
+    nothing
+end
 
 ## map over arrays ##
 
@@ -2011,8 +2467,13 @@ function replace_tuples!(nidx, idx, ridx, otherdims, I)
     end
 end
 
-concatenate_setindex!(R, v, I...) = (R[I...] .= (v,); R)
-concatenate_setindex!(R, X::AbstractArray, I...) = (R[I...] = X)
+function concatenate_setindex!(R, v, I...)
+    R[I...] .= (v,)
+    R
+end
+function concatenate_setindex!(R, X::AbstractArray, I...)
+    R[I...] = X
+end
 
 ## 1 argument
 
@@ -2025,7 +2486,9 @@ function map!(f::F, dest::AbstractArray, A::AbstractArray) where F
 end
 
 # map on collections
-map(f, A::AbstractArray) = collect_similar(A, Generator(f,A))
+function map(f, A::AbstractArray)
+    collect_similar(A, Generator(f, A))
+end
 
 # default to returning an Array for `map` on general iterators
 """
@@ -2053,8 +2516,12 @@ julia> map(+, [1, 2, 3], [10, 20, 30])
 """
 map(f, A) = collect(Generator(f,A))
 
-map(f, ::AbstractDict) = error("map is not defined on dictionaries")
-map(f, ::AbstractSet) = error("map is not defined on sets")
+function map(f, ::AbstractDict)
+    error("map is not defined on dictionaries")
+end
+function map(f, ::AbstractSet)
+    error("map is not defined on sets")
+end
 
 ## 2 argument
 function map!(f::F, dest::AbstractArray, A::AbstractArray, B::AbstractArray) where F
@@ -2106,15 +2573,27 @@ julia> a
 """
 map!(f::F, dest::AbstractArray, As::AbstractArray...) where {F} = map_n!(f, dest, As)
 
-map(f) = f()
-map(f, iters...) = collect(Generator(f, iters...))
+function map(f)
+    f()
+end
+function map(f, iters...)
+    collect(Generator(f, iters...))
+end
 
 # multi-item push!, pushfirst! (built on top of type-specific 1-item version)
 # (note: must not cause a dispatch loop when 1-item case is not defined)
-push!(A, a, b) = push!(push!(A, a), b)
-push!(A, a, b, c...) = push!(push!(A, a, b), c...)
-pushfirst!(A, a, b) = pushfirst!(pushfirst!(A, b), a)
-pushfirst!(A, a, b, c...) = pushfirst!(pushfirst!(A, c...), a, b)
+function push!(A, a, b)
+    push!(push!(A, a), b)
+end
+function push!(A, a, b, c...)
+    push!(push!(A, a, b), c...)
+end
+function pushfirst!(A, a, b)
+    pushfirst!(pushfirst!(A, b), a)
+end
+function pushfirst!(A, a, b, c...)
+    pushfirst!(pushfirst!(A, c...), a, b)
+end
 
 ## hashing AbstractArray ##
 

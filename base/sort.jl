@@ -97,8 +97,12 @@ function partialsort!(v::AbstractVector, k::Union{Int,OrdinalRange}, o::Ordering
     maybeview(v, k)
 end
 
-maybeview(v, k) = view(v, k)
-maybeview(v, k::Integer) = v[k]
+function maybeview(v, k)
+    view(v, k)
+end
+function maybeview(v, k::Integer)
+    v[k]
+end
 
 """
     partialsort!(v, k; by=<transform>, lt=<comparison>, rev=false)
@@ -283,8 +287,9 @@ function searchsortedlast(a::AbstractRange{<:Integer}, x::Unsigned, o::DirectOrd
     end
 end
 
-searchsorted(a::AbstractRange{<:Real}, x::Real, o::DirectOrdering) =
-    searchsortedfirst(a, x, o) : searchsortedlast(a, x, o)
+function searchsorted(a::AbstractRange{<:Real}, x::Real, o::DirectOrdering)
+    searchsortedfirst(a, x, o):searchsortedlast(a, x, o)
+end
 
 for s in [:searchsortedfirst, :searchsortedlast, :searchsorted]
     @eval begin
@@ -401,10 +406,18 @@ struct PartialQuickSort{T <: Union{Int,OrdinalRange}} <: Algorithm
     k::T
 end
 
-Base.first(a::PartialQuickSort{Int}) = 1
-Base.last(a::PartialQuickSort{Int}) = a.k
-Base.first(a::PartialQuickSort) = first(a.k)
-Base.last(a::PartialQuickSort) = last(a.k)
+function Base.first(a::PartialQuickSort{Int})
+    1
+end
+function Base.last(a::PartialQuickSort{Int})
+    a.k
+end
+function Base.first(a::PartialQuickSort)
+    first(a.k)
+end
+function Base.last(a::PartialQuickSort)
+    last(a.k)
+end
 
 """
     InsertionSort
@@ -640,8 +653,12 @@ end
 
 ## generic sorting methods ##
 
-defalg(v::AbstractArray) = DEFAULT_STABLE
-defalg(v::AbstractArray{<:Union{Number, Missing}}) = DEFAULT_UNSTABLE
+function defalg(v::AbstractArray)
+    DEFAULT_STABLE
+end
+function defalg(v::AbstractArray{<:Union{Number, Missing}})
+    DEFAULT_UNSTABLE
+end
 
 function sort!(v::AbstractVector, alg::Algorithm, order::Ordering)
     inds = axes(v,1)
@@ -1064,17 +1081,33 @@ const Floats = Union{Float32,Float64}
 struct Left <: Ordering end
 struct Right <: Ordering end
 
-left(::DirectOrdering) = Left()
-right(::DirectOrdering) = Right()
+function left(::DirectOrdering)
+    Left()
+end
+function right(::DirectOrdering)
+    Right()
+end
 
-left(o::Perm) = Perm(left(o.order), o.data)
-right(o::Perm) = Perm(right(o.order), o.data)
+function left(o::Perm)
+    Perm(left(o.order), o.data)
+end
+function right(o::Perm)
+    Perm(right(o.order), o.data)
+end
 
-lt(::Left, x::T, y::T) where {T<:Floats} = slt_int(y, x)
-lt(::Right, x::T, y::T) where {T<:Floats} = slt_int(x, y)
+function lt(::Left, x::T, y::T) where T <: Floats
+    slt_int(y, x)
+end
+function lt(::Right, x::T, y::T) where T <: Floats
+    slt_int(x, y)
+end
 
-isnan(o::DirectOrdering, x::Floats) = (x!=x)
-isnan(o::Perm, i::Int) = isnan(o.order,o.data[i])
+function isnan(o::DirectOrdering, x::Floats)
+    x != x
+end
+function isnan(o::Perm, i::Int)
+    isnan(o.order, o.data[i])
+end
 
 function nans2left!(v::AbstractVector, o::Ordering, lo::Int=first(axes(v,1)), hi::Int=last(axes(v,1)))
     i = lo
@@ -1107,14 +1140,28 @@ function nans2right!(v::AbstractVector, o::Ordering, lo::Int=first(axes(v,1)), h
     return lo, i
 end
 
-nans2end!(v::AbstractVector, o::ForwardOrdering) = nans2right!(v,o)
-nans2end!(v::AbstractVector, o::ReverseOrdering) = nans2left!(v,o)
-nans2end!(v::AbstractVector{Int}, o::Perm{<:ForwardOrdering}) = nans2right!(v,o)
-nans2end!(v::AbstractVector{Int}, o::Perm{<:ReverseOrdering}) = nans2left!(v,o)
+function nans2end!(v::AbstractVector, o::ForwardOrdering)
+    nans2right!(v, o)
+end
+function nans2end!(v::AbstractVector, o::ReverseOrdering)
+    nans2left!(v, o)
+end
+function nans2end!(v::AbstractVector{Int}, o::Perm{<:ForwardOrdering})
+    nans2right!(v, o)
+end
+function nans2end!(v::AbstractVector{Int}, o::Perm{<:ReverseOrdering})
+    nans2left!(v, o)
+end
 
-issignleft(o::ForwardOrdering, x::Floats) = lt(o, x, zero(x))
-issignleft(o::ReverseOrdering, x::Floats) = lt(o, x, -zero(x))
-issignleft(o::Perm, i::Int) = issignleft(o.order, o.data[i])
+function issignleft(o::ForwardOrdering, x::Floats)
+    lt(o, x, zero(x))
+end
+function issignleft(o::ReverseOrdering, x::Floats)
+    lt(o, x, -(zero(x)))
+end
+function issignleft(o::Perm, i::Int)
+    issignleft(o.order, o.data[i])
+end
 
 function fpsort!(v::AbstractVector, a::Algorithm, o::Ordering)
     i, j = lo, hi = nans2end!(v,o)
@@ -1131,11 +1178,16 @@ function fpsort!(v::AbstractVector, a::Algorithm, o::Ordering)
 end
 
 
-fpsort!(v::AbstractVector, a::Sort.PartialQuickSort, o::Ordering) =
-    sort!(v, first(axes(v,1)), last(axes(v,1)), a, o)
+function fpsort!(v::AbstractVector, a::Sort.PartialQuickSort, o::Ordering)
+    sort!(v, first(axes(v, 1)), last(axes(v, 1)), a, o)
+end
 
-sort!(v::AbstractVector{<:Floats}, a::Algorithm, o::DirectOrdering) = fpsort!(v,a,o)
-sort!(v::Vector{Int}, a::Algorithm, o::Perm{<:DirectOrdering,<:Vector{<:Floats}}) = fpsort!(v,a,o)
+function sort!(v::AbstractVector{<:Floats}, a::Algorithm, o::DirectOrdering)
+    fpsort!(v, a, o)
+end
+function sort!(v::Vector{Int}, a::Algorithm, o::Perm{<:DirectOrdering, <:Vector{<:Floats}})
+    fpsort!(v, a, o)
+end
 
 end # module Sort.Float
 

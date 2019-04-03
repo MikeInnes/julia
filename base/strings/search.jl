@@ -1,6 +1,12 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-nothing_sentinel(i) = i == 0 ? nothing : i
+function nothing_sentinel(i)
+    if i == 0
+        nothing
+    else
+        i
+    end
+end
 
 function findnext(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:AbstractChar},
                   s::String, i::Integer)
@@ -19,11 +25,13 @@ function findnext(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:AbstractChar}
     end
 end
 
-findfirst(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:Union{Int8,UInt8}}, a::ByteArray) =
+function findfirst(pred::Fix2{<:Union{typeof(isequal), typeof(==)}, <:Union{Int8, UInt8}}, a::ByteArray)
     nothing_sentinel(_search(a, pred.x))
+end
 
-findnext(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:Union{Int8,UInt8}}, a::ByteArray, i::Integer) =
+function findnext(pred::Fix2{<:Union{typeof(isequal), typeof(==)}, <:Union{Int8, UInt8}}, a::ByteArray, i::Integer)
     nothing_sentinel(_search(a, pred.x, i))
+end
 
 function _search(a::Union{String,ByteArray}, b::Union{Int8,UInt8}, i::Integer = 1)
     if i < 1
@@ -59,11 +67,13 @@ function findprev(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:AbstractChar}
     end
 end
 
-findlast(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:Union{Int8,UInt8}}, a::ByteArray) =
+function findlast(pred::Fix2{<:Union{typeof(isequal), typeof(==)}, <:Union{Int8, UInt8}}, a::ByteArray)
     nothing_sentinel(_rsearch(a, pred.x))
+end
 
-findprev(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:Union{Int8,UInt8}}, a::ByteArray, i::Integer) =
+function findprev(pred::Fix2{<:Union{typeof(isequal), typeof(==)}, <:Union{Int8, UInt8}}, a::ByteArray, i::Integer)
     nothing_sentinel(_rsearch(a, pred.x, i))
+end
 
 function _rsearch(a::Union{String,ByteArray}, b::Union{Int8,UInt8}, i::Integer = sizeof(a))
     if i < 1
@@ -117,7 +127,9 @@ function findnext(testf::Function, s::AbstractString, i::Integer)
     return nothing
 end
 
-in(c::AbstractChar, s::AbstractString) = (findfirst(isequal(c),s)!==nothing)
+function in(c::AbstractChar, s::AbstractString)
+    findfirst(isequal(c), s) !== nothing
+end
 
 function _searchindex(s::Union{AbstractString,ByteArray},
                       t::Union{AbstractString,AbstractChar,Int8,UInt8},
@@ -138,14 +150,20 @@ function _searchindex(s::Union{AbstractString,ByteArray},
     end
 end
 
-_searchindex(s::AbstractString, t::AbstractChar, i::Integer) = something(findnext(isequal(t), s, i), 0)
+function _searchindex(s::AbstractString, t::AbstractChar, i::Integer)
+    something(findnext(isequal(t), s, i), 0)
+end
 
 function _search_bloom_mask(c)
     UInt64(1) << (c & 63)
 end
 
-_nthbyte(s::String, i) = codeunit(s, i)
-_nthbyte(a::Union{AbstractVector{UInt8},AbstractVector{Int8}}, i) = a[i]
+function _nthbyte(s::String, i)
+    codeunit(s, i)
+end
+function _nthbyte(a::Union{AbstractVector{UInt8}, AbstractVector{Int8}}, i)
+    a[i]
+end
 
 function _searchindex(s::String, t::String, i::Integer)
     # Check for fast case of a single byte
@@ -452,4 +470,6 @@ false
 occursin(needle::Union{AbstractString,AbstractChar}, haystack::AbstractString) =
     _searchindex(haystack, needle, firstindex(haystack)) != 0
 
-in(::AbstractString, ::AbstractString) = error("use occursin(x, y) for string containment")
+function in(::AbstractString, ::AbstractString)
+    error("use occursin(x, y) for string containment")
+end

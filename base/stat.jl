@@ -40,24 +40,17 @@ struct StatStruct
     ctime   :: Float64
 end
 
-StatStruct() = StatStruct(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+function StatStruct()
+    StatStruct(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+end
 
-StatStruct(buf::Union{Vector{UInt8},Ptr{UInt8}}) = StatStruct(
-    ccall(:jl_stat_dev,     UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_ino,     UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_mode,    UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_nlink,   UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_uid,     UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_gid,     UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_rdev,    UInt32,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_size,    UInt64,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_blksize, UInt64,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_blocks,  UInt64,  (Ptr{UInt8},), buf),
-    ccall(:jl_stat_mtime,   Float64, (Ptr{UInt8},), buf),
-    ccall(:jl_stat_ctime,   Float64, (Ptr{UInt8},), buf),
-)
+function StatStruct(buf::Union{Vector{UInt8}, Ptr{UInt8}})
+    StatStruct(ccall(:jl_stat_dev, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_ino, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_mode, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_nlink, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_uid, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_gid, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_rdev, UInt32, (Ptr{UInt8},), buf), ccall(:jl_stat_size, UInt64, (Ptr{UInt8},), buf), ccall(:jl_stat_blksize, UInt64, (Ptr{UInt8},), buf), ccall(:jl_stat_blocks, UInt64, (Ptr{UInt8},), buf), ccall(:jl_stat_mtime, Float64, (Ptr{UInt8},), buf), ccall(:jl_stat_ctime, Float64, (Ptr{UInt8},), buf))
+end
 
-show(io::IO, st::StatStruct) = print(io, "StatStruct(mode=0o$(string(filemode(st), base = 8, pad = 6)), size=$(filesize(st)))")
+function show(io::IO, st::StatStruct)
+    print(io, "StatStruct(mode=0o$(string(filemode(st), base=8, pad=6)), size=$(filesize(st)))")
+end
 
 # stat & lstat functions
 
@@ -74,13 +67,21 @@ macro stat_call(sym, arg1type, arg)
     end
 end
 
-stat(fd::OS_HANDLE)         = @stat_call jl_fstat OS_HANDLE fd
-stat(path::AbstractString)  = @stat_call jl_stat  Cstring path
-lstat(path::AbstractString) = @stat_call jl_lstat Cstring path
+function stat(fd::OS_HANDLE)
+    @stat_call jl_fstat OS_HANDLE fd
+end
+function stat(path::AbstractString)
+    @stat_call jl_stat Cstring path
+end
+function lstat(path::AbstractString)
+    @stat_call jl_lstat Cstring path
+end
 if RawFD !== OS_HANDLE
     global stat(fd::RawFD)  = stat(Libc._get_osfhandle(fd))
 end
-stat(fd::Integer)           = stat(RawFD(fd))
+function stat(fd::Integer)
+    stat(RawFD(fd))
+end
 
 """
     stat(file)
@@ -309,10 +310,14 @@ for f in Symbol[
     @eval ($f)(path...)  = ($f)(stat(path...))
 end
 
-islink(path...) = islink(lstat(path...))
+function islink(path...)
+    islink(lstat(path...))
+end
 
 # samefile can be used for files and directories: #11145#issuecomment-99511194
-samefile(a::StatStruct, b::StatStruct) = a.device==b.device && a.inode==b.inode
+function samefile(a::StatStruct, b::StatStruct)
+    a.device == b.device && a.inode == b.inode
+end
 function samefile(a::AbstractString, b::AbstractString)
     infoa = stat(a)
     infob = stat(b)

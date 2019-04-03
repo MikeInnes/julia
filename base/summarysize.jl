@@ -60,7 +60,9 @@ function summarysize(obj;
     return size
 end
 
-(ss::SummarySize)(@nospecialize obj) = _summarysize(ss, obj)
+function (ss::SummarySize)(@nospecialize(obj))
+    _summarysize(ss, obj)
+end
 # define the general case separately to make sure it is not specialized for every type
 @noinline function _summarysize(ss::SummarySize, @nospecialize obj)
     isdefined(typeof(obj), :instance) && return 0
@@ -79,9 +81,15 @@ end
     return Core.sizeof(obj)
 end
 
-(::SummarySize)(obj::Symbol) = 0
-(::SummarySize)(obj::SummarySize) = 0
-(::SummarySize)(obj::String) = Core.sizeof(Int) + Core.sizeof(obj)
+function (::SummarySize)(obj::Symbol)
+    0
+end
+function (::SummarySize)(obj::SummarySize)
+    0
+end
+function (::SummarySize)(obj::String)
+    Core.sizeof(Int) + Core.sizeof(obj)
+end
 
 function (ss::SummarySize)(obj::DataType)
     key = pointer_from_objref(obj)

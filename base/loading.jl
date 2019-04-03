@@ -90,15 +90,29 @@ struct SHA1
         return new(bytes)
     end
 end
-SHA1(s::AbstractString) = SHA1(hex2bytes(s))
+function SHA1(s::AbstractString)
+    SHA1(hex2bytes(s))
+end
 
-string(hash::SHA1) = bytes2hex(hash.bytes)
-print(io::IO, hash::SHA1) = bytes2hex(io, hash.bytes)
-show(io::IO, hash::SHA1) = print(io, "SHA1(\"", hash, "\")")
+function string(hash::SHA1)
+    bytes2hex(hash.bytes)
+end
+function print(io::IO, hash::SHA1)
+    bytes2hex(io, hash.bytes)
+end
+function show(io::IO, hash::SHA1)
+    print(io, "SHA1(\"", hash, "\")")
+end
 
-isless(a::SHA1, b::SHA1) = isless(a.bytes, b.bytes)
-hash(a::SHA1, h::UInt) = hash((SHA1, a.bytes), h)
-==(a::SHA1, b::SHA1) = a.bytes == b.bytes
+function isless(a::SHA1, b::SHA1)
+    isless(a.bytes, b.bytes)
+end
+function hash(a::SHA1, h::UInt)
+    hash((SHA1, a.bytes), h)
+end
+function ==(a::SHA1, b::SHA1)
+    a.bytes == b.bytes
+end
 
 # fake uuid5 function (for self-assigned UUIDs)
 # TODO: delete and use real uuid5 once it's in stdlib
@@ -117,8 +131,13 @@ end
 
 const ns_dummy_uuid = UUID("fe0723d6-3a44-4c41-8065-ee0f42c8ceab")
 
-dummy_uuid(project_file::String) = isfile_casesensitive(project_file) ?
-    uuid5(ns_dummy_uuid, realpath(project_file)) : nothing
+function dummy_uuid(project_file::String)
+    if isfile_casesensitive(project_file)
+        uuid5(ns_dummy_uuid, realpath(project_file))
+    else
+        nothing
+    end
+end
 
 ## package path slugs: turning UUID + SHA1 into a pair of 4-byte "slugs" ##
 
@@ -147,7 +166,9 @@ end
 
 ## package identification: determine unique identity of package to be loaded ##
 
-find_package(args...) = locate_package(identify_package(args...))
+function find_package(args...)
+    locate_package(identify_package(args...))
+end
 
 struct PkgId
     uuid::Union{UUID,Nothing}
@@ -156,14 +177,18 @@ struct PkgId
     PkgId(u::UUID, name::AbstractString) = new(UInt128(u) == 0 ? nothing : u, name)
     PkgId(::Nothing, name::AbstractString) = new(nothing, name)
 end
-PkgId(name::AbstractString) = PkgId(nothing, name)
+function PkgId(name::AbstractString)
+    PkgId(nothing, name)
+end
 
 function PkgId(m::Module, name::String = String(nameof(moduleroot(m))))
     uuid = UUID(ccall(:jl_module_uuid, NTuple{2, UInt64}, (Any,), m))
     UInt128(uuid) == 0 ? PkgId(name) : PkgId(uuid, name)
 end
 
-==(a::PkgId, b::PkgId) = a.uuid == b.uuid && a.name == b.name
+function ==(a::PkgId, b::PkgId)
+    a.uuid == b.uuid && a.name == b.name
+end
 
 function hash(pkg::PkgId, h::UInt)
     h += 0xc9f248583a0ca36c % UInt
@@ -172,8 +197,13 @@ function hash(pkg::PkgId, h::UInt)
     return h
 end
 
-show(io::IO, pkg::PkgId) =
-    print(io, pkg.name, " [", pkg.uuid === nothing ? "top-level" : pkg.uuid, "]")
+function show(io::IO, pkg::PkgId)
+    print(io, pkg.name, " [", if pkg.uuid === nothing
+            "top-level"
+        else
+            pkg.uuid
+        end, "]")
+end
 
 function binpack(pkg::PkgId)
     io = IOBuffer()
@@ -247,7 +277,9 @@ function locate_package(pkg::PkgId)::Union{Nothing,String}
         end
     end
 end
-locate_package(::Nothing) = nothing
+function locate_package(::Nothing)
+    nothing
+end
 
 """
     pathof(m::Module)
@@ -421,7 +453,9 @@ function entry_path(path::String, name::String)::Union{Nothing,String}
     path = normpath(joinpath(path, "src", "$name.jl"))
     isfile_casesensitive(path) ? path : nothing
 end
-entry_path(::Nothing, name::String) = nothing
+function entry_path(::Nothing, name::String)
+    nothing
+end
 
 # given a project path (project directory or entry point)
 # return the project file
@@ -594,11 +628,13 @@ function find_source_file(path::AbstractString)
     return isfile(base_path) ? base_path : nothing
 end
 
-cache_file_entry(pkg::PkgId) = joinpath(
-    "compiled",
-    "v$(VERSION.major).$(VERSION.minor)",
-    pkg.uuid === nothing ? "$(pkg.name).ji" : joinpath(pkg.name, "$(package_slug(pkg.uuid)).ji")
-)
+function cache_file_entry(pkg::PkgId)
+    joinpath("compiled", "v$(VERSION.major).$(VERSION.minor)", if pkg.uuid === nothing
+            "$(pkg.name).ji"
+        else
+            joinpath(pkg.name, "$(package_slug(pkg.uuid)).ji")
+        end)
+end
 
 function find_all_in_cache_path(pkg::PkgId)
     paths = String[]
@@ -769,9 +805,15 @@ struct PrecompilableError <: Exception end
 function show(io::IO, ex::PrecompilableError)
     print(io, "Declaring __precompile__(false) is not allowed in files that are being precompiled.")
 end
-precompilableerror(ex::PrecompilableError) = true
-precompilableerror(ex::WrappedException) = precompilableerror(ex.error)
-precompilableerror(@nospecialize ex) = false
+function precompilableerror(ex::PrecompilableError)
+    true
+end
+function precompilableerror(ex::WrappedException)
+    precompilableerror(ex.error)
+end
+function precompilableerror(@nospecialize(ex))
+    false
+end
 
 # Call __precompile__(false) at the top of a tile prevent it from being precompiled (false)
 """
@@ -868,8 +910,12 @@ end
 const loaded_modules = Dict{PkgId,Module}()
 const module_keys = IdDict{Module,PkgId}() # the reverse
 
-is_root_module(m::Module) = haskey(module_keys, m)
-root_module_key(m::Module) = module_keys[m]
+function is_root_module(m::Module)
+    haskey(module_keys, m)
+end
+function root_module_key(m::Module)
+    module_keys[m]
+end
 
 function register_root_module(m::Module)
     key = PkgId(m, String(nameof(m)))
@@ -896,12 +942,19 @@ using Base
 end
 
 # get a top-level Module from the given key
-root_module(key::PkgId) = loaded_modules[key]
-root_module(where::Module, name::Symbol) =
+function root_module(key::PkgId)
+    loaded_modules[key]
+end
+function root_module(where::Module, name::Symbol)
     root_module(identify_package(where, String(name)))
+end
 
-root_module_exists(key::PkgId) = haskey(loaded_modules, key)
-loaded_modules_array() = collect(values(loaded_modules))
+function root_module_exists(key::PkgId)
+    haskey(loaded_modules, key)
+end
+function loaded_modules_array()
+    collect(values(loaded_modules))
+end
 
 function unreference_module(key::PkgId)
     if haskey(loaded_modules, key)
@@ -1013,8 +1066,9 @@ include_string(m::Module, txt::String, fname::String) =
     ccall(:jl_load_file_string, Any, (Ptr{UInt8}, Csize_t, Cstring, Any),
           txt, sizeof(txt), fname, m)
 
-include_string(m::Module, txt::AbstractString, fname::AbstractString="string") =
+function include_string(m::Module, txt::AbstractString, fname::AbstractString="string")
     include_string(m, String(txt), String(fname))
+end
 
 function source_path(default::Union{AbstractString,Nothing}="")
     s = current_task().storage
@@ -1029,7 +1083,9 @@ function source_dir()
     return p === nothing ? pwd() : dirname(p)
 end
 
-include_relative(mod::Module, path::AbstractString) = include_relative(mod, String(path))
+function include_relative(mod::Module, path::AbstractString)
+    include_relative(mod, String(path))
+end
 function include_relative(mod::Module, _path::String)
     path, prev = _include_dependency(mod, _path)
     for callback in include_callbacks # to preserve order, must come before Core.include
@@ -1077,7 +1133,9 @@ function evalfile(path::AbstractString, args::Vector{String}=String[])
              :(include(x) = $(Expr(:top, :include))(__anon__, x)),
              :(include($path))))
 end
-evalfile(path::AbstractString, args::Vector) = evalfile(path, String[args...])
+function evalfile(path::AbstractString, args::Vector)
+    evalfile(path, String[args...])
+end
 
 function load_path_setup_code(load_path::Bool=true)
     code = """
@@ -1203,10 +1261,16 @@ function compilecache(pkg::PkgId, path::String)
     return cachefile
 end
 
-module_build_id(m::Module) = ccall(:jl_module_build_id, UInt64, (Any,), m)
+function module_build_id(m::Module)
+    ccall(:jl_module_build_id, UInt64, (Any,), m)
+end
 
-isvalid_cache_header(f::IOStream) = (0 != ccall(:jl_read_verify_header, Cint, (Ptr{Cvoid},), f.ios))
-isvalid_file_crc(f::IOStream) = (_crc32c(seekstart(f), filesize(f) - 4) == read(f, UInt32))
+function isvalid_cache_header(f::IOStream)
+    0 != ccall(:jl_read_verify_header, Cint, (Ptr{Cvoid},), f.ios)
+end
+function isvalid_file_crc(f::IOStream)
+    _crc32c(seekstart(f), filesize(f) - 4) == read(f, UInt32)
+end
 
 function parse_cache_header(f::IO)
     modules = Vector{Pair{PkgId, UInt64}}()

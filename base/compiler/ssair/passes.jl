@@ -17,7 +17,9 @@ struct SSADefUse
     defs::Vector{Int}
     ccall_preserve_uses::Vector{Int}
 end
-SSADefUse() = SSADefUse(Int[], Int[], Int[])
+function SSADefUse()
+    SSADefUse(Int[], Int[], Int[])
+end
 
 function try_compute_fieldidx_expr(@nospecialize(typ), @nospecialize(use_expr))
     field = use_expr.args[3]
@@ -376,7 +378,13 @@ function lift_leaves(compact::IncrementalCompact, @nospecialize(stmt),
     lifted_leaves, maybe_undef
 end
 
-make_MaybeUndef(@nospecialize(typ)) = isa(typ, MaybeUndef) ? typ : MaybeUndef(typ)
+function make_MaybeUndef(@nospecialize(typ))
+    if typ isa MaybeUndef
+        typ
+    else
+        MaybeUndef(typ)
+    end
+end
 
 function lift_comparison!(compact::IncrementalCompact, idx::Int,
         @nospecialize(c1), @nospecialize(c2), stmt::Expr,

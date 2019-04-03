@@ -50,7 +50,9 @@ function stream_wait(x, c...) # for x::LibuvObject
     end
 end
 
-bytesavailable(s::LibuvStream) = bytesavailable(s.buffer)
+function bytesavailable(s::LibuvStream)
+    bytesavailable(s.buffer)
+end
 
 function eof(s::LibuvStream)
     if isopen(s) # fast path
@@ -201,13 +203,12 @@ if OS_HANDLE != RawFD
     TTY(fd::RawFD) = TTY(Libc._get_osfhandle(fd))
 end
 
-show(io::IO, stream::LibuvServer) = print(io, typeof(stream), "(",
-    _fd(stream), " ",
-    uv_status_string(stream), ")")
-show(io::IO, stream::LibuvStream) = print(io, typeof(stream), "(",
-    _fd(stream), " ",
-    uv_status_string(stream), ", ",
-    bytesavailable(stream.buffer), " bytes waiting)")
+function show(io::IO, stream::LibuvServer)
+    print(io, typeof(stream), "(", _fd(stream), " ", uv_status_string(stream), ")")
+end
+function show(io::IO, stream::LibuvStream)
+    print(io, typeof(stream), "(", _fd(stream), " ", uv_status_string(stream), ", ", bytesavailable(stream.buffer), " bytes waiting)")
+end
 
 # Shared LibuvStream object interface
 
@@ -223,11 +224,19 @@ function iswritable(io::LibuvStream)
     return ccall(:uv_is_writable, Cint, (Ptr{Cvoid},), io.handle) != 0
 end
 
-lock(s::LibuvStream) = lock(s.lock)
-unlock(s::LibuvStream) = unlock(s.lock)
+function lock(s::LibuvStream)
+    lock(s.lock)
+end
+function unlock(s::LibuvStream)
+    unlock(s.lock)
+end
 
-rawhandle(stream::LibuvStream) = stream.handle
-unsafe_convert(::Type{Ptr{Cvoid}}, s::Union{LibuvStream, LibuvServer}) = s.handle
+function rawhandle(stream::LibuvStream)
+    stream.handle
+end
+function unsafe_convert(::Type{Ptr{Cvoid}}, s::Union{LibuvStream, LibuvServer})
+    s.handle
+end
 
 function init_stdio(handle::Ptr{Cvoid})
     t = ccall(:jl_uv_handle_type, Int32, (Ptr{Cvoid},), handle)
@@ -444,8 +453,9 @@ julia> displaysize(stdout)
 ```
 """
 displaysize(io::IO) = displaysize()
-displaysize() = (parse(Int, get(ENV, "LINES",   "24")),
-                 parse(Int, get(ENV, "COLUMNS", "80")))::Tuple{Int, Int}
+function displaysize()
+    (parse(Int, get(ENV, "LINES", "24")), parse(Int, get(ENV, "COLUMNS", "80")))::Tuple{Int, Int}
+end
 
 function displaysize(io::TTY)
     local h::Int, w::Int
@@ -476,10 +486,26 @@ function displaysize(io::TTY)
     return h, w
 end
 
-in(key_value::Pair{Symbol,Bool}, ::TTY) = key_value.first === :color && key_value.second === have_color
-haskey(::TTY, key::Symbol) = key === :color
-getindex(::TTY, key::Symbol) = key === :color ? have_color : throw(KeyError(key))
-get(::TTY, key::Symbol, default) = key === :color ? have_color : default
+function in(key_value::Pair{Symbol, Bool}, ::TTY)
+    key_value.first === :color && key_value.second === have_color
+end
+function haskey(::TTY, key::Symbol)
+    key === :color
+end
+function getindex(::TTY, key::Symbol)
+    if key === :color
+        have_color
+    else
+        throw(KeyError(key))
+    end
+end
+function get(::TTY, key::Symbol, default)
+    if key === :color
+        have_color
+    else
+        default
+    end
+end
 
 ### Libuv callbacks ###
 
@@ -492,7 +518,9 @@ function alloc_request(buffer::IOBuffer, recommended_size::UInt)
     return (pointer(buffer.data, ptr), nb)
 end
 
-notify_filled(buffer::IOBuffer, nread::Int, base::Ptr{Cvoid}, len::UInt) = notify_filled(buffer, nread)
+function notify_filled(buffer::IOBuffer, nread::Int, base::Ptr{Cvoid}, len::UInt)
+    notify_filled(buffer, nread)
+end
 
 function notify_filled(buffer::IOBuffer, nread::Int)
     if buffer.append
@@ -625,8 +653,12 @@ julia> run(pipeline(pipeline(`foo`, stderr=err), `cat`), wait=false)
 ```
 """
 Pipe() = Pipe(PipeEndpoint(), PipeEndpoint())
-pipe_reader(p::Pipe) = p.out
-pipe_writer(p::Pipe) = p.in
+function pipe_reader(p::Pipe)
+    p.out
+end
+function pipe_writer(p::Pipe)
+    p.in
+end
 
 function link_pipe!(pipe::Pipe;
                     reader_supports_async = false,
@@ -635,13 +667,9 @@ function link_pipe!(pipe::Pipe;
      return pipe
 end
 
-show(io::IO, stream::Pipe) = print(io,
-    "Pipe(",
-    _fd(stream.in), " ",
-    uv_status_string(stream.in), " => ",
-    _fd(stream.out), " ",
-    uv_status_string(stream.out), ", ",
-    bytesavailable(stream), " bytes waiting)")
+function show(io::IO, stream::Pipe)
+    print(io, "Pipe(", _fd(stream.in), " ", uv_status_string(stream.in), " => ", _fd(stream.out), " ", uv_status_string(stream.out), ", ", bytesavailable(stream), " bytes waiting)")
+end
 
 
 ## Functions for PipeEndpoint and PipeServer ##
@@ -749,7 +777,9 @@ end
 
 # bulk read / write
 
-readbytes!(s::LibuvStream, a::Vector{UInt8}, nb = length(a)) = readbytes!(s, a, Int(nb))
+function readbytes!(s::LibuvStream, a::Vector{UInt8}, nb=length(a))
+    readbytes!(s, a, Int(nb))
+end
 function readbytes!(s::LibuvStream, a::Vector{UInt8}, nb::Int)
     sbuf = s.buffer
     @assert sbuf.seekable == false
@@ -839,7 +869,9 @@ function readuntil(this::LibuvStream, c::UInt8; keep::Bool=false)
     return readuntil(buf, c, keep=keep)
 end
 
-uv_write(s::LibuvStream, p::Vector{UInt8}) = uv_write(s, pointer(p), UInt(sizeof(p)))
+function uv_write(s::LibuvStream, p::Vector{UInt8})
+    uv_write(s, pointer(p), UInt(sizeof(p)))
+end
 
 function uv_write(s::LibuvStream, p::Ptr{UInt8}, n::UInt)
     uvw = uv_write_async(s, p, n)
@@ -929,7 +961,10 @@ function flush(s::LibuvStream)
     return
 end
 
-buffer_writes(s::LibuvStream, bufsize) = (s.sendbuf=PipeBuffer(bufsize); s)
+function buffer_writes(s::LibuvStream, bufsize)
+    s.sendbuf = PipeBuffer(bufsize)
+    s
+end
 
 ## low-level calls to libuv ##
 
@@ -961,8 +996,12 @@ function uv_writecb_task(req::Ptr{Cvoid}, status::Cint)
     nothing
 end
 
-_fd(x::IOStream) = RawFD(fd(x))
-_fd(x::Union{OS_HANDLE, RawFD}) = x
+function _fd(x::IOStream)
+    RawFD(fd(x))
+end
+function _fd(x::Union{OS_HANDLE, RawFD})
+    x
+end
 
 function _fd(x::Union{LibuvStream, LibuvServer})
     fd = Ref{OS_HANDLE}(INVALID_OS_HANDLE)
@@ -1093,10 +1132,18 @@ Upon completion, [`stdin`](@ref) is restored to its prior setting.
 """
 redirect_stdin(f::Function, stream)
 
-mark(x::LibuvStream)     = mark(x.buffer)
-unmark(x::LibuvStream)   = unmark(x.buffer)
-reset(x::LibuvStream)    = reset(x.buffer)
-ismarked(x::LibuvStream) = ismarked(x.buffer)
+function mark(x::LibuvStream)
+    mark(x.buffer)
+end
+function unmark(x::LibuvStream)
+    unmark(x.buffer)
+end
+function reset(x::LibuvStream)
+    reset(x.buffer)
+end
+function ismarked(x::LibuvStream)
+    ismarked(x.buffer)
+end
 
 function peek(s::LibuvStream)
     mark(s)
@@ -1118,21 +1165,37 @@ mutable struct BufferStream <: LibuvStream
     BufferStream() = new(PipeBuffer(), Condition(), Condition(), true, false, ReentrantLock())
 end
 
-isopen(s::BufferStream) = s.is_open
+function isopen(s::BufferStream)
+    s.is_open
+end
 function close(s::BufferStream)
     s.is_open = false
     notify(s.r_c)
     notify(s.close_c)
     nothing
 end
-uvfinalize(s::BufferStream) = nothing
+function uvfinalize(s::BufferStream)
+    nothing
+end
 
-read(s::BufferStream, ::Type{UInt8}) = (wait_readnb(s, 1); read(s.buffer, UInt8))
-unsafe_read(s::BufferStream, a::Ptr{UInt8}, nb::UInt) = (wait_readnb(s, Int(nb)); unsafe_read(s.buffer, a, nb))
-bytesavailable(s::BufferStream) = bytesavailable(s.buffer)
+function read(s::BufferStream, ::Type{UInt8})
+    wait_readnb(s, 1)
+    read(s.buffer, UInt8)
+end
+function unsafe_read(s::BufferStream, a::Ptr{UInt8}, nb::UInt)
+    wait_readnb(s, Int(nb))
+    unsafe_read(s.buffer, a, nb)
+end
+function bytesavailable(s::BufferStream)
+    bytesavailable(s.buffer)
+end
 
-isreadable(s::BufferStream) = s.buffer.readable
-iswritable(s::BufferStream) = s.buffer.writable
+function isreadable(s::BufferStream)
+    (s.buffer).readable
+end
+function iswritable(s::BufferStream)
+    (s.buffer).writable
+end
 
 function wait_readnb(s::BufferStream, nb::Int)
     while isopen(s) && bytesavailable(s.buffer) < nb
@@ -1140,7 +1203,9 @@ function wait_readnb(s::BufferStream, nb::Int)
     end
 end
 
-show(io::IO, s::BufferStream) = print(io,"BufferStream() bytes waiting:",bytesavailable(s.buffer),", isopen:", s.is_open)
+function show(io::IO, s::BufferStream)
+    print(io, "BufferStream() bytes waiting:", bytesavailable(s.buffer), ", isopen:", s.is_open)
+end
 
 function wait_readbyte(s::BufferStream, c::UInt8)
     while isopen(s) && !occursin(c, s.buffer)
@@ -1148,11 +1213,21 @@ function wait_readbyte(s::BufferStream, c::UInt8)
     end
 end
 
-wait_close(s::BufferStream) = if isopen(s); wait(s.close_c); end
-start_reading(s::BufferStream) = Int32(0)
-stop_reading(s::BufferStream) = nothing
+function wait_close(s::BufferStream)
+    if isopen(s)
+        wait(s.close_c)
+    end
+end
+function start_reading(s::BufferStream)
+    Int32(0)
+end
+function stop_reading(s::BufferStream)
+    nothing
+end
 
-write(s::BufferStream, b::UInt8) = write(s, Ref{UInt8}(b))
+function write(s::BufferStream, b::UInt8)
+    write(s, Ref{UInt8}(b))
+end
 function unsafe_write(s::BufferStream, p::Ptr{UInt8}, nb::UInt)
     rv = unsafe_write(s.buffer, p, nb)
     !(s.buffer_writes) && notify(s.r_c)
@@ -1165,5 +1240,11 @@ function eof(s::BufferStream)
 end
 
 # If buffer_writes is called, it will delay notifying waiters till a flush is called.
-buffer_writes(s::BufferStream, bufsize=0) = (s.buffer_writes=true; s)
-flush(s::BufferStream) = (notify(s.r_c); nothing)
+function buffer_writes(s::BufferStream, bufsize=0)
+    s.buffer_writes = true
+    s
+end
+function flush(s::BufferStream)
+    notify(s.r_c)
+    nothing
+end

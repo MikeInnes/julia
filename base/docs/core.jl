@@ -12,10 +12,20 @@ function doc!(source::LineNumberNode, mod::Module, str, ex)
 end
 const DOCS = Array{Core.SimpleVector,1}()
 
-isexpr(x, h::Symbol) = isa(x, Expr) && x.head === h
+function isexpr(x, h::Symbol)
+    x isa Expr && x.head === h
+end
 
-lazy_iterpolate(s::AbstractString) = Expr(:call, Core.svec, s)
-lazy_iterpolate(x) = isexpr(x, :string) ? Expr(:call, Core.svec, x.args...) : x
+function lazy_iterpolate(s::AbstractString)
+    Expr(:call, Core.svec, s)
+end
+function lazy_iterpolate(x)
+    if isexpr(x, :string)
+        Expr(:call, Core.svec, x.args...)
+    else
+        x
+    end
+end
 
 function docm(source::LineNumberNode, mod::Module, str, x)
     out = Expr(:call, doc!, QuoteNode(source), mod, lazy_iterpolate(str), QuoteNode(x))
@@ -27,7 +37,12 @@ function docm(source::LineNumberNode, mod::Module, str, x)
     end
     return esc(out)
 end
-docm(source::LineNumberNode, mod::Module, x) =
-    isexpr(x, :->) ? docm(source, mod, x.args[1], x.args[2].args[2]) : error("invalid '@doc'.")
+function docm(source::LineNumberNode, mod::Module, x)
+    if isexpr(x, :->)
+        docm(source, mod, x.args[1], (x.args[2]).args[2])
+    else
+        error("invalid '@doc'.")
+    end
+end
 
 end

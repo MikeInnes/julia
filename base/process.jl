@@ -67,9 +67,12 @@ to create a `Cmd` object in the first place, one uses backticks, e.g.
 """
 Cmd
 
-hash(x::Cmd, h::UInt) = hash(x.exec, hash(x.env, hash(x.ignorestatus, hash(x.dir, hash(x.flags, h)))))
-==(x::Cmd, y::Cmd) = x.exec == y.exec && x.env == y.env && x.ignorestatus == y.ignorestatus &&
-                     x.dir == y.dir && isequal(x.flags, y.flags)
+function hash(x::Cmd, h::UInt)
+    hash(x.exec, hash(x.env, hash(x.ignorestatus, hash(x.dir, hash(x.flags, h)))))
+end
+function ==(x::Cmd, y::Cmd)
+    x.exec == y.exec && (x.env == y.env && (x.ignorestatus == y.ignorestatus && (x.dir == y.dir && isequal(x.flags, y.flags))))
+end
 
 struct OrCmds <: AbstractCmd
     a::AbstractCmd
@@ -89,13 +92,19 @@ struct AndCmds <: AbstractCmd
     AndCmds(a::AbstractCmd, b::AbstractCmd) = new(a, b)
 end
 
-hash(x::AndCmds, h::UInt) = hash(x.a, hash(x.b, h))
-==(x::AndCmds, y::AndCmds) = x.a == y.a && x.b == y.b
+function hash(x::AndCmds, h::UInt)
+    hash(x.a, hash(x.b, h))
+end
+function ==(x::AndCmds, y::AndCmds)
+    x.a == y.a && x.b == y.b
+end
 
-shell_escape(cmd::Cmd; special::AbstractString="") =
+function shell_escape(cmd::Cmd; special::AbstractString="")
     shell_escape(cmd.exec..., special=special)
-shell_escape_posixly(cmd::Cmd) =
+end
+function shell_escape_posixly(cmd::Cmd)
     shell_escape_posixly(cmd.exec...)
+end
 
 function show(io::IO, cmd::Cmd)
     print_env = cmd.env !== nothing
@@ -149,8 +158,12 @@ end
 
 # setup_stdio ≈ cconvert
 # rawhandle ≈ unsafe_convert
-rawhandle(::DevNull) = C_NULL
-rawhandle(x::OS_HANDLE) = x
+function rawhandle(::DevNull)
+    C_NULL
+end
+function rawhandle(x::OS_HANDLE)
+    x
+end
 if OS_HANDLE !== RawFD
     rawhandle(x::RawFD) = Libc._get_osfhandle(x)
 end
@@ -164,7 +177,9 @@ struct CmdRedirect <: AbstractCmd
     stream_no::Int
     readable::Bool
 end
-CmdRedirect(cmd, handle, stream_no) = CmdRedirect(cmd, handle, stream_no, stream_no == STDIN_NO)
+function CmdRedirect(cmd, handle, stream_no)
+    CmdRedirect(cmd, handle, stream_no, stream_no == STDIN_NO)
+end
 
 function show(io::IO, cr::CmdRedirect)
     print(io, "pipeline(")
@@ -190,8 +205,9 @@ end
 Mark a command object so that running it will not throw an error if the result code is non-zero.
 """
 ignorestatus(cmd::Cmd) = Cmd(cmd, ignorestatus=true)
-ignorestatus(cmd::Union{OrCmds,AndCmds}) =
-    typeof(cmd)(ignorestatus(cmd.a), ignorestatus(cmd.b))
+function ignorestatus(cmd::Union{OrCmds, AndCmds})
+    (typeof(cmd))(ignorestatus(cmd.a), ignorestatus(cmd.b))
+end
 
 """
     detach(command)
@@ -210,13 +226,18 @@ function cstr(s)
 end
 
 # convert various env representations into an array of "key=val" strings
-byteenv(env::AbstractArray{<:AbstractString}) =
-    String[cstr(x) for x in env]
-byteenv(env::AbstractDict) =
-    String[cstr(string(k)*"="*string(v)) for (k,v) in env]
-byteenv(env::Nothing) = nothing
-byteenv(env::Union{AbstractVector{Pair{T}}, Tuple{Vararg{Pair{T}}}}) where {T<:AbstractString} =
-    String[cstr(k*"="*string(v)) for (k,v) in env]
+function byteenv(env::AbstractArray{<:AbstractString})
+    String[cstr(x) for x = env]
+end
+function byteenv(env::AbstractDict)
+    String[cstr(string(k) * "=" * string(v)) for (k, v) = env]
+end
+function byteenv(env::Nothing)
+    nothing
+end
+function byteenv(env::Union{AbstractVector{Pair{T}}, Tuple{Vararg{Pair{T}}}}) where T <: AbstractString
+    String[cstr(k * "=" * string(v)) for (k, v) = env]
+end
 
 """
     setenv(command::Cmd, env; dir="")
@@ -230,25 +251,50 @@ use `withenv`.
 The `dir` keyword argument can be used to specify a working directory for the command.
 """
 setenv(cmd::Cmd, env; dir="") = Cmd(cmd; env=byteenv(env), dir=dir)
-setenv(cmd::Cmd, env::Pair{<:AbstractString}...; dir="") =
+function setenv(cmd::Cmd, env::Pair{<:AbstractString}...; dir="")
     setenv(cmd, env; dir=dir)
-setenv(cmd::Cmd; dir="") = Cmd(cmd; dir=dir)
+end
+function setenv(cmd::Cmd; dir="")
+    Cmd(cmd; dir=dir)
+end
 
-(&)(left::AbstractCmd, right::AbstractCmd) = AndCmds(left, right)
-redir_out(src::AbstractCmd, dest::AbstractCmd) = OrCmds(src, dest)
-redir_err(src::AbstractCmd, dest::AbstractCmd) = ErrOrCmds(src, dest)
+function &(left::AbstractCmd, right::AbstractCmd)
+    AndCmds(left, right)
+end
+function redir_out(src::AbstractCmd, dest::AbstractCmd)
+    OrCmds(src, dest)
+end
+function redir_err(src::AbstractCmd, dest::AbstractCmd)
+    ErrOrCmds(src, dest)
+end
 
 # Stream Redirects
-redir_out(dest::Redirectable, src::AbstractCmd) = CmdRedirect(src, dest, STDIN_NO)
-redir_out(src::AbstractCmd, dest::Redirectable) = CmdRedirect(src, dest, STDOUT_NO)
-redir_err(src::AbstractCmd, dest::Redirectable) = CmdRedirect(src, dest, STDERR_NO)
+function redir_out(dest::Redirectable, src::AbstractCmd)
+    CmdRedirect(src, dest, STDIN_NO)
+end
+function redir_out(src::AbstractCmd, dest::Redirectable)
+    CmdRedirect(src, dest, STDOUT_NO)
+end
+function redir_err(src::AbstractCmd, dest::Redirectable)
+    CmdRedirect(src, dest, STDERR_NO)
+end
 
 # File redirects
-redir_out(src::AbstractCmd, dest::AbstractString) = CmdRedirect(src, FileRedirect(dest, false), STDOUT_NO)
-redir_out(src::AbstractString, dest::AbstractCmd) = CmdRedirect(dest, FileRedirect(src, false), STDIN_NO)
-redir_err(src::AbstractCmd, dest::AbstractString) = CmdRedirect(src, FileRedirect(dest, false), STDERR_NO)
-redir_out_append(src::AbstractCmd, dest::AbstractString) = CmdRedirect(src, FileRedirect(dest, true), STDOUT_NO)
-redir_err_append(src::AbstractCmd, dest::AbstractString) = CmdRedirect(src, FileRedirect(dest, true), STDERR_NO)
+function redir_out(src::AbstractCmd, dest::AbstractString)
+    CmdRedirect(src, FileRedirect(dest, false), STDOUT_NO)
+end
+function redir_out(src::AbstractString, dest::AbstractCmd)
+    CmdRedirect(dest, FileRedirect(src, false), STDIN_NO)
+end
+function redir_err(src::AbstractCmd, dest::AbstractString)
+    CmdRedirect(src, FileRedirect(dest, false), STDERR_NO)
+end
+function redir_out_append(src::AbstractCmd, dest::AbstractString)
+    CmdRedirect(src, FileRedirect(dest, true), STDOUT_NO)
+end
+function redir_err_append(src::AbstractCmd, dest::AbstractString)
+    CmdRedirect(src, FileRedirect(dest, true), STDERR_NO)
+end
 
 """
     pipeline(command; stdin, stdout, stderr, append=false)
@@ -282,8 +328,12 @@ function pipeline(cmd::AbstractCmd; stdin=nothing, stdout=nothing, stderr=nothin
     return cmd
 end
 
-pipeline(cmd::AbstractCmd, dest) = pipeline(cmd, stdout=dest)
-pipeline(src::Union{Redirectable,AbstractString}, cmd::AbstractCmd) = pipeline(cmd, stdin=src)
+function pipeline(cmd::AbstractCmd, dest)
+    pipeline(cmd, stdout=dest)
+end
+function pipeline(src::Union{Redirectable, AbstractString}, cmd::AbstractCmd)
+    pipeline(cmd, stdin=src)
+end
 
 """
     pipeline(from, to, ...)
@@ -324,8 +374,12 @@ mutable struct Process <: AbstractPipe
         return this
     end
 end
-pipe_reader(p::Process) = p.out
-pipe_writer(p::Process) = p.in
+function pipe_reader(p::Process)
+    p.out
+end
+function pipe_writer(p::Process)
+    p.in
+end
 
 # Represents a whole pipeline of any number of related processes
 # so the entire pipeline can be treated as one entity
@@ -338,8 +392,12 @@ mutable struct ProcessChain <: AbstractPipe
         return new(Process[], devnull, devnull, devnull)
     end
 end
-pipe_reader(p::ProcessChain) = p.out
-pipe_writer(p::ProcessChain) = p.in
+function pipe_reader(p::ProcessChain)
+    p.out
+end
+function pipe_writer(p::ProcessChain)
+    p.in
+end
 
 # release ownership of the libuv handle
 function uvfinalize(proc::Process)
@@ -405,7 +463,9 @@ const SpawnIOs = Vector{Any} # convenience name for readability
     return pp
 end
 
-_spawn(cmds::AbstractCmd) = _spawn(cmds, Any[])
+function _spawn(cmds::AbstractCmd)
+    _spawn(cmds, Any[])
+end
 
 # optimization: we can spawn `Cmd` directly without allocating the ProcessChain
 function _spawn(cmd::Cmd, stdios::SpawnIOs)
@@ -532,8 +592,13 @@ function setup_stdio(stdio::Pipe, child_readable::Bool)
     return (io, false)
 end
 
-setup_stdio(stdio::AbstractPipe, readable::Bool) =
-    setup_stdio(readable ? pipe_reader(stdio) : pipe_writer(stdio), readable)
+function setup_stdio(stdio::AbstractPipe, readable::Bool)
+    setup_stdio(if readable
+            pipe_reader(stdio)
+        else
+            pipe_writer(stdio)
+        end, readable)
+end
 
 function setup_stdio(stdio::IOStream, child_readable::Bool)
     io = RawFD(fd(stdio))
@@ -591,8 +656,12 @@ function setup_stdio(io, child_readable::Bool)
     return (io, false)
 end
 
-close_stdio(stdio::OS_HANDLE) = close_pipe_sync(stdio)
-close_stdio(stdio) = close(stdio)
+function close_stdio(stdio::OS_HANDLE)
+    close_pipe_sync(stdio)
+end
+function close_stdio(stdio)
+    close(stdio)
+end
 
 # INTERNAL
 # pad out stdio to have at least three elements,
@@ -604,15 +673,21 @@ close_stdio(stdio) = close(stdio)
 #   - An Filesystem.File or IOStream object to redirect the output to
 #   - A FileRedirect, containing a string specifying a filename to be opened for the child
 
-spawn_opts_swallow(stdios::StdIOSet) = Any[stdios...]
-spawn_opts_inherit(stdios::StdIOSet) = Any[stdios...]
-spawn_opts_swallow(in::Redirectable=devnull, out::Redirectable=devnull, err::Redirectable=devnull) =
+function spawn_opts_swallow(stdios::StdIOSet)
+    Any[stdios...]
+end
+function spawn_opts_inherit(stdios::StdIOSet)
+    Any[stdios...]
+end
+function spawn_opts_swallow(in::Redirectable=devnull, out::Redirectable=devnull, err::Redirectable=devnull)
     Any[in, out, err]
+end
 # pass original descriptors to child processes by default, because we might
 # have already exhausted and closed the libuv object for our standard streams.
 # ref issue #8529
-spawn_opts_inherit(in::Redirectable=RawFD(0), out::Redirectable=RawFD(1), err::Redirectable=RawFD(2)) =
+function spawn_opts_inherit(in::Redirectable=RawFD(0), out::Redirectable=RawFD(1), err::Redirectable=RawFD(2))
     Any[in, out, err]
+end
 
 function eachline(cmd::AbstractCmd; keep::Bool=false)
     out = PipeEndpoint()
@@ -771,8 +846,12 @@ function success(x::Process)
     wait(x)
     return test_success(x)
 end
-success(procs::Vector{Process}) = mapreduce(success, &, procs)
-success(procs::ProcessChain) = success(procs.processes)
+function success(procs::Vector{Process})
+    mapreduce(success, &, procs)
+end
+function success(procs::ProcessChain)
+    success(procs.processes)
+end
 
 """
     success(command)
@@ -823,9 +902,15 @@ function kill(p::Process, signum::Integer)
         end
     end
 end
-kill(ps::Vector{Process}) = foreach(kill, ps)
-kill(ps::ProcessChain) = foreach(kill, ps.processes)
-kill(p::Process) = kill(p, SIGTERM)
+function kill(ps::Vector{Process})
+    foreach(kill, ps)
+end
+function kill(ps::ProcessChain)
+    foreach(kill, ps.processes)
+end
+function kill(p::Process)
+    kill(p, SIGTERM)
+end
 
 """
     getpid(process) -> Int32
@@ -856,8 +941,12 @@ end
 Determine whether a process is currently running.
 """
 process_running(s::Process) = s.handle != C_NULL
-process_running(s::Vector{Process}) = any(process_running, s)
-process_running(s::ProcessChain) = process_running(s.processes)
+function process_running(s::Vector{Process})
+    any(process_running, s)
+end
+function process_running(s::ProcessChain)
+    process_running(s.processes)
+end
 
 """
     process_exited(p::Process)
@@ -865,10 +954,16 @@ process_running(s::ProcessChain) = process_running(s.processes)
 Determine whether a process has exited.
 """
 process_exited(s::Process) = !process_running(s)
-process_exited(s::Vector{Process}) = all(process_exited, s)
-process_exited(s::ProcessChain) = process_exited(s.processes)
+function process_exited(s::Vector{Process})
+    all(process_exited, s)
+end
+function process_exited(s::ProcessChain)
+    process_exited(s.processes)
+end
 
-process_signaled(s::Process) = (s.termsignal > 0)
+function process_signaled(s::Process)
+    s.termsignal > 0
+end
 
 function process_status(s::Process)
     return process_running(s) ? "ProcessRunning" :
@@ -879,9 +974,15 @@ end
 
 ## implementation of `cmd` syntax ##
 
-arg_gen() = String[]
-arg_gen(x::AbstractString) = String[cstr(x)]
-arg_gen(cmd::Cmd) = cmd.exec
+function arg_gen()
+    String[]
+end
+function arg_gen(x::AbstractString)
+    String[cstr(x)]
+end
+function arg_gen(cmd::Cmd)
+    cmd.exec
+end
 
 function arg_gen(head)
     if isiterable(typeof(head))
@@ -933,16 +1034,28 @@ macro cmd(str)
     return :(cmd_gen($(esc(shell_parse(str, special=shell_special)[1]))))
 end
 
-wait(x::Process)      = if !process_exited(x); stream_wait(x, x.exitnotify); end
-wait(x::ProcessChain) = for p in x.processes; wait(p); end
+function wait(x::Process)
+    if !(process_exited(x))
+        stream_wait(x, x.exitnotify)
+    end
+end
+function wait(x::ProcessChain)
+    for p = x.processes
+        wait(p)
+    end
+end
 
-show(io::IO, p::Process) = print(io, "Process(", p.cmd, ", ", process_status(p), ")")
+function show(io::IO, p::Process)
+    print(io, "Process(", p.cmd, ", ", process_status(p), ")")
+end
 
 # allow the elements of the Cmd to be accessed as an array or iterator
 for f in (:length, :firstindex, :lastindex, :keys, :first, :last, :iterate)
     @eval $f(cmd::Cmd) = $f(cmd.exec)
 end
-eltype(::Type{Cmd}) = eltype(fieldtype(Cmd, :exec))
+function eltype(::Type{Cmd})
+    eltype(fieldtype(Cmd, :exec))
+end
 for f in (:iterate, :getindex)
     @eval $f(cmd::Cmd, i) = $f(cmd.exec, i)
 end

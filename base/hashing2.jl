@@ -93,8 +93,12 @@ Special values:
  - `x` is not a number: `num` and `den` should both be zero
 =#
 
-decompose(x::Integer) = x, 0, 1
-decompose(x::Rational) = numerator(x), 0, denominator(x)
+function decompose(x::Integer)
+    (x, 0, 1)
+end
+function decompose(x::Rational)
+    (numerator(x), 0, denominator(x))
+end
 
 function decompose(x::Float16)::NTuple{3,Int}
     isnan(x) && return 0, 0, 0
@@ -166,7 +170,9 @@ end
 
 ## hashing Float16s ##
 
-hash(x::Float16, h::UInt) = hash(Float64(x), h)
+function hash(x::Float16, h::UInt)
+    hash(Float64(x), h)
+end
 
 ## hashing strings ##
 
@@ -178,4 +184,6 @@ function hash(s::Union{String,SubString{String}}, h::UInt)
     # note: use pointer(s) here (see #6058).
     ccall(memhash, UInt, (Ptr{UInt8}, Csize_t, UInt32), pointer(s), sizeof(s), h % UInt32) + h
 end
-hash(s::AbstractString, h::UInt) = hash(String(s), h)
+function hash(s::AbstractString, h::UInt)
+    hash(String(s), h)
+end

@@ -16,18 +16,36 @@ import Core.Intrinsics:
 import ..no_op_err, ..@_inline_meta, ..@_noinline_meta
 
 # define promotion behavior for checked operations
-checked_add(x::Integer, y::Integer) = checked_add(promote(x,y)...)
-checked_sub(x::Integer, y::Integer) = checked_sub(promote(x,y)...)
-checked_mul(x::Integer, y::Integer) = checked_mul(promote(x,y)...)
-checked_div(x::Integer, y::Integer) = checked_div(promote(x,y)...)
-checked_rem(x::Integer, y::Integer) = checked_rem(promote(x,y)...)
-checked_fld(x::Integer, y::Integer) = checked_fld(promote(x,y)...)
-checked_mod(x::Integer, y::Integer) = checked_mod(promote(x,y)...)
-checked_cld(x::Integer, y::Integer) = checked_cld(promote(x,y)...)
+function checked_add(x::Integer, y::Integer)
+    checked_add(promote(x, y)...)
+end
+function checked_sub(x::Integer, y::Integer)
+    checked_sub(promote(x, y)...)
+end
+function checked_mul(x::Integer, y::Integer)
+    checked_mul(promote(x, y)...)
+end
+function checked_div(x::Integer, y::Integer)
+    checked_div(promote(x, y)...)
+end
+function checked_rem(x::Integer, y::Integer)
+    checked_rem(promote(x, y)...)
+end
+function checked_fld(x::Integer, y::Integer)
+    checked_fld(promote(x, y)...)
+end
+function checked_mod(x::Integer, y::Integer)
+    checked_mod(promote(x, y)...)
+end
+function checked_cld(x::Integer, y::Integer)
+    checked_cld(promote(x, y)...)
+end
 
 # fallback catchall rules to prevent infinite recursion if promotion succeeds,
 # but no method exists to handle those types
-checked_abs(x::T) where {T<:Integer} = no_op_err("checked_abs", T)
+function checked_abs(x::T) where T <: Integer
+    no_op_err("checked_abs", T)
+end
 
 const SignedInt = Union{Int8,Int16,Int32,Int64,Int128}
 const UnsignedInt = Union{UInt8,UInt16,UInt32,UInt64,UInt128}
@@ -86,8 +104,10 @@ The overflow protection may impose a perceptible performance penalty.
 function checked_neg(x::T) where T<:Integer
     checked_sub(T(0), x)
 end
-throw_overflowerr_negation(x) = (@_noinline_meta;
-    throw(OverflowError(Base.invokelatest(string, "checked arithmetic: cannot compute -x for x = ", x, "::", typeof(x)))))
+function throw_overflowerr_negation(x)
+    @_noinline_meta
+    throw(OverflowError(Base.invokelatest(string, "checked arithmetic: cannot compute -x for x = ", x, "::", typeof(x))))
+end
 if BrokenSignedInt != Union{}
 function checked_neg(x::BrokenSignedInt)
     r = -x
@@ -118,8 +138,12 @@ function checked_abs(x::SignedInt)
     r<0 && throw(OverflowError(string("checked arithmetic: cannot compute |x| for x = ", x, "::", typeof(x))))
     r
  end
-checked_abs(x::UnsignedInt) = x
-checked_abs(x::Bool) = x
+function checked_abs(x::UnsignedInt)
+    x
+end
+function checked_abs(x::Bool)
+    x
+end
 
 
 
@@ -129,9 +153,15 @@ checked_abs(x::Bool) = x
 Calculates `r = x+y`, with the flag `f` indicating whether overflow has occurred.
 """
 function add_with_overflow end
-add_with_overflow(x::T, y::T) where {T<:SignedInt}   = checked_sadd_int(x, y)
-add_with_overflow(x::T, y::T) where {T<:UnsignedInt} = checked_uadd_int(x, y)
-add_with_overflow(x::Bool, y::Bool) = (x+y, false)
+function add_with_overflow(x::T, y::T) where T <: SignedInt
+    checked_sadd_int(x, y)
+end
+function add_with_overflow(x::T, y::T) where T <: UnsignedInt
+    checked_uadd_int(x, y)
+end
+function add_with_overflow(x::Bool, y::Bool)
+    (x + y, false)
+end
 
 if BrokenSignedInt != Union{}
 function add_with_overflow(x::T, y::T) where T<:BrokenSignedInt
@@ -150,8 +180,10 @@ end
 end
 
 
-throw_overflowerr_binaryop(op, x, y) = (@_noinline_meta;
-    throw(OverflowError(Base.invokelatest(string, x, " ", op, " ", y, " overflowed for type ", typeof(x)))))
+function throw_overflowerr_binaryop(op, x, y)
+    @_noinline_meta
+    throw(OverflowError(Base.invokelatest(string, x, " ", op, " ", y, " overflowed for type ", typeof(x))))
+end
 
 """
     Base.checked_add(x, y)
@@ -168,21 +200,31 @@ function checked_add(x::T, y::T) where T<:Integer
 end
 
 # Handle multiple arguments
-checked_add(x) = x
-checked_add(x::Bool) = +x
+function checked_add(x)
+    x
+end
+function checked_add(x::Bool)
+    +x
+end
 
-checked_add(x1::T, x2::T, x3::T) where {T} =
+function checked_add(x1::T, x2::T, x3::T) where T
     checked_add(checked_add(x1, x2), x3)
-checked_add(x1::T, x2::T, x3::T, x4::T) where {T} =
+end
+function checked_add(x1::T, x2::T, x3::T, x4::T) where T
     checked_add(checked_add(x1, x2), x3, x4)
-checked_add(x1::T, x2::T, x3::T, x4::T, x5::T) where {T} =
+end
+function checked_add(x1::T, x2::T, x3::T, x4::T, x5::T) where T
     checked_add(checked_add(x1, x2), x3, x4, x5)
-checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T) where {T} =
+end
+function checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T) where T
     checked_add(checked_add(x1, x2), x3, x4, x5, x6)
-checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T) where {T} =
+end
+function checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T) where T
     checked_add(checked_add(x1, x2), x3, x4, x5, x6, x7)
-checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T, x8::T) where {T} =
+end
+function checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T, x8::T) where T
     checked_add(checked_add(x1, x2), x3, x4, x5, x6, x7, x8)
+end
 
 
 """
@@ -191,9 +233,15 @@ checked_add(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T, x8::T) where {T} =
 Calculates `r = x-y`, with the flag `f` indicating whether overflow has occurred.
 """
 function sub_with_overflow end
-sub_with_overflow(x::T, y::T) where {T<:SignedInt}   = checked_ssub_int(x, y)
-sub_with_overflow(x::T, y::T) where {T<:UnsignedInt} = checked_usub_int(x, y)
-sub_with_overflow(x::Bool, y::Bool) = (x-y, false)
+function sub_with_overflow(x::T, y::T) where T <: SignedInt
+    checked_ssub_int(x, y)
+end
+function sub_with_overflow(x::T, y::T) where T <: UnsignedInt
+    checked_usub_int(x, y)
+end
+function sub_with_overflow(x::Bool, y::Bool)
+    (x - y, false)
+end
 
 if BrokenSignedInt != Union{}
 function sub_with_overflow(x::T, y::T) where T<:BrokenSignedInt
@@ -231,9 +279,15 @@ end
 Calculates `r = x*y`, with the flag `f` indicating whether overflow has occurred.
 """
 function mul_with_overflow end
-mul_with_overflow(x::T, y::T) where {T<:SignedInt}   = checked_smul_int(x, y)
-mul_with_overflow(x::T, y::T) where {T<:UnsignedInt} = checked_umul_int(x, y)
-mul_with_overflow(x::Bool, y::Bool) = (x*y, false)
+function mul_with_overflow(x::T, y::T) where T <: SignedInt
+    checked_smul_int(x, y)
+end
+function mul_with_overflow(x::T, y::T) where T <: UnsignedInt
+    checked_umul_int(x, y)
+end
+function mul_with_overflow(x::Bool, y::Bool)
+    (x * y, false)
+end
 
 if BrokenSignedIntMul != Union{} && BrokenSignedIntMul != Int128
 function mul_with_overflow(x::T, y::T) where T<:BrokenSignedIntMul
@@ -290,19 +344,27 @@ function checked_mul(x::T, y::T) where T<:Integer
 end
 
 # Handle multiple arguments
-checked_mul(x) = x
-checked_mul(x1::T, x2::T, x3::T) where {T} =
+function checked_mul(x)
+    x
+end
+function checked_mul(x1::T, x2::T, x3::T) where T
     checked_mul(checked_mul(x1, x2), x3)
-checked_mul(x1::T, x2::T, x3::T, x4::T) where {T} =
+end
+function checked_mul(x1::T, x2::T, x3::T, x4::T) where T
     checked_mul(checked_mul(x1, x2), x3, x4)
-checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T) where {T} =
+end
+function checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T) where T
     checked_mul(checked_mul(x1, x2), x3, x4, x5)
-checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T) where {T} =
+end
+function checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T) where T
     checked_mul(checked_mul(x1, x2), x3, x4, x5, x6)
-checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T) where {T} =
+end
+function checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T) where T
     checked_mul(checked_mul(x1, x2), x3, x4, x5, x6, x7)
-checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T, x8::T) where {T} =
+end
+function checked_mul(x1::T, x2::T, x3::T, x4::T, x5::T, x6::T, x7::T, x8::T) where T
     checked_mul(checked_mul(x1, x2), x3, x4, x5, x6, x7, x8)
+end
 
 """
     Base.checked_div(x, y)

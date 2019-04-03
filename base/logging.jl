@@ -79,10 +79,15 @@ equivalent of /dev/null.
 """
 struct NullLogger <: AbstractLogger; end
 
-min_enabled_level(::NullLogger) = AboveMaxLevel
-shouldlog(::NullLogger, args...) = false
-handle_message(::NullLogger, args...; kwargs...) =
+function min_enabled_level(::NullLogger)
+    AboveMaxLevel
+end
+function shouldlog(::NullLogger, args...)
+    false
+end
+function handle_message(::NullLogger, args...; kwargs...)
     error("Null logger handle_message() should not be called")
+end
 
 
 #-------------------------------------------------------------------------------
@@ -100,12 +105,22 @@ struct LogLevel
     level::Int32
 end
 
-LogLevel(level::LogLevel) = level
+function LogLevel(level::LogLevel)
+    level
+end
 
-isless(a::LogLevel, b::LogLevel) = isless(a.level, b.level)
-+(level::LogLevel, inc::Integer) = LogLevel(level.level+inc)
--(level::LogLevel, inc::Integer) = LogLevel(level.level-inc)
-convert(::Type{LogLevel}, level::Integer) = LogLevel(level)
+function isless(a::LogLevel, b::LogLevel)
+    isless(a.level, b.level)
+end
+function +(level::LogLevel, inc::Integer)
+    LogLevel(level.level + inc)
+end
+function -(level::LogLevel, inc::Integer)
+    LogLevel(level.level - inc)
+end
+function convert(::Type{LogLevel}, level::Integer)
+    LogLevel(level)
+end
 
 const BelowMinLevel = LogLevel(-1000001)
 const Debug         = LogLevel(   -1000)
@@ -371,7 +386,9 @@ struct LogState
     logger::AbstractLogger
 end
 
-LogState(logger) = LogState(LogLevel(min_enabled_level(logger)), logger)
+function LogState(logger)
+    LogState(LogLevel(min_enabled_level(logger)), logger)
+end
 
 function current_logstate()
     logstate = current_task().logstate
@@ -512,14 +529,21 @@ struct SimpleLogger <: AbstractLogger
     min_level::LogLevel
     message_limits::Dict{Any,Int}
 end
-SimpleLogger(stream::IO=stderr, level=Info) = SimpleLogger(stream, level, Dict{Any,Int}())
+function SimpleLogger(stream::IO=stderr, level=Info)
+    SimpleLogger(stream, level, Dict{Any, Int}())
+end
 
-shouldlog(logger::SimpleLogger, level, _module, group, id) =
+function shouldlog(logger::SimpleLogger, level, _module, group, id)
     get(logger.message_limits, id, 1) > 0
+end
 
-min_enabled_level(logger::SimpleLogger) = logger.min_level
+function min_enabled_level(logger::SimpleLogger)
+    logger.min_level
+end
 
-catch_exceptions(logger::SimpleLogger) = false
+function catch_exceptions(logger::SimpleLogger)
+    false
+end
 
 function handle_message(logger::SimpleLogger, level, message, _module, group, id,
                         filepath, line; maxlog=nothing, kwargs...)

@@ -38,13 +38,23 @@ end
 
 @inline intoffset(s::BitSet) = s.offset << 6
 
-eltype(::Type{BitSet}) = Int
+function eltype(::Type{BitSet})
+    Int
+end
 
-empty(s::BitSet, ::Type{Int}=Int) = BitSet()
-emptymutable(s::BitSet, ::Type{Int}=Int) = BitSet()
+function empty(s::BitSet, ::Type{Int}=Int)
+    BitSet()
+end
+function emptymutable(s::BitSet, ::Type{Int}=Int)
+    BitSet()
+end
 
-copy(s1::BitSet) = copy!(BitSet(), s1)
-copymutable(s::BitSet) = copy(s)
+function copy(s1::BitSet)
+    copy!(BitSet(), s1)
+end
+function copymutable(s::BitSet)
+    copy(s)
+end
 
 function copy!(dest::BitSet, src::BitSet)
     resize!(dest.bits, length(src.bits))
@@ -53,7 +63,10 @@ function copy!(dest::BitSet, src::BitSet)
     dest
 end
 
-sizehint!(s::BitSet, n::Integer) = (sizehint!(s.bits, (n+63) >> 6); s)
+function sizehint!(s::BitSet, n::Integer)
+    sizehint!(s.bits, (n + 63) >> 6)
+    s
+end
 
 function _bits_getindex(b::Bits, n::Int, offset::Int)
     ci = _div64(n) - offset + 1
@@ -272,7 +285,12 @@ end
 
 @inline push!(s::BitSet, n::Integer) = _setint!(s, _check_bitset_bounds(n), true)
 
-push!(s::BitSet, ns::Integer...) = (for n in ns; push!(s, n); end; s)
+function push!(s::BitSet, ns::Integer...)
+    for n = ns
+        push!(s, n)
+    end
+    s
+end
 
 @inline pop!(s::BitSet) = pop!(s, last(s))
 
@@ -297,7 +315,9 @@ end
 @inline delete!(s::BitSet, n::Int) = _setint!(s, n, false)
 @inline delete!(s::BitSet, n::Integer) = _is_convertible_Int(n) ? delete!(s, Int(n)) : s
 
-popfirst!(s::BitSet) = pop!(s, first(s))
+function popfirst!(s::BitSet)
+    pop!(s, first(s))
+end
 
 function empty!(s::BitSet)
     empty!(s.bits)
@@ -305,19 +325,36 @@ function empty!(s::BitSet)
     s
 end
 
-isempty(s::BitSet) = _check0(s.bits, 1, length(s.bits))
+function isempty(s::BitSet)
+    _check0(s.bits, 1, length(s.bits))
+end
 
 # Mathematical set functions: union!, intersect!, setdiff!, symdiff!
 
-union(s::BitSet, sets...) = union!(copy(s), sets...)
-union!(s1::BitSet, s2::BitSet) = _matched_map!(|, s1, s2)
+function union(s::BitSet, sets...)
+    union!(copy(s), sets...)
+end
+function union!(s1::BitSet, s2::BitSet)
+    _matched_map!(|, s1, s2)
+end
 
-intersect(s1::BitSet, s2::BitSet) =
-    length(s1.bits) < length(s2.bits) ? intersect!(copy(s1), s2) : intersect!(copy(s2), s1)
+function intersect(s1::BitSet, s2::BitSet)
+    if length(s1.bits) < length(s2.bits)
+        intersect!(copy(s1), s2)
+    else
+        intersect!(copy(s2), s1)
+    end
+end
 
-intersect!(s1::BitSet, s2::BitSet) = _matched_map!(&, s1, s2)
+function intersect!(s1::BitSet, s2::BitSet)
+    _matched_map!(&, s1, s2)
+end
 
-setdiff!(s1::BitSet, s2::BitSet) = _matched_map!((p, q) -> p & ~q, s1, s2)
+function setdiff!(s1::BitSet, s2::BitSet)
+    _matched_map!(((p, q)->begin
+                p & ~q
+            end), s1, s2)
+end
 
 function symdiff!(s::BitSet, ns)
     for x in ns
@@ -333,9 +370,13 @@ function int_symdiff!(s::BitSet, n::Integer)
     s
 end
 
-symdiff!(s1::BitSet, s2::BitSet) = _matched_map!(xor, s1, s2)
+function symdiff!(s1::BitSet, s2::BitSet)
+    _matched_map!(xor, s1, s2)
+end
 
-filter!(f, s::BitSet) = unsafe_filter!(f, s)
+function filter!(f, s::BitSet)
+    unsafe_filter!(f, s)
+end
 
 @inline in(n::Int, s::BitSet) = _bits_getindex(s.bits, n, s.offset)
 @inline in(n::Integer, s::BitSet) = _is_convertible_Int(n) ? in(Int(n), s) : false
@@ -359,7 +400,9 @@ function last(s::BitSet)
     idx == -1 ? _throw_bitset_notempty_error() : idx + intoffset(s)
 end
 
-length(s::BitSet) = bitcount(s.bits) # = mapreduce(count_ones, +, s.bits; init=0)
+function length(s::BitSet)
+    bitcount(s.bits)
+end # = mapreduce(count_ones, +, s.bits; init=0)
 
 function show(io::IO, s::BitSet)
     print(io, "BitSet([")
@@ -409,11 +452,23 @@ function ==(s1::BitSet, s2::BitSet)
     return true
 end
 
-issubset(a::BitSet, b::BitSet) = a == intersect(a,b)
-⊊(a::BitSet, b::BitSet) = a <= b && a != b
+function issubset(a::BitSet, b::BitSet)
+    a == intersect(a, b)
+end
+function ⊊(a::BitSet, b::BitSet)
+    a <= b && a != b
+end
 
 
-minimum(s::BitSet) = first(s)
-maximum(s::BitSet) = last(s)
-extrema(s::BitSet) = (first(s), last(s))
-issorted(s::BitSet) = true
+function minimum(s::BitSet)
+    first(s)
+end
+function maximum(s::BitSet)
+    last(s)
+end
+function extrema(s::BitSet)
+    (first(s), last(s))
+end
+function issorted(s::BitSet)
+    true
+end

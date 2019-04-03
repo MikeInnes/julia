@@ -3,8 +3,12 @@
 ## generic operations on numbers ##
 
 # Numbers are convertible
-convert(::Type{T}, x::T)      where {T<:Number} = x
-convert(::Type{T}, x::Number) where {T<:Number} = T(x)
+function convert(::Type{T}, x::T) where T <: Number
+    x
+end
+function convert(::Type{T}, x::Number) where T <: Number
+    T(x)
+end
 
 """
     isinteger(x) -> Bool
@@ -59,20 +63,54 @@ true
 """
 isone(x) = x == one(x) # fallback method
 
-size(x::Number) = ()
-size(x::Number, d::Integer) = d < 1 ? throw(BoundsError()) : 1
-axes(x::Number) = ()
-axes(x::Number, d::Integer) = d < 1 ? throw(BoundsError()) : OneTo(1)
-eltype(::Type{T}) where {T<:Number} = T
-ndims(x::Number) = 0
-ndims(::Type{<:Number}) = 0
-length(x::Number) = 1
-firstindex(x::Number) = 1
-lastindex(x::Number) = 1
-IteratorSize(::Type{<:Number}) = HasShape{0}()
-keys(::Number) = OneTo(1)
+function size(x::Number)
+    ()
+end
+function size(x::Number, d::Integer)
+    if d < 1
+        throw(BoundsError())
+    else
+        1
+    end
+end
+function axes(x::Number)
+    ()
+end
+function axes(x::Number, d::Integer)
+    if d < 1
+        throw(BoundsError())
+    else
+        OneTo(1)
+    end
+end
+function eltype(::Type{T}) where T <: Number
+    T
+end
+function ndims(x::Number)
+    0
+end
+function ndims(::Type{<:Number})
+    0
+end
+function length(x::Number)
+    1
+end
+function firstindex(x::Number)
+    1
+end
+function lastindex(x::Number)
+    1
+end
+function IteratorSize(::Type{<:Number})
+    HasShape{0}()
+end
+function keys(::Number)
+    OneTo(1)
+end
 
-getindex(x::Number) = x
+function getindex(x::Number)
+    x
+end
 function getindex(x::Number, i::Integer)
     @_inline_meta
     @boundscheck i == 1 || throw(BoundsError())
@@ -83,9 +121,15 @@ function getindex(x::Number, I::Integer...)
     @boundscheck all([i == 1 for i in I]) || throw(BoundsError())
     x
 end
-first(x::Number) = x
-last(x::Number) = x
-copy(x::Number) = x # some code treats numbers as collection-like
+function first(x::Number)
+    x
+end
+function last(x::Number)
+    x
+end
+function copy(x::Number)
+    x
+end # some code treats numbers as collection-like
 
 """
     divrem(x, y)
@@ -139,9 +183,15 @@ signbit(x::Real) = x < 0
 Return zero if `x==0` and ``x/|x|`` otherwise (i.e., ±1 for real `x`).
 """
 sign(x::Number) = x == 0 ? x/abs(oneunit(x)) : x/abs(x)
-sign(x::Real) = ifelse(x < 0, oftype(one(x),-1), ifelse(x > 0, one(x), typeof(one(x))(x)))
-sign(x::Unsigned) = ifelse(x > 0, one(x), oftype(one(x),0))
-abs(x::Real) = ifelse(signbit(x), -x, x)
+function sign(x::Real)
+    ifelse(x < 0, oftype(one(x), -1), ifelse(x > 0, one(x), (typeof(one(x)))(x)))
+end
+function sign(x::Unsigned)
+    ifelse(x > 0, one(x), oftype(one(x), 0))
+end
+function abs(x::Real)
+    ifelse(signbit(x), -x, x)
+end
 
 """
     abs2(x)
@@ -188,10 +238,18 @@ julia> copysign(-1, 2)
 """
 copysign(x::Real, y::Real) = ifelse(signbit(x)!=signbit(y), -x, +x)
 
-conj(x::Real) = x
-transpose(x::Number) = x
-adjoint(x::Number) = conj(x)
-angle(z::Real) = atan(zero(z), z)
+function conj(x::Real)
+    x
+end
+function transpose(x::Number)
+    x
+end
+function adjoint(x::Number)
+    conj(x)
+end
+function angle(z::Real)
+    atan(zero(z), z)
+end
 
 """
     inv(x)
@@ -236,12 +294,22 @@ julia> widemul(Float32(3.), 4.)
 """
 widemul(x::Number, y::Number) = widen(x)*widen(y)
 
-iterate(x::Number) = (x, nothing)
-iterate(x::Number, ::Any) = nothing
-isempty(x::Number) = false
-in(x::Number, y::Number) = x == y
+function iterate(x::Number)
+    (x, nothing)
+end
+function iterate(x::Number, ::Any)
+    nothing
+end
+function isempty(x::Number)
+    false
+end
+function in(x::Number, y::Number)
+    x == y
+end
 
-map(f, x::Number, ys::Number...) = f(x, ys...)
+function map(f, x::Number, ys::Number...)
+    f(x, ys...)
+end
 
 """
     zero(x)
@@ -263,7 +331,9 @@ julia> zero(rand(2,2))
 ```
 """
 zero(x::Number) = oftype(x,0)
-zero(::Type{T}) where {T<:Number} = convert(T,0)
+function zero(::Type{T}) where T <: Number
+    convert(T, 0)
+end
 
 """
     one(x)
@@ -298,7 +368,9 @@ julia> import Dates; one(Dates.Day(1))
 ```
 """
 one(::Type{T}) where {T<:Number} = convert(T,1)
-one(x::T) where {T<:Number} = one(T)
+function one(x::T) where T <: Number
+    one(T)
+end
 # note that convert(T, 1) should throw an error if T is dimensionful,
 # so this fallback definition should be okay.
 
@@ -321,7 +393,9 @@ julia> import Dates; oneunit(Dates.Day)
 ```
 """
 oneunit(x::T) where {T} = T(one(x))
-oneunit(::Type{T}) where {T} = T(one(T))
+function oneunit(::Type{T}) where T
+    T(one(T))
+end
 
 """
     big(T::Type)

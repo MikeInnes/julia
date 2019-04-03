@@ -6,12 +6,24 @@ import Base: div, divrem, rem, unsigned
 using  Base: IndexLinear, IndexCartesian, tail
 export multiplicativeinverse
 
-unsigned(::Type{Int8}) = UInt8
-unsigned(::Type{Int16}) = UInt16
-unsigned(::Type{Int32}) = UInt32
-unsigned(::Type{Int64}) = UInt64
-unsigned(::Type{Int128}) = UInt128
-unsigned(::Type{T}) where {T<:Unsigned} = T
+function unsigned(::Type{Int8})
+    UInt8
+end
+function unsigned(::Type{Int16})
+    UInt16
+end
+function unsigned(::Type{Int32})
+    UInt32
+end
+function unsigned(::Type{Int64})
+    UInt64
+end
+function unsigned(::Type{Int128})
+    UInt128
+end
+function unsigned(::Type{T}) where T <: Unsigned
+    T
+end
 
 abstract type  MultiplicativeInverse{T} end
 
@@ -86,7 +98,9 @@ struct SignedMultiplicativeInverse{T<:Signed} <: MultiplicativeInverse{T}
         new(d, m, d > 0 && m < 0 ? Int8(1) : d < 0 && m > 0 ? Int8(-1) : Int8(0), UInt8(s))
     end
 end
-SignedMultiplicativeInverse(x::Signed) = SignedMultiplicativeInverse{typeof(x)}(x)
+function SignedMultiplicativeInverse(x::Signed)
+    SignedMultiplicativeInverse{typeof(x)}(x)
+end
 
 struct UnsignedMultiplicativeInverse{T<:Unsigned} <: MultiplicativeInverse{T}
     divisor::T
@@ -132,7 +146,9 @@ struct UnsignedMultiplicativeInverse{T<:Unsigned} <: MultiplicativeInverse{T}
         new(d, m, add, s % UInt8)
     end
 end
-UnsignedMultiplicativeInverse(x::Unsigned) = UnsignedMultiplicativeInverse{typeof(x)}(x)
+function UnsignedMultiplicativeInverse(x::Unsigned)
+    UnsignedMultiplicativeInverse{typeof(x)}(x)
+end
 
 function div(a::T, b::SignedMultiplicativeInverse{T}) where T
     x = ((widen(a)*b.multiplier) >>> (sizeof(a)*8)) % T
@@ -145,15 +161,20 @@ function div(a::T, b::UnsignedMultiplicativeInverse{T}) where T
     ifelse(b.divisor == 1, a, x >>> b.shift)
 end
 
-rem(a::T, b::MultiplicativeInverse{T}) where {T} =
-    a - div(a, b)*b.divisor
+function rem(a::T, b::MultiplicativeInverse{T}) where T
+    a - div(a, b) * b.divisor
+end
 
 function divrem(a::T, b::MultiplicativeInverse{T}) where T
     d = div(a, b)
     (d, a - d*b.divisor)
 end
 
-multiplicativeinverse(x::Signed) = SignedMultiplicativeInverse(x)
-multiplicativeinverse(x::Unsigned) = UnsignedMultiplicativeInverse(x)
+function multiplicativeinverse(x::Signed)
+    SignedMultiplicativeInverse(x)
+end
+function multiplicativeinverse(x::Unsigned)
+    UnsignedMultiplicativeInverse(x)
+end
 
 end

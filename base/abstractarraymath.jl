@@ -2,9 +2,15 @@
 
  ## Basic functions ##
 
-isreal(x::AbstractArray) = all(isreal,x)
-iszero(x::AbstractArray) = all(iszero,x)
-isreal(x::AbstractArray{<:Real}) = true
+function isreal(x::AbstractArray)
+    all(isreal, x)
+end
+function iszero(x::AbstractArray)
+    all(iszero, x)
+end
+function isreal(x::AbstractArray{<:Real})
+    true
+end
 
 ## Constructors ##
 
@@ -39,11 +45,19 @@ julia> vec(1:3)
 See also [`reshape`](@ref).
 """
 vec(a::AbstractArray) = reshape(a,length(a))
-vec(a::AbstractVector) = a
+function vec(a::AbstractVector)
+    a
+end
 
-_sub(::Tuple{}, ::Tuple{}) = ()
-_sub(t::Tuple, ::Tuple{}) = t
-_sub(t::Tuple, s::Tuple) = _sub(tail(t), tail(s))
+function _sub(::Tuple{}, ::Tuple{})
+    ()
+end
+function _sub(t::Tuple, ::Tuple{})
+    t
+end
+function _sub(t::Tuple, s::Tuple)
+    _sub(tail(t), tail(s))
+end
 
 """
     dropdims(A; dims)
@@ -84,18 +98,32 @@ function _dropdims(A::AbstractArray, dims::Dims)
     end
     reshape(A, d::typeof(_sub(axes(A), dims)))
 end
-_dropdims(A::AbstractArray, dim::Integer) = _dropdims(A, (Int(dim),))
+function _dropdims(A::AbstractArray, dim::Integer)
+    _dropdims(A, (Int(dim),))
+end
 
 ## Unary operators ##
 
-conj(x::AbstractArray{<:Real}) = x
-conj!(x::AbstractArray{<:Real}) = x
+function conj(x::AbstractArray{<:Real})
+    x
+end
+function conj!(x::AbstractArray{<:Real})
+    x
+end
 
-real(x::AbstractArray{<:Real}) = x
-imag(x::AbstractArray{<:Real}) = zero(x)
+function real(x::AbstractArray{<:Real})
+    x
+end
+function imag(x::AbstractArray{<:Real})
+    zero(x)
+end
 
-+(x::AbstractArray{<:Number}) = x
-*(x::AbstractArray{<:Number,2}) = x
+function +(x::AbstractArray{<:Number})
+    x
+end
+function *(x::AbstractArray{<:Number, 2})
+    x
+end
 
 # index A[:,:,...,i,:,:,...] where "i" is in dimension "d"
 
@@ -180,7 +208,9 @@ end
 function circshift(a::AbstractArray, shiftamt::Real)
     circshift!(similar(a), a, (Integer(shiftamt),))
 end
-circshift(a::AbstractArray, shiftamt::DimsInteger) = circshift!(similar(a), a, shiftamt)
+function circshift(a::AbstractArray, shiftamt::DimsInteger)
+    circshift!(similar(a), a, shiftamt)
+end
 """
     circshift(A, shifts)
 
@@ -334,21 +364,47 @@ function repeat(A::AbstractArray; inner = nothing, outer = nothing)
 end
 
 # we have optimized implementations of these cases above
-_repeat_inner_outer(A::AbstractVecOrMat, ::Nothing, r::Union{Tuple{Integer},Tuple{Integer,Integer}}) = repeat(A, r...)
-_repeat_inner_outer(A::AbstractVecOrMat, ::Nothing, r::Integer) = repeat(A, r)
+function _repeat_inner_outer(A::AbstractVecOrMat, ::Nothing, r::Union{Tuple{Integer}, Tuple{Integer, Integer}})
+    repeat(A, r...)
+end
+function _repeat_inner_outer(A::AbstractVecOrMat, ::Nothing, r::Integer)
+    repeat(A, r)
+end
 
-_repeat_inner_outer(A, ::Nothing, ::Nothing) = A
-_repeat_inner_outer(A, ::Nothing, outer) = _repeat(A, ntuple(n->1, Val(ndims(A))), rep_kw2tup(outer))
-_repeat_inner_outer(A, inner, ::Nothing) = _repeat(A, rep_kw2tup(inner), ntuple(n->1, Val(ndims(A))))
-_repeat_inner_outer(A, inner, outer)     = _repeat(A, rep_kw2tup(inner), rep_kw2tup(outer))
+function _repeat_inner_outer(A, ::Nothing, ::Nothing)
+    A
+end
+function _repeat_inner_outer(A, ::Nothing, outer)
+    _repeat(A, ntuple((n->begin
+                    1
+                end), Val(ndims(A))), rep_kw2tup(outer))
+end
+function _repeat_inner_outer(A, inner, ::Nothing)
+    _repeat(A, rep_kw2tup(inner), ntuple((n->begin
+                    1
+                end), Val(ndims(A))))
+end
+function _repeat_inner_outer(A, inner, outer)
+    _repeat(A, rep_kw2tup(inner), rep_kw2tup(outer))
+end
 
-rep_kw2tup(n::Integer) = (n,)
-rep_kw2tup(v::AbstractArray{<:Integer}) = (v...,)
-rep_kw2tup(t::Tuple) = t
+function rep_kw2tup(n::Integer)
+    (n,)
+end
+function rep_kw2tup(v::AbstractArray{<:Integer})
+    (v...,)
+end
+function rep_kw2tup(t::Tuple)
+    t
+end
 
-rep_shapes(A, i, o) = _rshps((), (), size(A), i, o)
+function rep_shapes(A, i, o)
+    _rshps((), (), size(A), i, o)
+end
 
-_rshps(shp, shp_i, ::Tuple{}, ::Tuple{}, ::Tuple{}) = (shp, shp_i)
+function _rshps(shp, shp_i, ::Tuple{}, ::Tuple{}, ::Tuple{})
+    (shp, shp_i)
+end
 @inline _rshps(shp, shp_i, ::Tuple{}, ::Tuple{}, o) =
     _rshps((shp..., o[1]), (shp_i..., 1), (), (), tail(o))
 @inline _rshps(shp, shp_i, ::Tuple{}, i, ::Tuple{}) = (n = i[1];
@@ -357,14 +413,24 @@ _rshps(shp, shp_i, ::Tuple{}, ::Tuple{}, ::Tuple{}) = (shp, shp_i)
     _rshps((shp..., n * o[1]), (shp_i..., n), (), tail(i), tail(o)))
 @inline _rshps(shp, shp_i, sz, i, o) = (n = sz[1] * i[1];
     _rshps((shp..., n * o[1]), (shp_i..., n), tail(sz), tail(i), tail(o)))
-_rshps(shp, shp_i, sz, ::Tuple{}, ::Tuple{}) =
-    (n = length(shp); N = n + length(sz); _reperr("inner", n, N))
-_rshps(shp, shp_i, sz, ::Tuple{}, o) =
-    (n = length(shp); N = n + length(sz); _reperr("inner", n, N))
-_rshps(shp, shp_i, sz, i, ::Tuple{}) =
-    (n = length(shp); N = n + length(sz); _reperr("outer", n, N))
-_reperr(s, n, N) = throw(ArgumentError("number of " * s * " repetitions " *
-    "($n) cannot be less than number of dimensions of input ($N)"))
+function _rshps(shp, shp_i, sz, ::Tuple{}, ::Tuple{})
+    n = length(shp)
+    N = n + length(sz)
+    _reperr("inner", n, N)
+end
+function _rshps(shp, shp_i, sz, ::Tuple{}, o)
+    n = length(shp)
+    N = n + length(sz)
+    _reperr("inner", n, N)
+end
+function _rshps(shp, shp_i, sz, i, ::Tuple{})
+    n = length(shp)
+    N = n + length(sz)
+    _reperr("outer", n, N)
+end
+function _reperr(s, n, N)
+    throw(ArgumentError("number of " * s * " repetitions " * "($(n)) cannot be less than number of dimensions of input ($(N))"))
+end
 
 @noinline function _repeat(A::AbstractArray, inner, outer)
     shape, inner_shape = rep_shapes(A, inner, outer)

@@ -97,13 +97,21 @@ function issubconditional(a::Conditional, b::Conditional)
     return false
 end
 
-maybe_extract_const_bool(c::Const) = isa(c.val, Bool) ? c.val : nothing
+function maybe_extract_const_bool(c::Const)
+    if c.val isa Bool
+        c.val
+    else
+        nothing
+    end
+end
 function maybe_extract_const_bool(c::Conditional)
     (c.vtype === Bottom && !(c.elsetype === Bottom)) && return false
     (c.elsetype === Bottom && !(c.vtype === Bottom)) && return true
     nothing
 end
-maybe_extract_const_bool(@nospecialize c) = nothing
+function maybe_extract_const_bool(@nospecialize(c))
+    nothing
+end
 
 function ⊑(@nospecialize(a), @nospecialize(b))
     if isa(a, MaybeUndef) && !isa(b, MaybeUndef)
@@ -195,7 +203,9 @@ function is_lattice_equal(@nospecialize(a), @nospecialize(b))
     return a ⊑ b && b ⊑ a
 end
 
-widenconst(c::Conditional) = Bool
+function widenconst(c::Conditional)
+    Bool
+end
 function widenconst(c::Const)
     if isa(c.val, Type)
         if isvarargtype(c.val)
@@ -206,12 +216,22 @@ function widenconst(c::Const)
         return typeof(c.val)
     end
 end
-widenconst(m::MaybeUndef) = widenconst(m.typ)
-widenconst(c::PartialTypeVar) = TypeVar
-widenconst(t::PartialStruct) = t.typ
-widenconst(@nospecialize(t)) = t
+function widenconst(m::MaybeUndef)
+    widenconst(m.typ)
+end
+function widenconst(c::PartialTypeVar)
+    TypeVar
+end
+function widenconst(t::PartialStruct)
+    t.typ
+end
+function widenconst(@nospecialize(t))
+    t
+end
 
-issubstate(a::VarState, b::VarState) = (a.typ ⊑ b.typ && a.undef <= b.undef)
+function issubstate(a::VarState, b::VarState)
+    a.typ ⊑ b.typ && a.undef <= b.undef
+end
 
 function smerge(sa::Union{NotFound,VarState}, sb::Union{NotFound,VarState})
     sa === sb && return sa
@@ -225,7 +245,9 @@ end
 @inline tchanged(@nospecialize(n), @nospecialize(o)) = o === NOT_FOUND || (n !== NOT_FOUND && !(n ⊑ o))
 @inline schanged(@nospecialize(n), @nospecialize(o)) = (n !== o) && (o === NOT_FOUND || (n !== NOT_FOUND && !issubstate(n, o)))
 
-widenconditional(@nospecialize typ) = typ
+function widenconditional(@nospecialize(typ))
+    typ
+end
 function widenconditional(typ::Conditional)
     if typ.vtype == Union{}
         return Const(false)
@@ -296,9 +318,13 @@ function stupdate!(state::VarTable, changes::VarTable)
     return newstate
 end
 
-stupdate!(state::Nothing, changes::VarTable) = copy(changes)
+function stupdate!(state::Nothing, changes::VarTable)
+    copy(changes)
+end
 
-stupdate!(state::Nothing, changes::Nothing) = false
+function stupdate!(state::Nothing, changes::Nothing)
+    false
+end
 
 function stupdate1!(state::VarTable, change::StateUpdate)
     if !isa(change.var, Slot)

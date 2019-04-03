@@ -3,7 +3,9 @@
 ## basic task functions and TLS
 
 const ThreadSynchronizer = GenericCondition{Threads.SpinLock}
-Core.Task(@nospecialize(f), reserved_stack::Int=0) = Core._Task(f, reserved_stack, ThreadSynchronizer())
+function Core.Task(@nospecialize(f), reserved_stack::Int=0)
+    Core._Task(f, reserved_stack, ThreadSynchronizer())
+end
 
 # Container for a captured exception and its backtrace. Can be serialized.
 struct CapturedException <: Exception
@@ -39,11 +41,21 @@ struct CompositeException <: Exception
     CompositeException() = new(Any[])
     CompositeException(exceptions) = new(exceptions)
 end
-length(c::CompositeException) = length(c.exceptions)
-push!(c::CompositeException, ex) = push!(c.exceptions, ex)
-isempty(c::CompositeException) = isempty(c.exceptions)
-iterate(c::CompositeException, state...) = iterate(c.exceptions, state...)
-eltype(::Type{CompositeException}) = Any
+function length(c::CompositeException)
+    length(c.exceptions)
+end
+function push!(c::CompositeException, ex)
+    push!(c.exceptions, ex)
+end
+function isempty(c::CompositeException)
+    isempty(c.exceptions)
+end
+function iterate(c::CompositeException, state...)
+    iterate(c.exceptions, state...)
+end
+function eltype(::Type{CompositeException})
+    Any
+end
 
 function showerror(io::IO, ex::CompositeException)
     if !isempty(ex)
@@ -136,13 +148,21 @@ false
 """
 istaskstarted(t::Task) = ccall(:jl_is_task_started, Cint, (Any,), t) != 0
 
-istaskfailed(t::Task) = (t.state == :failed)
+function istaskfailed(t::Task)
+    t.state == :failed
+end
 
-Threads.threadid(t::Task) = Int(ccall(:jl_get_task_tid, Int16, (Any,), t)+1)
+function Threads.threadid(t::Task)
+    Int(ccall(:jl_get_task_tid, Int16, (Any,), t) + 1)
+end
 
-task_result(t::Task) = t.result
+function task_result(t::Task)
+    t.result
+end
 
-task_local_storage() = get_task_tls(current_task())
+function task_local_storage()
+    get_task_tls(current_task())
+end
 function get_task_tls(t::Task)
     if t.storage === nothing
         t.storage = IdDict()
@@ -200,7 +220,9 @@ function wait(t::Task)
     end
 end
 
-fetch(@nospecialize x) = x
+function fetch(@nospecialize(x))
+    x
+end
 
 """
     fetch(t::Task)
@@ -383,8 +405,12 @@ struct InvasiveLinkedListSynchronized{T}
     lock::Threads.SpinLock
     InvasiveLinkedListSynchronized{T}() where {T} = new(InvasiveLinkedList{T}(), Threads.SpinLock())
 end
-isempty(W::InvasiveLinkedListSynchronized) = isempty(W.queue)
-length(W::InvasiveLinkedListSynchronized) = length(W.queue)
+function isempty(W::InvasiveLinkedListSynchronized)
+    isempty(W.queue)
+end
+function length(W::InvasiveLinkedListSynchronized)
+    length(W.queue)
+end
 function push!(W::InvasiveLinkedListSynchronized{T}, t::T) where T
     lock(W.lock)
     try
@@ -458,7 +484,9 @@ function enq_work(t::Task)
     return t
 end
 
-schedule(t::Task) = enq_work(t)
+function schedule(t::Task)
+    enq_work(t)
+end
 
 """
     schedule(t::Task, [val]; error=false)

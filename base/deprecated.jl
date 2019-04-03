@@ -96,8 +96,12 @@ function depwarn(msg, funcsym)
     nothing
 end
 
-firstcaller(bt::Vector, ::Nothing) = Ptr{Cvoid}(0), StackTraces.UNKNOWN
-firstcaller(bt::Vector, funcsym::Symbol) = firstcaller(bt, (funcsym,))
+function firstcaller(bt::Vector, ::Nothing)
+    (Ptr{Cvoid}(0), StackTraces.UNKNOWN)
+end
+function firstcaller(bt::Vector, funcsym::Symbol)
+    firstcaller(bt, (funcsym,))
+end
 function firstcaller(bt::Vector, funcsyms)
     # Identify the calling line
     found = false
@@ -130,7 +134,9 @@ function firstcaller(bt::Vector, funcsyms)
     return found_frame, lkup
 end
 
-deprecate(m::Module, s::Symbol, flag=1) = ccall(:jl_deprecate_binding, Cvoid, (Any, Any, Cint), m, s, flag)
+function deprecate(m::Module, s::Symbol, flag=1)
+    ccall(:jl_deprecate_binding, Cvoid, (Any, Any, Cint), m, s, flag)
+end
 
 macro deprecate_binding(old, new, export_old=true, dep_message=:nothing, constant=true)
     dep_message === :nothing && (dep_message = ", use $new instead.")
@@ -179,12 +185,26 @@ function promote_eltype_op end
 @deprecate substrides(parent::AbstractArray, strds::Tuple, I::Tuple) substrides(strds, I) false
 
 # TODO: deprecate these
-one(::CartesianIndex{N}) where {N} = one(CartesianIndex{N})
-one(::Type{CartesianIndex{N}}) where {N} = CartesianIndex(ntuple(x -> 1, Val(N)))
+function one(::CartesianIndex{N}) where N
+    one(CartesianIndex{N})
+end
+function one(::Type{CartesianIndex{N}}) where N
+    CartesianIndex(ntuple((x->begin
+                    1
+                end), Val(N)))
+end
 
-MPFR.BigFloat(x, prec::Int) = BigFloat(x; precision=prec)
-MPFR.BigFloat(x, prec::Int, rounding::RoundingMode) = BigFloat(x, rounding; precision=prec)
-MPFR.BigFloat(x::Real, prec::Int) = BigFloat(x; precision=prec)
-MPFR.BigFloat(x::Real, prec::Int, rounding::RoundingMode) = BigFloat(x, rounding; precision=prec)
+function MPFR.BigFloat(x, prec::Int)
+    BigFloat(x; precision=prec)
+end
+function MPFR.BigFloat(x, prec::Int, rounding::RoundingMode)
+    BigFloat(x, rounding; precision=prec)
+end
+function MPFR.BigFloat(x::Real, prec::Int)
+    BigFloat(x; precision=prec)
+end
+function MPFR.BigFloat(x::Real, prec::Int, rounding::RoundingMode)
+    BigFloat(x, rounding; precision=prec)
+end
 
 # END 1.0 deprecations

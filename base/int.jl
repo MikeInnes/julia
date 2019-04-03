@@ -46,17 +46,33 @@ const BitIntegerType = Union{map(T->Type{T}, BitInteger_types)...}
 
 ## integer comparisons ##
 
-(<)(x::T, y::T) where {T<:BitSigned}  = slt_int(x, y)
+function (x::T < y::T) where T <: BitSigned
+    slt_int(x, y)
+end
 
-(-)(x::BitInteger)                    = neg_int(x)
-(-)(x::T, y::T) where {T<:BitInteger} = sub_int(x, y)
-(+)(x::T, y::T) where {T<:BitInteger} = add_int(x, y)
-(*)(x::T, y::T) where {T<:BitInteger} = mul_int(x, y)
+function -(x::BitInteger)
+    neg_int(x)
+end
+function (x::T - y::T) where T <: BitInteger
+    sub_int(x, y)
+end
+function (x::T + y::T) where T <: BitInteger
+    add_int(x, y)
+end
+function (x::T * y::T) where T <: BitInteger
+    mul_int(x, y)
+end
 
-inv(x::Integer) = float(one(x)) / float(x)
-(/)(x::T, y::T) where {T<:Integer} = float(x) / float(y)
+function inv(x::Integer)
+    float(one(x)) / float(x)
+end
+function (x::T / y::T) where T <: Integer
+    float(x) / float(y)
+end
 # skip promotion for system integer types
-(/)(x::BitInteger, y::BitInteger) = float(x) / float(y)
+function /(x::BitInteger, y::BitInteger)
+    float(x) / float(y)
+end
 
 """
     isodd(x::Integer) -> Bool
@@ -90,22 +106,48 @@ true
 """
 iseven(n::Integer) = !isodd(n)
 
-signbit(x::Integer) = x < 0
-signbit(x::Unsigned) = false
+function signbit(x::Integer)
+    x < 0
+end
+function signbit(x::Unsigned)
+    false
+end
 
-flipsign(x::T, y::T) where {T<:BitSigned} = flipsign_int(x, y)
-flipsign(x::BitSigned, y::BitSigned) = flipsign_int(promote(x, y)...) % typeof(x)
+function flipsign(x::T, y::T) where T <: BitSigned
+    flipsign_int(x, y)
+end
+function flipsign(x::BitSigned, y::BitSigned)
+    flipsign_int(promote(x, y)...) % typeof(x)
+end
 
-flipsign(x::Signed, y::Float16) = flipsign(x, bitcast(Int16, y))
-flipsign(x::Signed, y::Float32) = flipsign(x, bitcast(Int32, y))
-flipsign(x::Signed, y::Float64) = flipsign(x, bitcast(Int64, y))
-flipsign(x::Signed, y::Real)    = flipsign(x, -oftype(x, signbit(y)))
+function flipsign(x::Signed, y::Float16)
+    flipsign(x, bitcast(Int16, y))
+end
+function flipsign(x::Signed, y::Float32)
+    flipsign(x, bitcast(Int32, y))
+end
+function flipsign(x::Signed, y::Float64)
+    flipsign(x, bitcast(Int64, y))
+end
+function flipsign(x::Signed, y::Real)
+    flipsign(x, -(oftype(x, signbit(y))))
+end
 
-copysign(x::Signed, y::Signed)  = flipsign(x, x ⊻ y)
-copysign(x::Signed, y::Float16) = copysign(x, bitcast(Int16, y))
-copysign(x::Signed, y::Float32) = copysign(x, bitcast(Int32, y))
-copysign(x::Signed, y::Float64) = copysign(x, bitcast(Int64, y))
-copysign(x::Signed, y::Real)    = copysign(x, -oftype(x, signbit(y)))
+function copysign(x::Signed, y::Signed)
+    flipsign(x, x ⊻ y)
+end
+function copysign(x::Signed, y::Float16)
+    copysign(x, bitcast(Int16, y))
+end
+function copysign(x::Signed, y::Float32)
+    copysign(x, bitcast(Int32, y))
+end
+function copysign(x::Signed, y::Float64)
+    copysign(x, bitcast(Int64, y))
+end
+function copysign(x::Signed, y::Real)
+    copysign(x, -(oftype(x, signbit(y))))
+end
 
 """
     abs(x)
@@ -132,13 +174,23 @@ julia> abs(typemin(Int64))
 """
 function abs end
 
-abs(x::Unsigned) = x
-abs(x::Signed) = flipsign(x,x)
+function abs(x::Unsigned)
+    x
+end
+function abs(x::Signed)
+    flipsign(x, x)
+end
 
-~(n::Integer) = -n-1
+function ~(n::Integer)
+    -n - 1
+end
 
-unsigned(x::BitSigned) = reinterpret(typeof(convert(Unsigned, zero(x))), x)
-unsigned(x::Bool) = convert(Unsigned, x)
+function unsigned(x::BitSigned)
+    reinterpret(typeof(convert(Unsigned, zero(x))), x)
+end
+function unsigned(x::Bool)
+    convert(Unsigned, x)
+end
 
 """
     unsigned(x) -> Unsigned
@@ -159,7 +211,9 @@ julia> signed(unsigned(-2))
 ```
 """
 unsigned(x) = convert(Unsigned, x)
-signed(x::Unsigned) = reinterpret(typeof(convert(Signed, zero(x))), x)
+function signed(x::Unsigned)
+    reinterpret(typeof(convert(Signed, zero(x))), x)
+end
 
 """
     signed(x)
@@ -169,14 +223,26 @@ signed without checking for overflow.
 """
 signed(x) = convert(Signed, x)
 
-div(x::BitSigned, y::Unsigned) = flipsign(signed(div(unsigned(abs(x)), y)), x)
-div(x::Unsigned, y::BitSigned) = unsigned(flipsign(signed(div(x, unsigned(abs(y)))), y))
+function div(x::BitSigned, y::Unsigned)
+    flipsign(signed(div(unsigned(abs(x)), y)), x)
+end
+function div(x::Unsigned, y::BitSigned)
+    unsigned(flipsign(signed(div(x, unsigned(abs(y)))), y))
+end
 
-rem(x::BitSigned, y::Unsigned) = flipsign(signed(rem(unsigned(abs(x)), y)), x)
-rem(x::Unsigned, y::BitSigned) = rem(x, unsigned(abs(y)))
+function rem(x::BitSigned, y::Unsigned)
+    flipsign(signed(rem(unsigned(abs(x)), y)), x)
+end
+function rem(x::Unsigned, y::BitSigned)
+    rem(x, unsigned(abs(y)))
+end
 
-fld(x::Signed, y::Unsigned) = div(x, y) - (signbit(x) & (rem(x, y) != 0))
-fld(x::Unsigned, y::Signed) = div(x, y) - (signbit(y) & (rem(x, y) != 0))
+function fld(x::Signed, y::Unsigned)
+    div(x, y) - signbit(x) & (rem(x, y) != 0)
+end
+function fld(x::Unsigned, y::Signed)
+    div(x, y) - signbit(y) & (rem(x, y) != 0)
+end
 
 
 """
@@ -216,23 +282,43 @@ function mod(x::T, y::T) where T<:Integer
     y == -1 && return T(0)   # avoid potential overflow in fld
     return x - fld(x, y) * y
 end
-mod(x::BitSigned, y::Unsigned) = rem(y + unsigned(rem(x, y)), y)
-mod(x::Unsigned, y::Signed) = rem(y + signed(rem(x, y)), y)
-mod(x::T, y::T) where {T<:Unsigned} = rem(x, y)
+function mod(x::BitSigned, y::Unsigned)
+    rem(y + unsigned(rem(x, y)), y)
+end
+function mod(x::Unsigned, y::Signed)
+    rem(y + signed(rem(x, y)), y)
+end
+function mod(x::T, y::T) where T <: Unsigned
+    rem(x, y)
+end
 
-cld(x::Signed, y::Unsigned) = div(x, y) + (!signbit(x) & (rem(x, y) != 0))
-cld(x::Unsigned, y::Signed) = div(x, y) + (!signbit(y) & (rem(x, y) != 0))
+function cld(x::Signed, y::Unsigned)
+    div(x, y) + !(signbit(x)) & (rem(x, y) != 0)
+end
+function cld(x::Unsigned, y::Signed)
+    div(x, y) + !(signbit(y)) & (rem(x, y) != 0)
+end
 
 # Don't promote integers for div/rem/mod since there is no danger of overflow,
 # while there is a substantial performance penalty to 64-bit promotion.
-div(x::T, y::T) where {T<:BitSigned64} = checked_sdiv_int(x, y)
-rem(x::T, y::T) where {T<:BitSigned64} = checked_srem_int(x, y)
-div(x::T, y::T) where {T<:BitUnsigned64} = checked_udiv_int(x, y)
-rem(x::T, y::T) where {T<:BitUnsigned64} = checked_urem_int(x, y)
+function div(x::T, y::T) where T <: BitSigned64
+    checked_sdiv_int(x, y)
+end
+function rem(x::T, y::T) where T <: BitSigned64
+    checked_srem_int(x, y)
+end
+function div(x::T, y::T) where T <: BitUnsigned64
+    checked_udiv_int(x, y)
+end
+function rem(x::T, y::T) where T <: BitUnsigned64
+    checked_urem_int(x, y)
+end
 
 
 # fld(x,y) == div(x,y) - ((x>=0) != (y>=0) && rem(x,y) != 0 ? 1 : 0)
-fld(x::T, y::T) where {T<:Unsigned} = div(x,y)
+function fld(x::T, y::T) where T <: Unsigned
+    div(x, y)
+end
 function fld(x::T, y::T) where T<:Integer
     d = div(x, y)
     return d - (signbit(x ⊻ y) & (d * y != x))
@@ -314,7 +400,9 @@ missing
 ```
 """
 (|)(x::T, y::T) where {T<:BitInteger} = or_int(x, y)
-xor(x::T, y::T) where {T<:BitInteger} = xor_int(x, y)
+function xor(x::T, y::T) where T <: BitInteger
+    xor_int(x, y)
+end
 
 """
     bswap(n)
@@ -337,8 +425,9 @@ julia> string(bswap(1), base = 2)
 ```
 """
 bswap(x::Union{Int8, UInt8}) = x
-bswap(x::Union{Int16, UInt16, Int32, UInt32, Int64, UInt64, Int128, UInt128}) =
+function bswap(x::Union{Int16, UInt16, Int32, UInt32, Int64, UInt64, Int128, UInt128})
     bswap_int(x)
+end
 
 """
     count_ones(x::Integer) -> Integer
@@ -420,33 +509,62 @@ trailing_ones(x::Integer) = trailing_zeros(~x)
 
 ## integer comparisons ##
 
-(< )(x::T, y::T) where {T<:BitUnsigned} = ult_int(x, y)
-(<=)(x::T, y::T) where {T<:BitSigned}   = sle_int(x, y)
-(<=)(x::T, y::T) where {T<:BitUnsigned} = ule_int(x, y)
+function (x::T < y::T) where T <: BitUnsigned
+    ult_int(x, y)
+end
+function (x::T <= y::T) where T <: BitSigned
+    sle_int(x, y)
+end
+function (x::T <= y::T) where T <: BitUnsigned
+    ule_int(x, y)
+end
 
-==(x::BitSigned,   y::BitUnsigned) = (x >= 0) & (unsigned(x) == y)
-==(x::BitUnsigned, y::BitSigned  ) = (y >= 0) & (x == unsigned(y))
-<( x::BitSigned,   y::BitUnsigned) = (x <  0) | (unsigned(x) <  y)
-<( x::BitUnsigned, y::BitSigned  ) = (y >= 0) & (x <  unsigned(y))
-<=(x::BitSigned,   y::BitUnsigned) = (x <  0) | (unsigned(x) <= y)
-<=(x::BitUnsigned, y::BitSigned  ) = (y >= 0) & (x <= unsigned(y))
+function ==(x::BitSigned, y::BitUnsigned)
+    (x >= 0) & (unsigned(x) == y)
+end
+function ==(x::BitUnsigned, y::BitSigned)
+    (y >= 0) & (x == unsigned(y))
+end
+function <(x::BitSigned, y::BitUnsigned)
+    (x < 0) | (unsigned(x) < y)
+end
+function <(x::BitUnsigned, y::BitSigned)
+    (y >= 0) & (x < unsigned(y))
+end
+function <=(x::BitSigned, y::BitUnsigned)
+    (x < 0) | (unsigned(x) <= y)
+end
+function <=(x::BitUnsigned, y::BitSigned)
+    (y >= 0) & (x <= unsigned(y))
+end
 
 ## integer shifts ##
 
 # unsigned shift counts always shift in the same direction
->>(x::BitSigned,   y::BitUnsigned) = ashr_int(x, y)
->>(x::BitUnsigned, y::BitUnsigned) = lshr_int(x, y)
-<<(x::BitInteger,  y::BitUnsigned) = shl_int(x, y)
->>>(x::BitInteger, y::BitUnsigned) = lshr_int(x, y)
+function >>(x::BitSigned, y::BitUnsigned)
+    ashr_int(x, y)
+end
+function >>(x::BitUnsigned, y::BitUnsigned)
+    lshr_int(x, y)
+end
+function <<(x::BitInteger, y::BitUnsigned)
+    shl_int(x, y)
+end
+function >>>(x::BitInteger, y::BitUnsigned)
+    lshr_int(x, y)
+end
 # signed shift counts can shift in either direction
 # note: this early during bootstrap, `>=` is not yet available
 # note: we only define Int shift counts here; the generic case is handled later
->>(x::BitInteger, y::Int) =
+function >>(x::BitInteger, y::Int)
     ifelse(0 <= y, x >> unsigned(y), x << unsigned(-y))
-<<(x::BitInteger, y::Int) =
+end
+function <<(x::BitInteger, y::Int)
     ifelse(0 <= y, x << unsigned(y), x >> unsigned(-y))
->>>(x::BitInteger, y::Int) =
+end
+function >>>(x::BitInteger, y::Int)
     ifelse(0 <= y, x >>> unsigned(y), x << unsigned(-y))
+end
 
 for to in BitInteger_types, from in (BitInteger_types..., Bool)
     if !(to === from)
@@ -490,12 +608,22 @@ if nameof(@__MODULE__) === :Base
     end
 end
 
-rem(x::T, ::Type{T}) where {T<:Integer} = x
-rem(x::Integer, T::Type{<:Integer}) = convert(T, x)  # `x % T` falls back to `convert`
-rem(x::Integer, ::Type{Bool}) = ((x & 1) != 0)
-mod(x::Integer, ::Type{T}) where {T<:Integer} = rem(x, T)
+function rem(x::T, ::Type{T}) where T <: Integer
+    x
+end
+function rem(x::Integer, T::Type{<:Integer})
+    convert(T, x)
+end  # `x % T` falls back to `convert`
+function rem(x::Integer, ::Type{Bool})
+    x & 1 != 0
+end
+function mod(x::Integer, ::Type{T}) where T <: Integer
+    rem(x, T)
+end
 
-unsafe_trunc(::Type{T}, x::Integer) where {T<:Integer} = rem(x, T)
+function unsafe_trunc(::Type{T}, x::Integer) where T <: Integer
+    rem(x, T)
+end
 
 """
     trunc([T,] x)
@@ -542,10 +670,18 @@ representable.
 """
 function ceil end
 
-round(::Type{T}, x::Integer) where {T<:Integer} = convert(T, x)
-trunc(::Type{T}, x::Integer) where {T<:Integer} = convert(T, x)
-floor(::Type{T}, x::Integer) where {T<:Integer} = convert(T, x)
- ceil(::Type{T}, x::Integer) where {T<:Integer} = convert(T, x)
+function round(::Type{T}, x::Integer) where T <: Integer
+    convert(T, x)
+end
+function trunc(::Type{T}, x::Integer) where T <: Integer
+    convert(T, x)
+end
+function floor(::Type{T}, x::Integer) where T <: Integer
+    convert(T, x)
+end
+ function ceil(::Type{T}, x::Integer) where T <: Integer
+    convert(T, x)
+end
 
 ## integer construction ##
 
@@ -613,20 +749,46 @@ end
 ## integer promotions ##
 
 # with different sizes, promote to larger type
-promote_rule(::Type{Int16}, ::Union{Type{Int8}, Type{UInt8}}) = Int16
-promote_rule(::Type{Int32}, ::Union{Type{Int16}, Type{Int8}, Type{UInt16}, Type{UInt8}}) = Int32
-promote_rule(::Type{Int64}, ::Union{Type{Int16}, Type{Int32}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt8}}) = Int64
-promote_rule(::Type{Int128}, ::Union{Type{Int16}, Type{Int32}, Type{Int64}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt64}, Type{UInt8}}) = Int128
-promote_rule(::Type{UInt16}, ::Union{Type{Int8}, Type{UInt8}}) = UInt16
-promote_rule(::Type{UInt32}, ::Union{Type{Int16}, Type{Int8}, Type{UInt16}, Type{UInt8}}) = UInt32
-promote_rule(::Type{UInt64}, ::Union{Type{Int16}, Type{Int32}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt8}}) = UInt64
-promote_rule(::Type{UInt128}, ::Union{Type{Int16}, Type{Int32}, Type{Int64}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt64}, Type{UInt8}}) = UInt128
+function promote_rule(::Type{Int16}, ::Union{Type{Int8}, Type{UInt8}})
+    Int16
+end
+function promote_rule(::Type{Int32}, ::Union{Type{Int16}, Type{Int8}, Type{UInt16}, Type{UInt8}})
+    Int32
+end
+function promote_rule(::Type{Int64}, ::Union{Type{Int16}, Type{Int32}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt8}})
+    Int64
+end
+function promote_rule(::Type{Int128}, ::Union{Type{Int16}, Type{Int32}, Type{Int64}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt64}, Type{UInt8}})
+    Int128
+end
+function promote_rule(::Type{UInt16}, ::Union{Type{Int8}, Type{UInt8}})
+    UInt16
+end
+function promote_rule(::Type{UInt32}, ::Union{Type{Int16}, Type{Int8}, Type{UInt16}, Type{UInt8}})
+    UInt32
+end
+function promote_rule(::Type{UInt64}, ::Union{Type{Int16}, Type{Int32}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt8}})
+    UInt64
+end
+function promote_rule(::Type{UInt128}, ::Union{Type{Int16}, Type{Int32}, Type{Int64}, Type{Int8}, Type{UInt16}, Type{UInt32}, Type{UInt64}, Type{UInt8}})
+    UInt128
+end
 # with mixed signedness and same size, Unsigned wins
-promote_rule(::Type{UInt8},   ::Type{Int8}  ) = UInt8
-promote_rule(::Type{UInt16},  ::Type{Int16} ) = UInt16
-promote_rule(::Type{UInt32},  ::Type{Int32} ) = UInt32
-promote_rule(::Type{UInt64},  ::Type{Int64} ) = UInt64
-promote_rule(::Type{UInt128}, ::Type{Int128}) = UInt128
+function promote_rule(::Type{UInt8}, ::Type{Int8})
+    UInt8
+end
+function promote_rule(::Type{UInt16}, ::Type{Int16})
+    UInt16
+end
+function promote_rule(::Type{UInt32}, ::Type{Int32})
+    UInt32
+end
+function promote_rule(::Type{UInt64}, ::Type{Int64})
+    UInt64
+end
+function promote_rule(::Type{UInt128}, ::Type{Int128})
+    UInt128
+end
 
 ## traits ##
 
@@ -662,46 +824,104 @@ julia> typemax(UInt32)
 """
 function typemax end
 
-typemin(::Type{Int8  }) = Int8(-128)
-typemax(::Type{Int8  }) = Int8(127)
-typemin(::Type{UInt8 }) = UInt8(0)
-typemax(::Type{UInt8 }) = UInt8(255)
-typemin(::Type{Int16 }) = Int16(-32768)
-typemax(::Type{Int16 }) = Int16(32767)
-typemin(::Type{UInt16}) = UInt16(0)
-typemax(::Type{UInt16}) = UInt16(65535)
-typemin(::Type{Int32 }) = Int32(-2147483648)
-typemax(::Type{Int32 }) = Int32(2147483647)
-typemin(::Type{UInt32}) = UInt32(0)
-typemax(::Type{UInt32}) = UInt32(4294967295)
-typemin(::Type{Int64 }) = -9223372036854775808
-typemax(::Type{Int64 }) = 9223372036854775807
-typemin(::Type{UInt64}) = UInt64(0)
-typemax(::Type{UInt64}) = 0xffffffffffffffff
+function typemin(::Type{Int8})
+    Int8(-128)
+end
+function typemax(::Type{Int8})
+    Int8(127)
+end
+function typemin(::Type{UInt8})
+    UInt8(0)
+end
+function typemax(::Type{UInt8})
+    UInt8(255)
+end
+function typemin(::Type{Int16})
+    Int16(-32768)
+end
+function typemax(::Type{Int16})
+    Int16(32767)
+end
+function typemin(::Type{UInt16})
+    UInt16(0)
+end
+function typemax(::Type{UInt16})
+    UInt16(65535)
+end
+function typemin(::Type{Int32})
+    Int32(-2147483648)
+end
+function typemax(::Type{Int32})
+    Int32(2147483647)
+end
+function typemin(::Type{UInt32})
+    UInt32(0)
+end
+function typemax(::Type{UInt32})
+    UInt32(4294967295)
+end
+function typemin(::Type{Int64})
+    -9223372036854775808
+end
+function typemax(::Type{Int64})
+    9223372036854775807
+end
+function typemin(::Type{UInt64})
+    UInt64(0)
+end
+function typemax(::Type{UInt64})
+    0xffffffffffffffff
+end
 @eval typemin(::Type{UInt128}) = $(convert(UInt128, 0))
 @eval typemax(::Type{UInt128}) = $(bitcast(UInt128, convert(Int128, -1)))
 @eval typemin(::Type{Int128} ) = $(convert(Int128, 1) << 127)
 @eval typemax(::Type{Int128} ) = $(bitcast(Int128, typemax(UInt128) >> 1))
 
 
-widen(::Type{Int8}) = Int16
-widen(::Type{Int16}) = Int32
-widen(::Type{Int32}) = Int64
-widen(::Type{Int64}) = Int128
-widen(::Type{UInt8}) = UInt16
-widen(::Type{UInt16}) = UInt32
-widen(::Type{UInt32}) = UInt64
-widen(::Type{UInt64}) = UInt128
+function widen(::Type{Int8})
+    Int16
+end
+function widen(::Type{Int16})
+    Int32
+end
+function widen(::Type{Int32})
+    Int64
+end
+function widen(::Type{Int64})
+    Int128
+end
+function widen(::Type{UInt8})
+    UInt16
+end
+function widen(::Type{UInt16})
+    UInt32
+end
+function widen(::Type{UInt32})
+    UInt64
+end
+function widen(::Type{UInt64})
+    UInt128
+end
 
 # a few special cases,
 # Int64*UInt64 => Int128
 # |x|<=2^(k-1), |y|<=2^k-1   =>   |x*y|<=2^(2k-1)-1
-widemul(x::Signed,y::Unsigned) = widen(x) * signed(widen(y))
-widemul(x::Unsigned,y::Signed) = signed(widen(x)) * widen(y)
+function widemul(x::Signed, y::Unsigned)
+    widen(x) * signed(widen(y))
+end
+function widemul(x::Unsigned, y::Signed)
+    signed(widen(x)) * widen(y)
+end
 # multplication by Bool doesn't require widening
-widemul(x::Bool,y::Bool) = x * y
-widemul(x::Bool,y::Number) = x * y
-widemul(x::Number,y::Bool) = x * y
+function widemul(x::Bool, y::Bool)
+    x * y
+end
+function widemul(x::Bool, y::Number)
+    x * y
+end
+function widemul(x::Number, y::Bool)
+    x * y
+end
 
 
 ## wide multiplication, Int128 multiply and divide ##

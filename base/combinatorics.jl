@@ -22,9 +22,15 @@ function factorial_lookup(n::Integer, table, lim)
     return oftype(n, f)
 end
 
-factorial(n::Int128) = factorial_lookup(n, _fact_table128, 33)
-factorial(n::UInt128) = factorial_lookup(n, _fact_table128, 34)
-factorial(n::Union{Int64,UInt64}) = factorial_lookup(n, _fact_table64, 20)
+function factorial(n::Int128)
+    factorial_lookup(n, _fact_table128, 33)
+end
+function factorial(n::UInt128)
+    factorial_lookup(n, _fact_table128, 34)
+end
+function factorial(n::Union{Int64, UInt64})
+    factorial_lookup(n, _fact_table64, 20)
+end
 
 if Int === Int32
     factorial(n::Union{Int8,UInt8,Int16,UInt16}) = factorial(Int32(n))
@@ -59,9 +65,15 @@ function isperm(A)
     true
 end
 
-isperm(p::Tuple{}) = true
-isperm(p::Tuple{Int}) = p[1] == 1
-isperm(p::Tuple{Int,Int}) = ((p[1] == 1) & (p[2] == 2)) | ((p[1] == 2) & (p[2] == 1))
+function isperm(p::Tuple{})
+    true
+end
+function isperm(p::Tuple{Int})
+    p[1] == 1
+end
+function isperm(p::Tuple{Int, Int})
+    (p[1] == 1) & (p[2] == 2) | (p[1] == 2) & (p[2] == 1)
+end
 
 # swap columns i and j of a, in-place
 function swapcols!(a::AbstractMatrix, i, j)
@@ -242,7 +254,9 @@ function invperm(p::Union{Tuple{},Tuple{Int},Tuple{Int,Int}})
     isperm(p) || throw(ArgumentError("argument is not a permutation"))
     p  # in dimensions 0-2, every permutation is its own inverse
 end
-invperm(a::Tuple) = (invperm([a...])...,)
+function invperm(a::Tuple)
+    (invperm([a...])...,)
+end
 
 #XXX This function should be moved to Combinatorics.jl but is currently used by Base.DSP.
 """

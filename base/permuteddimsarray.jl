@@ -45,18 +45,28 @@ function PermutedDimsArray(data::AbstractArray{T,N}, perm) where {T,N}
     PermutedDimsArray{T,N,(perm...,),(iperm...,),typeof(data)}(data)
 end
 
-Base.parent(A::PermutedDimsArray) = A.parent
-Base.size(A::PermutedDimsArray{T,N,perm}) where {T,N,perm}    = genperm(size(parent(A)),    perm)
-Base.axes(A::PermutedDimsArray{T,N,perm}) where {T,N,perm} = genperm(axes(parent(A)), perm)
+function Base.parent(A::PermutedDimsArray)
+    A.parent
+end
+function Base.size(A::PermutedDimsArray{T, N, perm}) where {T, N, perm}
+    genperm(size(parent(A)), perm)
+end
+function Base.axes(A::PermutedDimsArray{T, N, perm}) where {T, N, perm}
+    genperm(axes(parent(A)), perm)
+end
 
-Base.unsafe_convert(::Type{Ptr{T}}, A::PermutedDimsArray{T}) where {T} = Base.unsafe_convert(Ptr{T}, parent(A))
+function Base.unsafe_convert(::Type{Ptr{T}}, A::PermutedDimsArray{T}) where T
+    Base.unsafe_convert(Ptr{T}, parent(A))
+end
 
 # It's OK to return a pointer to the first element, and indeed quite
 # useful for wrapping C routines that require a different storage
 # order than used by Julia. But for an array with unconventional
 # storage order, a linear offset is ambiguous---is it a memory offset
 # or a linear index?
-Base.pointer(A::PermutedDimsArray, i::Integer) = throw(ArgumentError("pointer(A, i) is deliberately unsupported for PermutedDimsArray"))
+function Base.pointer(A::PermutedDimsArray, i::Integer)
+    throw(ArgumentError("pointer(A, i) is deliberately unsupported for PermutedDimsArray"))
+end
 
 function Base.strides(A::PermutedDimsArray{T,N,perm}) where {T,N,perm}
     s = strides(parent(A))
@@ -199,7 +209,9 @@ function Base.copyto!(dest::PermutedDimsArray{T,N}, src::AbstractArray{T,N}) whe
     checkbounds(dest, axes(src)...)
     _copy!(dest, src)
 end
-Base.copyto!(dest::PermutedDimsArray, src::AbstractArray) = _copy!(dest, src)
+function Base.copyto!(dest::PermutedDimsArray, src::AbstractArray)
+    _copy!(dest, src)
+end
 
 function _copy!(P::PermutedDimsArray{T,N,perm}, src) where {T,N,perm}
     # If dest/src are "close to dense," then it pays to be cache-friendly.

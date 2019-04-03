@@ -49,10 +49,18 @@ true
 """
 isvalid(T,value)
 
-isvalid(c::AbstractChar) = !ismalformed(c) & !isoverlong(c) & ((c ≤ '\ud7ff') | ('\ue000' ≤ c) & (c ≤ '\U10ffff'))
-isvalid(::Type{<:AbstractChar}, c::Unsigned) = ((c ≤  0xd7ff ) | ( 0xe000  ≤ c) & (c ≤  0x10ffff ))
-isvalid(::Type{T}, c::Integer) where {T<:AbstractChar}  = isvalid(T, Unsigned(c))
-isvalid(::Type{<:AbstractChar}, c::AbstractChar)     = isvalid(c)
+function isvalid(c::AbstractChar)
+    (!(ismalformed(c)) & !(isoverlong(c))) & ((c ≤ '\ud7ff') | ('\ue000' ≤ c) & (c ≤ '\U10ffff'))
+end
+function isvalid(::Type{<:AbstractChar}, c::Unsigned)
+    (c ≤ 0xd7ff) | (0xe000 ≤ c) & (c ≤ 0x0010ffff)
+end
+function isvalid(::Type{T}, c::Integer) where T <: AbstractChar
+    isvalid(T, Unsigned(c))
+end
+function isvalid(::Type{<:AbstractChar}, c::AbstractChar)
+    isvalid(c)
+end
 
 # utf8 category constants
 const UTF8PROC_CATEGORY_CN = 0
@@ -139,7 +147,9 @@ const UTF8PROC_STRIPMARK = (1<<13)
 
 ############################################################################
 
-utf8proc_error(result) = error(unsafe_string(ccall(:utf8proc_errmsg, Cstring, (Cssize_t,), result)))
+function utf8proc_error(result)
+    error(unsafe_string(ccall(:utf8proc_errmsg, Cstring, (Cssize_t,), result)))
+end
 
 function utf8proc_map(str::String, options::Integer)
     nwords = ccall(:utf8proc_decompose, Int, (Ptr{UInt8}, Int, Ptr{UInt8}, Int, Cint),
@@ -154,7 +164,9 @@ function utf8proc_map(str::String, options::Integer)
     return String(resize!(buffer, nbytes))
 end
 
-utf8proc_map(s::AbstractString, flags::Integer) = utf8proc_map(String(s), flags)
+function utf8proc_map(s::AbstractString, flags::Integer)
+    utf8proc_map(String(s), flags)
+end
 
 # Documented in Unicode module
 function normalize(
@@ -242,12 +254,39 @@ julia> textwidth("March")
 """
 textwidth(s::AbstractString) = mapreduce(textwidth, +, s; init=0)
 
-lowercase(c::T) where {T<:AbstractChar} = isascii(c) ? ('A' <= c <= 'Z' ? c + 0x20 : c) :
-    T(ccall(:utf8proc_tolower, UInt32, (UInt32,), c))
-uppercase(c::T) where {T<:AbstractChar} = isascii(c) ? ('a' <= c <= 'z' ? c - 0x20 : c) :
-    T(ccall(:utf8proc_toupper, UInt32, (UInt32,), c))
-titlecase(c::T) where {T<:AbstractChar} = isascii(c) ? ('a' <= c <= 'z' ? c - 0x20 : c) :
-    T(ccall(:utf8proc_totitle, UInt32, (UInt32,), c))
+function lowercase(c::T) where T <: AbstractChar
+    if isascii(c)
+        if 'A' <= c <= 'Z'
+            c + 0x20
+        else
+            c
+        end
+    else
+        T(ccall(:utf8proc_tolower, UInt32, (UInt32,), c))
+    end
+end
+function uppercase(c::T) where T <: AbstractChar
+    if isascii(c)
+        if 'a' <= c <= 'z'
+            c - 0x20
+        else
+            c
+        end
+    else
+        T(ccall(:utf8proc_toupper, UInt32, (UInt32,), c))
+    end
+end
+function titlecase(c::T) where T <: AbstractChar
+    if isascii(c)
+        if 'a' <= c <= 'z'
+            c - 0x20
+        else
+            c
+        end
+    else
+        T(ccall(:utf8proc_totitle, UInt32, (UInt32,), c))
+    end
+end
 
 ############################################################################
 
@@ -267,9 +306,13 @@ function category_abbrev(c::AbstractChar)
     unsafe_string(ccall(:utf8proc_category_string, Cstring, (UInt32,), c))
 end
 
-category_string(c) = category_strings[category_code(c)+1]
+function category_string(c)
+    category_strings[category_code(c) + 1]
+end
 
-isassigned(c) = UTF8PROC_CATEGORY_CN < category_code(c) <= UTF8PROC_CATEGORY_CO
+function isassigned(c)
+    UTF8PROC_CATEGORY_CN < category_code(c) <= UTF8PROC_CATEGORY_CO
+end
 
 ## libc character class predicates ##
 
@@ -618,9 +661,9 @@ end
 ############################################################################
 # iterators for grapheme segmentation
 
-isgraphemebreak(c1::AbstractChar, c2::AbstractChar) =
-    ismalformed(c1) || ismalformed(c2) ||
-    ccall(:utf8proc_grapheme_break, Bool, (UInt32, UInt32), c1, c2)
+function isgraphemebreak(c1::AbstractChar, c2::AbstractChar)
+    ismalformed(c1) || (ismalformed(c2) || ccall(:utf8proc_grapheme_break, Bool, (UInt32, UInt32), c1, c2))
+end
 
 # Stateful grapheme break required by Unicode-9 rules: the string
 # must be processed in sequence, with state initialized to Ref{Int32}(0).
@@ -639,10 +682,16 @@ struct GraphemeIterator{S<:AbstractString}
 end
 
 # Documented in Unicode module
-graphemes(s::AbstractString) = GraphemeIterator{typeof(s)}(s)
+function graphemes(s::AbstractString)
+    GraphemeIterator{typeof(s)}(s)
+end
 
-eltype(::Type{GraphemeIterator{S}}) where {S} = SubString{S}
-eltype(::Type{GraphemeIterator{SubString{S}}}) where {S} = SubString{S}
+function eltype(::Type{GraphemeIterator{S}}) where S
+    SubString{S}
+end
+function eltype(::Type{GraphemeIterator{SubString{S}}}) where S
+    SubString{S}
+end
 
 function length(g::GraphemeIterator{S}) where {S}
     c0 = eltype(S)(0x00000000)
@@ -673,11 +722,19 @@ function iterate(g::GraphemeIterator, i_=(Int32(0),firstindex(g.s)))
     return (SubString(s, i, j), (state[], k))
 end
 
-==(g1::GraphemeIterator, g2::GraphemeIterator) = g1.s == g2.s
-hash(g::GraphemeIterator, h::UInt) = hash(g.s, h)
-isless(g1::GraphemeIterator, g2::GraphemeIterator) = isless(g1.s, g2.s)
+function ==(g1::GraphemeIterator, g2::GraphemeIterator)
+    g1.s == g2.s
+end
+function hash(g::GraphemeIterator, h::UInt)
+    hash(g.s, h)
+end
+function isless(g1::GraphemeIterator, g2::GraphemeIterator)
+    isless(g1.s, g2.s)
+end
 
-show(io::IO, g::GraphemeIterator{S}) where {S} = print(io, "length-$(length(g)) GraphemeIterator{$S} for \"$(g.s)\"")
+function show(io::IO, g::GraphemeIterator{S}) where S
+    print(io, "length-$(length(g)) GraphemeIterator{$(S)} for \"$(g.s)\"")
+end
 
 ############################################################################
 

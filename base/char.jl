@@ -45,10 +45,18 @@ represents a valid Unicode character.
 """
 Char
 
-(::Type{T})(x::Number) where {T<:AbstractChar} = T(UInt32(x))
-(::Type{AbstractChar})(x::Number) = Char(x)
-(::Type{T})(x::AbstractChar) where {T<:Union{Number,AbstractChar}} = T(codepoint(x))
-(::Type{T})(x::T) where {T<:AbstractChar} = x
+function (::Type{T})(x::Number) where T <: AbstractChar
+    T(UInt32(x))
+end
+function (::Type{AbstractChar})(x::Number)
+    Char(x)
+end
+function (::Type{T})(x::AbstractChar) where T <: Union{Number, AbstractChar}
+    T(codepoint(x))
+end
+function (::Type{T})(x::T) where T <: AbstractChar
+    x
+end
 
 """
     ncodeunits(c::Char) -> Int
@@ -74,7 +82,9 @@ return a different-sized integer (e.g. `UInt8`).
 """
 function codepoint end
 
-codepoint(c::Char) = UInt32(c)
+function codepoint(c::Char)
+    UInt32(c)
+end
 
 struct InvalidCharError{T<:AbstractChar} <: Exception
     char::T
@@ -175,59 +185,155 @@ function Char(b::Union{Int8,UInt8})
     0 ≤ b ≤ 0x7f ? reinterpret(Char, (b % UInt32) << 24) : Char(UInt32(b))
 end
 
-convert(::Type{AbstractChar}, x::Number) = Char(x) # default to Char
-convert(::Type{T}, x::Number) where {T<:AbstractChar} = T(x)
-convert(::Type{T}, x::AbstractChar) where {T<:Number} = T(x)
-convert(::Type{T}, c::AbstractChar) where {T<:AbstractChar} = T(c)
-convert(::Type{T}, c::T) where {T<:AbstractChar} = c
+function convert(::Type{AbstractChar}, x::Number)
+    Char(x)
+end # default to Char
+function convert(::Type{T}, x::Number) where T <: AbstractChar
+    T(x)
+end
+function convert(::Type{T}, x::AbstractChar) where T <: Number
+    T(x)
+end
+function convert(::Type{T}, c::AbstractChar) where T <: AbstractChar
+    T(c)
+end
+function convert(::Type{T}, c::T) where T <: AbstractChar
+    c
+end
 
-rem(x::AbstractChar, ::Type{T}) where {T<:Number} = rem(codepoint(x), T)
+function rem(x::AbstractChar, ::Type{T}) where T <: Number
+    rem(codepoint(x), T)
+end
 
-typemax(::Type{Char}) = reinterpret(Char, typemax(UInt32))
-typemin(::Type{Char}) = reinterpret(Char, typemin(UInt32))
+function typemax(::Type{Char})
+    reinterpret(Char, typemax(UInt32))
+end
+function typemin(::Type{Char})
+    reinterpret(Char, typemin(UInt32))
+end
 
-size(c::AbstractChar) = ()
-size(c::AbstractChar, d::Integer) = d < 1 ? throw(BoundsError()) : 1
-ndims(c::AbstractChar) = 0
-ndims(::Type{<:AbstractChar}) = 0
-length(c::AbstractChar) = 1
-IteratorSize(::Type{Char}) = HasShape{0}()
-firstindex(c::AbstractChar) = 1
-lastindex(c::AbstractChar) = 1
-getindex(c::AbstractChar) = c
-getindex(c::AbstractChar, i::Integer) = i == 1 ? c : throw(BoundsError())
-getindex(c::AbstractChar, I::Integer...) = all(x -> x == 1, I) ? c : throw(BoundsError())
-first(c::AbstractChar) = c
-last(c::AbstractChar) = c
-eltype(::Type{T}) where {T<:AbstractChar} = T
+function size(c::AbstractChar)
+    ()
+end
+function size(c::AbstractChar, d::Integer)
+    if d < 1
+        throw(BoundsError())
+    else
+        1
+    end
+end
+function ndims(c::AbstractChar)
+    0
+end
+function ndims(::Type{<:AbstractChar})
+    0
+end
+function length(c::AbstractChar)
+    1
+end
+function IteratorSize(::Type{Char})
+    HasShape{0}()
+end
+function firstindex(c::AbstractChar)
+    1
+end
+function lastindex(c::AbstractChar)
+    1
+end
+function getindex(c::AbstractChar)
+    c
+end
+function getindex(c::AbstractChar, i::Integer)
+    if i == 1
+        c
+    else
+        throw(BoundsError())
+    end
+end
+function getindex(c::AbstractChar, I::Integer...)
+    if all((x->begin
+                    x == 1
+                end), I)
+        c
+    else
+        throw(BoundsError())
+    end
+end
+function first(c::AbstractChar)
+    c
+end
+function last(c::AbstractChar)
+    c
+end
+function eltype(::Type{T}) where T <: AbstractChar
+    T
+end
 
-iterate(c::AbstractChar, done=false) = done ? nothing : (c, true)
-isempty(c::AbstractChar) = false
-in(x::AbstractChar, y::AbstractChar) = x == y
+function iterate(c::AbstractChar, done=false)
+    if done
+        nothing
+    else
+        (c, true)
+    end
+end
+function isempty(c::AbstractChar)
+    false
+end
+function in(x::AbstractChar, y::AbstractChar)
+    x == y
+end
 
-==(x::Char, y::Char) = reinterpret(UInt32, x) == reinterpret(UInt32, y)
-isless(x::Char, y::Char) = reinterpret(UInt32, x) < reinterpret(UInt32, y)
-hash(x::Char, h::UInt) =
-    hash_uint64(((reinterpret(UInt32, x) + UInt64(0xd4d64234)) << 32) ⊻ UInt64(h))
+function ==(x::Char, y::Char)
+    reinterpret(UInt32, x) == reinterpret(UInt32, y)
+end
+function isless(x::Char, y::Char)
+    reinterpret(UInt32, x) < reinterpret(UInt32, y)
+end
+function hash(x::Char, h::UInt)
+    hash_uint64((reinterpret(UInt32, x) + UInt64(0xd4d64234)) << 32 ⊻ UInt64(h))
+end
 
-first_utf8_byte(c::Char) = (reinterpret(UInt32, c) >> 24) % UInt8
+function first_utf8_byte(c::Char)
+    (reinterpret(UInt32, c) >> 24) % UInt8
+end
 
 # fallbacks:
-isless(x::AbstractChar, y::AbstractChar) = isless(Char(x), Char(y))
-==(x::AbstractChar, y::AbstractChar) = Char(x) == Char(y)
-hash(x::AbstractChar, h::UInt) = hash(Char(x), h)
-widen(::Type{T}) where {T<:AbstractChar} = T
+function isless(x::AbstractChar, y::AbstractChar)
+    isless(Char(x), Char(y))
+end
+function ==(x::AbstractChar, y::AbstractChar)
+    Char(x) == Char(y)
+end
+function hash(x::AbstractChar, h::UInt)
+    hash(Char(x), h)
+end
+function widen(::Type{T}) where T <: AbstractChar
+    T
+end
 
--(x::AbstractChar, y::AbstractChar) = Int(x) - Int(y)
--(x::T, y::Integer) where {T<:AbstractChar} = T(Int32(x) - Int32(y))
-+(x::T, y::Integer) where {T<:AbstractChar} = T(Int32(x) + Int32(y))
-+(x::Integer, y::AbstractChar) = y + x
+function -(x::AbstractChar, y::AbstractChar)
+    Int(x) - Int(y)
+end
+function (x::T - y::Integer) where T <: AbstractChar
+    T(Int32(x) - Int32(y))
+end
+function (x::T + y::Integer) where T <: AbstractChar
+    T(Int32(x) + Int32(y))
+end
+function +(x::Integer, y::AbstractChar)
+    y + x
+end
 
 # `print` should output UTF-8 by default for all AbstractChar types.
 # (Packages may implement other IO subtypes to specify different encodings.)
 # In contrast, `write(io, c)` outputs a `c` in an encoding determined by typeof(c).
-print(io::IO, c::Char) = (write(io, c); nothing)
-print(io::IO, c::AbstractChar) = print(io, Char(c)) # fallback: convert to output UTF-8
+function print(io::IO, c::Char)
+    write(io, c)
+    nothing
+end
+function print(io::IO, c::AbstractChar)
+    print(io, Char(c))
+end # fallback: convert to output UTF-8
 
 const hex_chars = UInt8['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',

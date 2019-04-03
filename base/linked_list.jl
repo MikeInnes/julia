@@ -10,12 +10,34 @@ end
 #const list_append!! = append!
 #const list_deletefirst! = delete!
 
-eltype(::Type{<:InvasiveLinkedList{T}}) where {T} = @isdefined(T) ? T : Any
+function eltype(::Type{<:InvasiveLinkedList{T}}) where T
+    if @isdefined(T)
+        T
+    else
+        Any
+    end
+end
 
-iterate(q::InvasiveLinkedList) = (h = q.head; h === nothing ? nothing : (h, h))
-iterate(q::InvasiveLinkedList{T}, v::T) where {T} = (h = v.next; h === nothing ? nothing : (h, h))
+function iterate(q::InvasiveLinkedList)
+    h = q.head
+    if h === nothing
+        nothing
+    else
+        (h, h)
+    end
+end
+function iterate(q::InvasiveLinkedList{T}, v::T) where T
+    h = v.next
+    if h === nothing
+        nothing
+    else
+        (h, h)
+    end
+end
 
-isempty(q::InvasiveLinkedList) = (q.head === nothing)
+function isempty(q::InvasiveLinkedList)
+    q.head === nothing
+end
 
 function length(q::InvasiveLinkedList)
     i = 0
@@ -131,13 +153,41 @@ end
 const LinkedList{T} = InvasiveLinkedList{LinkedListItem{T}}
 
 # delegate methods, as needed
-eltype(::Type{<:LinkedList{T}}) where {T} = @isdefined(T) ? T : Any
-iterate(q::LinkedList) = (h = q.head; h === nothing ? nothing : (h.value, h))
-iterate(q::InvasiveLinkedList{LLT}, v::LLT) where {LLT<:LinkedListItem} = (h = v.next; h === nothing ? nothing : (h.value, h))
-push!(q::LinkedList{T}, val::T) where {T} = push!(q, LinkedListItem{T}(val))
-pushfirst!(q::LinkedList{T}, val::T) where {T} = pushfirst!(q, LinkedListItem{T}(val))
-pop!(q::LinkedList) = invoke(pop!, Tuple{InvasiveLinkedList,}, q).value
-popfirst!(q::LinkedList) = invoke(popfirst!, Tuple{InvasiveLinkedList,}, q).value
+function eltype(::Type{<:LinkedList{T}}) where T
+    if @isdefined(T)
+        T
+    else
+        Any
+    end
+end
+function iterate(q::LinkedList)
+    h = q.head
+    if h === nothing
+        nothing
+    else
+        (h.value, h)
+    end
+end
+function iterate(q::InvasiveLinkedList{LLT}, v::LLT) where LLT <: LinkedListItem
+    h = v.next
+    if h === nothing
+        nothing
+    else
+        (h.value, h)
+    end
+end
+function push!(q::LinkedList{T}, val::T) where T
+    push!(q, LinkedListItem{T}(val))
+end
+function pushfirst!(q::LinkedList{T}, val::T) where T
+    pushfirst!(q, LinkedListItem{T}(val))
+end
+function pop!(q::LinkedList)
+    (invoke(pop!, Tuple{InvasiveLinkedList}, q)).value
+end
+function popfirst!(q::LinkedList)
+    (invoke(popfirst!, Tuple{InvasiveLinkedList}, q)).value
+end
 function list_deletefirst!(q::LinkedList{T}, val::T) where T
     h = q.head
     while h !== nothing

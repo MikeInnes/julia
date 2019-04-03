@@ -9,11 +9,16 @@ Generates a symbol which will not conflict with other variable names.
 """
 gensym() = ccall(:jl_gensym, Ref{Symbol}, ())
 
-gensym(s::String) = ccall(:jl_tagged_gensym, Ref{Symbol}, (Ptr{UInt8}, Int32), s, sizeof(s))
+function gensym(s::String)
+    ccall(:jl_tagged_gensym, Ref{Symbol}, (Ptr{UInt8}, Int32), s, sizeof(s))
+end
 
-gensym(ss::String...) = map(gensym, ss)
-gensym(s::Symbol) =
+function gensym(ss::String...)
+    map(gensym, ss)
+end
+function gensym(s::Symbol)
     ccall(:jl_tagged_gensym, Ref{Symbol}, (Ptr{UInt8}, Int32), s, ccall(:strlen, Csize_t, (Ptr{UInt8},), s))
+end
 
 """
     @gensym
@@ -39,8 +44,12 @@ function copy(e::Expr)
 end
 
 # copy parts of an AST that the compiler mutates
-copy_exprs(@nospecialize(x)) = x
-copy_exprs(x::Expr) = copy(x)
+function copy_exprs(@nospecialize(x))
+    x
+end
+function copy_exprs(x::Expr)
+    copy(x)
+end
 function copy_exprs(x::PhiNode)
     new_values = Vector{Any}(undef, length(x.values))
     for i = 1:length(x.values)
@@ -57,7 +66,9 @@ function copy_exprs(x::PhiCNode)
     end
     return PhiCNode(new_values)
 end
-copy_exprargs(x::Array{Any,1}) = Any[copy_exprs(x[i]) for i in 1:length(x)]
+function copy_exprargs(x::Array{Any, 1})
+    Any[copy_exprs(x[i]) for i = 1:length(x)]
+end
 
 # create copies of the CodeInfo definition, and any mutable fields
 function copy(c::CodeInfo)
@@ -74,8 +85,12 @@ function copy(c::CodeInfo)
 end
 
 
-==(x::Expr, y::Expr) = x.head === y.head && isequal(x.args, y.args)
-==(x::QuoteNode, y::QuoteNode) = isequal(x.value, y.value)
+function ==(x::Expr, y::Expr)
+    x.head === y.head && isequal(x.args, y.args)
+end
+function ==(x::QuoteNode, y::QuoteNode)
+    isequal(x.value, y.value)
+end
 
 """
     macroexpand(m::Module, x; recursive=true)
@@ -280,14 +295,20 @@ function pushmeta!(ex::Expr, sym::Symbol, args::Any...)
     ex
 end
 
-popmeta!(body, sym) = _getmeta(body, sym, true)
-peekmeta(body, sym) = _getmeta(body, sym, false)
+function popmeta!(body, sym)
+    _getmeta(body, sym, true)
+end
+function peekmeta(body, sym)
+    _getmeta(body, sym, false)
+end
 
 function _getmeta(body::Expr, sym::Symbol, delete::Bool)
     body.head === :block || return false, []
     _getmeta(body.args, sym, delete)
 end
-_getmeta(arg, sym, delete::Bool) = (false, [])
+function _getmeta(arg, sym, delete::Bool)
+    (false, [])
+end
 function _getmeta(body::Array{Any,1}, sym::Symbol, delete::Bool)
     idx, blockargs = findmeta_block(body, args -> findmetaarg(args,sym)!=0)
     if idx == 0
@@ -337,7 +358,9 @@ function findmeta(ex::Expr)
     error(ex, " is not a function expression")
 end
 
-findmeta(ex::Array{Any,1}) = findmeta_block(ex)
+function findmeta(ex::Array{Any, 1})
+    findmeta_block(ex)
+end
 
 function findmeta_block(exargs, argsmatch=args->true)
     for i = 1:length(exargs)
@@ -356,7 +379,9 @@ function findmeta_block(exargs, argsmatch=args->true)
     return 0, []
 end
 
-remove_linenums!(ex) = ex
+function remove_linenums!(ex)
+    ex
+end
 function remove_linenums!(ex::Expr)
     if ex.head === :block || ex.head === :quote
         # remove line number expressions from metadata (not argument literal or inert) position

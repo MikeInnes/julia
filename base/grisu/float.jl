@@ -36,9 +36,15 @@ struct Float
     de::Int32
 end
 
-Float() = Float(0,0,0)
-Float(x,y) = Float(x,y,Int32(0))
-Float(d::AbstractFloat) = Float(_significand(d), _exponent(d))
+function Float()
+    Float(0, 0, 0)
+end
+function Float(x, y)
+    Float(x, y, Int32(0))
+end
+function Float(d::AbstractFloat)
+    Float(_significand(d), _exponent(d))
+end
 
 # Consts
 const Float10MSBits = 0xFFC0000000000000 # used normalize(Float)
@@ -79,32 +85,80 @@ end
 #HiddenBit(::Type{Float128}) = 0x00010000000000000000000000000000
 #uint_t(d::Float128) = reinterpret(UInt128,d)
 # Float64
-DenormalExponent(::Type{Float64}) = Int32(-ExponentBias(Float64) + 1)
-ExponentMask(::Type{Float64}) = 0x7FF0000000000000
-PhysicalSignificandSize(::Type{Float64}) = Int32(52)
-SignificandSize(::Type{Float64}) = Int32(53)
-ExponentBias(::Type{Float64}) = Int32(0x3FF + PhysicalSignificandSize(Float64))
-SignificandMask(::Type{Float64}) = 0x000FFFFFFFFFFFFF
-HiddenBit(::Type{Float64}) = 0x0010000000000000
-uint_t(d::Float64) = reinterpret(UInt64,d)
+function DenormalExponent(::Type{Float64})
+    Int32(-(ExponentBias(Float64)) + 1)
+end
+function ExponentMask(::Type{Float64})
+    0x7ff0000000000000
+end
+function PhysicalSignificandSize(::Type{Float64})
+    Int32(52)
+end
+function SignificandSize(::Type{Float64})
+    Int32(53)
+end
+function ExponentBias(::Type{Float64})
+    Int32(0x03ff + PhysicalSignificandSize(Float64))
+end
+function SignificandMask(::Type{Float64})
+    0x000fffffffffffff
+end
+function HiddenBit(::Type{Float64})
+    0x0010000000000000
+end
+function uint_t(d::Float64)
+    reinterpret(UInt64, d)
+end
 # Float32
-DenormalExponent(::Type{Float32}) = Int32(-ExponentBias(Float32) + 1)
-ExponentMask(::Type{Float32}) = 0x7F800000
-PhysicalSignificandSize(::Type{Float32}) = Int32(23)
-SignificandSize(::Type{Float32}) = Int32(24)
-ExponentBias(::Type{Float32}) = Int32(0x7F + PhysicalSignificandSize(Float32))
-SignificandMask(::Type{Float32}) = 0x007FFFFF
-HiddenBit(::Type{Float32}) = 0x00800000
-uint_t(d::Float32) = reinterpret(UInt32,d)
+function DenormalExponent(::Type{Float32})
+    Int32(-(ExponentBias(Float32)) + 1)
+end
+function ExponentMask(::Type{Float32})
+    0x7f800000
+end
+function PhysicalSignificandSize(::Type{Float32})
+    Int32(23)
+end
+function SignificandSize(::Type{Float32})
+    Int32(24)
+end
+function ExponentBias(::Type{Float32})
+    Int32(0x7f + PhysicalSignificandSize(Float32))
+end
+function SignificandMask(::Type{Float32})
+    0x007fffff
+end
+function HiddenBit(::Type{Float32})
+    0x00800000
+end
+function uint_t(d::Float32)
+    reinterpret(UInt32, d)
+end
 # Float16
-DenormalExponent(::Type{Float16}) = Int32(-ExponentBias(Float16) + 1)
-ExponentMask(::Type{Float16}) = 0x7c00
-PhysicalSignificandSize(::Type{Float16}) = Int32(10)
-SignificandSize(::Type{Float16}) = Int32(11)
-ExponentBias(::Type{Float16}) = Int32(0x000f + PhysicalSignificandSize(Float16))
-SignificandMask(::Type{Float16}) = 0x03ff
-HiddenBit(::Type{Float16}) = 0x0400
-uint_t(d::Float16) = reinterpret(UInt16,d)
+function DenormalExponent(::Type{Float16})
+    Int32(-(ExponentBias(Float16)) + 1)
+end
+function ExponentMask(::Type{Float16})
+    0x7c00
+end
+function PhysicalSignificandSize(::Type{Float16})
+    Int32(10)
+end
+function SignificandSize(::Type{Float16})
+    Int32(11)
+end
+function ExponentBias(::Type{Float16})
+    Int32(0x000f + PhysicalSignificandSize(Float16))
+end
+function SignificandMask(::Type{Float16})
+    0x03ff
+end
+function HiddenBit(::Type{Float16})
+    0x0400
+end
+function uint_t(d::Float16)
+    reinterpret(UInt16, d)
+end
 
 function _exponent(d::T) where T<:AbstractFloat
   isdenormal(d) && return DenormalExponent(T)
@@ -115,7 +169,9 @@ function _significand(d::T) where T<:AbstractFloat
   s = uint_t(d) & SignificandMask(T)
   return !isdenormal(d) ? s + HiddenBit(T) : s
 end
-isdenormal(d::T) where {T<:AbstractFloat} = (uint_t(d) & ExponentMask(T)) == 0
+function isdenormal(d::T) where T <: AbstractFloat
+    uint_t(d) & ExponentMask(T) == 0
+end
 
 function normalizedbound(f::AbstractFloat)
     v = Float(_significand(f),_exponent(f))
@@ -132,7 +188,9 @@ function lowerboundaryiscloser(f::T) where T<:AbstractFloat
     return physical_significand_is_zero && (_exponent(f) != DenormalExponent(T))
 end
 
-(-)(a::Float,b::Float) = Float(a.s - b.s,a.e,a.de)
+function -(a::Float, b::Float)
+    Float(a.s - b.s, a.e, a.de)
+end
 
 const FloatM32 = 0xFFFFFFFF
 

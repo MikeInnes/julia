@@ -6,9 +6,15 @@ abstract type OrderStyle end
 struct Ordered <: OrderStyle end
 struct Unordered <: OrderStyle end
 
-OrderStyle(instance) = OrderStyle(typeof(instance))
-OrderStyle(::Type{<:Real}) = Ordered()
-OrderStyle(::Type{<:Any}) = Unordered()
+function OrderStyle(instance)
+    OrderStyle(typeof(instance))
+end
+function OrderStyle(::Type{<:Real})
+    Ordered()
+end
+function OrderStyle(::Type{<:Any})
+    Unordered()
+end
 
 # trait for objects that support arithmetic
 abstract type ArithmeticStyle end
@@ -16,10 +22,18 @@ struct ArithmeticRounds <: ArithmeticStyle end     # least significant bits can 
 struct ArithmeticWraps <: ArithmeticStyle end      #  most significant bits can be lost
 struct ArithmeticUnknown <: ArithmeticStyle end
 
-ArithmeticStyle(instance) = ArithmeticStyle(typeof(instance))
-ArithmeticStyle(::Type{<:AbstractFloat}) = ArithmeticRounds()
-ArithmeticStyle(::Type{<:Integer}) = ArithmeticWraps()
-ArithmeticStyle(::Type{<:Any}) = ArithmeticUnknown()
+function ArithmeticStyle(instance)
+    ArithmeticStyle(typeof(instance))
+end
+function ArithmeticStyle(::Type{<:AbstractFloat})
+    ArithmeticRounds()
+end
+function ArithmeticStyle(::Type{<:Integer})
+    ArithmeticWraps()
+end
+function ArithmeticStyle(::Type{<:Any})
+    ArithmeticUnknown()
+end
 
 # trait for objects that support ranges with regular step
 """
@@ -56,4 +70,6 @@ abstract type RangeStepStyle end
 struct RangeStepRegular   <: RangeStepStyle end # range with regular step
 struct RangeStepIrregular <: RangeStepStyle end # range with rounding error
 
-RangeStepStyle(instance) = RangeStepStyle(typeof(instance))
+function RangeStepStyle(instance)
+    RangeStepStyle(typeof(instance))
+end

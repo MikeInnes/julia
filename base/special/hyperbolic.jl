@@ -16,17 +16,33 @@
 
 # Hyperbolic functions
 # sinh methods
-H_SMALL_X(::Type{Float64}) = 2.0^-28
-H_MEDIUM_X(::Type{Float64}) = 22.0
+function H_SMALL_X(::Type{Float64})
+    2.0 ^ -28
+end
+function H_MEDIUM_X(::Type{Float64})
+    22.0
+end
 
-H_SMALL_X(::Type{Float32}) = 2f-12
-H_MEDIUM_X(::Type{Float32}) = 9f0
+function H_SMALL_X(::Type{Float32})
+    2.0f-12
+end
+function H_MEDIUM_X(::Type{Float32})
+    9.0f0
+end
 
-H_LARGE_X(::Type{Float64}) = 709.7822265633563 # nextfloat(709.7822265633562)
-H_OVERFLOW_X(::Type{Float64}) = 710.475860073944 # nextfloat(710.4758600739439)
+function H_LARGE_X(::Type{Float64})
+    709.7822265633563
+end # nextfloat(709.7822265633562)
+function H_OVERFLOW_X(::Type{Float64})
+    710.475860073944
+end # nextfloat(710.4758600739439)
 
-H_LARGE_X(::Type{Float32}) = 88.72283f0
-H_OVERFLOW_X(::Type{Float32}) = 89.415985f0
+function H_LARGE_X(::Type{Float32})
+    88.72283f0
+end
+function H_OVERFLOW_X(::Type{Float32})
+    89.415985f0
+end
 function sinh(x::T) where T <: Union{Float32, Float64}
     # Method
     # mathematically sinh(x) is defined to be (exp(x)-exp(-x))/2
@@ -77,11 +93,17 @@ function sinh(x::T) where T <: Union{Float32, Float64}
     # in e)
     return copysign(T(Inf), x)
 end
-sinh(x::Real) = sinh(float(x))
+function sinh(x::Real)
+    sinh(float(x))
+end
 
 # cosh methods
-COSH_SMALL_X(::Type{Float32}) = 0.00024414062f0
-COSH_SMALL_X(::Type{Float64}) = 2.7755602085408512e-17
+function COSH_SMALL_X(::Type{Float32})
+    0.00024414062f0
+end
+function COSH_SMALL_X(::Type{Float64})
+    2.775560208540851e-17
+end
 function cosh(x::T) where T <: Union{Float32, Float64}
     # Method
     # mathematically cosh(x) is defined to be (exp(x)+exp(-x))/2
@@ -130,11 +152,17 @@ function cosh(x::T) where T <: Union{Float32, Float64}
     # in f)
     return T(Inf)
 end
-cosh(x::Real) = cosh(float(x))
+function cosh(x::Real)
+    cosh(float(x))
+end
 
 # tanh methods
-TANH_LARGE_X(::Type{Float64}) = 22.0
-TANH_LARGE_X(::Type{Float32}) = 9.0f0
+function TANH_LARGE_X(::Type{Float64})
+    22.0
+end
+function TANH_LARGE_X(::Type{Float32})
+    9.0f0
+end
 function tanh(x::T) where T<:Union{Float32, Float64}
     # Method
     # mathematically tanh(x) is defined to be (exp(x)-exp(-x))/(exp(x)+exp(-x))
@@ -175,11 +203,17 @@ function tanh(x::T) where T<:Union{Float32, Float64}
     end
     return copysign(z, x)
 end
-tanh(x::Real) = tanh(float(x))
+function tanh(x::Real)
+    tanh(float(x))
+end
 
 # Inverse hyperbolic functions
-AH_LN2(::Type{Float64}) = 6.93147180559945286227e-01
-AH_LN2(::Type{Float32}) = 6.9314718246f-01
+function AH_LN2(::Type{Float64})
+    0.6931471805599453
+end
+function AH_LN2(::Type{Float32})
+    0.6931472f0
+end
 # asinh methods
 function asinh(x::T) where T <: Union{Float32, Float64}
     # Method
@@ -216,7 +250,9 @@ function asinh(x::T) where T <: Union{Float32, Float64}
     end
     return copysign(w, x)
 end
-asinh(x::Real) = asinh(float(x))
+function asinh(x::Real)
+    asinh(float(x))
+end
 
 # acosh methods
 @noinline acosh_domain_error(x) = throw(DomainError(x, "acosh(x) is only defined for x ≥ 1."))
@@ -255,7 +291,9 @@ function acosh(x::T) where T <: Union{Float32, Float64}
         return log(x) + AH_LN2(T)
     end
 end
-acosh(x::Real) = acosh(float(x))
+function acosh(x::Real)
+    acosh(float(x))
+end
 
 # atanh methods
 @noinline atanh_domain_error(x) = throw(DomainError(x, "atanh(x) is only defined for |x| ≤ 1."))
@@ -297,4 +335,6 @@ function atanh(x::T) where T <: Union{Float32, Float64}
     end
     return copysign(t, x)
 end
-atanh(x::Real) = atanh(float(x))
+function atanh(x::Real)
+    atanh(float(x))
+end

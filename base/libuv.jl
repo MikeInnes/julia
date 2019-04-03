@@ -26,10 +26,18 @@ for r in uv_req_types
 @eval const $(Symbol("_sizeof_",lowercase(string(r)))) = uv_sizeof_req($r)
 end
 
-uv_handle_data(handle) = ccall(:jl_uv_handle_data,Ptr{Cvoid},(Ptr{Cvoid},),handle)
-uv_req_data(handle) = ccall(:jl_uv_req_data,Ptr{Cvoid},(Ptr{Cvoid},),handle)
-uv_req_set_data(req,data) = ccall(:jl_uv_req_set_data,Cvoid,(Ptr{Cvoid},Any),req,data)
-uv_req_set_data(req,data::Ptr{Cvoid}) = ccall(:jl_uv_req_set_data,Cvoid,(Ptr{Cvoid},Ptr{Cvoid}),req,data)
+function uv_handle_data(handle)
+    ccall(:jl_uv_handle_data, Ptr{Cvoid}, (Ptr{Cvoid},), handle)
+end
+function uv_req_data(handle)
+    ccall(:jl_uv_req_data, Ptr{Cvoid}, (Ptr{Cvoid},), handle)
+end
+function uv_req_set_data(req, data)
+    ccall(:jl_uv_req_set_data, Cvoid, (Ptr{Cvoid}, Any), req, data)
+end
+function uv_req_set_data(req, data::Ptr{Cvoid})
+    ccall(:jl_uv_req_set_data, Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}), req, data)
+end
 
 macro handle_as(hand, typ)
     quote
@@ -39,11 +47,15 @@ macro handle_as(hand, typ)
     end
 end
 
-associate_julia_struct(handle::Ptr{Cvoid}, @nospecialize(jlobj)) =
+function associate_julia_struct(handle::Ptr{Cvoid}, @nospecialize(jlobj))
     ccall(:jl_uv_associate_julia_struct, Cvoid, (Ptr{Cvoid}, Any), handle, jlobj)
-disassociate_julia_struct(uv) = disassociate_julia_struct(uv.handle)
-disassociate_julia_struct(handle::Ptr{Cvoid}) =
+end
+function disassociate_julia_struct(uv)
+    disassociate_julia_struct(uv.handle)
+end
+function disassociate_julia_struct(handle::Ptr{Cvoid})
     handle != C_NULL && ccall(:jl_uv_disassociate_julia_struct, Cvoid, (Ptr{Cvoid},), handle)
+end
 
 # A dict of all libuv handles that are being waited on somewhere in the system
 # and should thus not be garbage collected
@@ -71,22 +83,38 @@ struct IOError <: Exception
     IOError(msg::AbstractString, code::Integer) = new(msg, code)
 end
 
-showerror(io::IO, e::IOError) = print(io, "IOError: ", e.msg)
+function showerror(io::IO, e::IOError)
+    print(io, "IOError: ", e.msg)
+end
 
 function _UVError(pfx::AbstractString, code::Integer)
     code = Int32(code)
     IOError(string(pfx, ": ", struverror(code), " (", uverrorname(code), ")"), code)
 end
 
-struverror(err::Int32) = unsafe_string(ccall(:uv_strerror,Cstring,(Int32,),err))
-uverrorname(err::Int32) = unsafe_string(ccall(:uv_err_name,Cstring,(Int32,),err))
+function struverror(err::Int32)
+    unsafe_string(ccall(:uv_strerror, Cstring, (Int32,), err))
+end
+function uverrorname(err::Int32)
+    unsafe_string(ccall(:uv_err_name, Cstring, (Int32,), err))
+end
 
-uv_error(prefix::Symbol, c::Integer) = uv_error(string(prefix),c)
-uv_error(prefix::AbstractString, c::Integer) = c < 0 ? throw(_UVError(prefix,c)) : nothing
+function uv_error(prefix::Symbol, c::Integer)
+    uv_error(string(prefix), c)
+end
+function uv_error(prefix::AbstractString, c::Integer)
+    if c < 0
+        throw(_UVError(prefix, c))
+    else
+        nothing
+    end
+end
 
 ## event loop ##
 
-eventloop() = uv_eventloop::Ptr{Cvoid}
+function eventloop()
+    uv_eventloop::Ptr{Cvoid}
+end
 #mkNewEventLoop() = ccall(:jl_new_event_loop,Ptr{Cvoid},()) # this would probably be fine, but is nowhere supported
 
 function run_event_loop()

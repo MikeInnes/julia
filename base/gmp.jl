@@ -21,8 +21,12 @@ else
 end
 const CdoubleMax = Union{Float16, Float32, Float64}
 
-version() = VersionNumber(unsafe_string(unsafe_load(cglobal((:__gmp_version, :libgmp), Ptr{Cchar}))))
-bits_per_limb() = Int(unsafe_load(cglobal((:__gmp_bits_per_limb, :libgmp), Cint)))
+function version()
+    VersionNumber(unsafe_string(unsafe_load(cglobal((:__gmp_version, :libgmp), Ptr{Cchar}))))
+end
+function bits_per_limb()
+    Int(unsafe_load(cglobal((:__gmp_bits_per_limb, :libgmp), Cint)))
+end
 
 const VERSION = version()
 const BITS_PER_LIMB = bits_per_limb()
@@ -135,15 +139,30 @@ using .Base.GMP: BigInt, Limb
 const mpz_t = Ref{BigInt}
 const bitcnt_t = Culong
 
-gmpz(op::Symbol) = (Symbol(:__gmpz_, op), :libgmp)
+function gmpz(op::Symbol)
+    (Symbol(:__gmpz_, op), :libgmp)
+end
 
-init!(x::BigInt) = (ccall((:__gmpz_init, :libgmp), Cvoid, (mpz_t,), x); x)
-init2!(x::BigInt, a) = (ccall((:__gmpz_init2, :libgmp), Cvoid, (mpz_t, bitcnt_t), x, a); x)
+function init!(x::BigInt)
+    ccall((:__gmpz_init, :libgmp), Cvoid, (mpz_t,), x)
+    x
+end
+function init2!(x::BigInt, a)
+    ccall((:__gmpz_init2, :libgmp), Cvoid, (mpz_t, bitcnt_t), x, a)
+    x
+end
 
-realloc2!(x, a) = (ccall((:__gmpz_realloc2, :libgmp), Cvoid, (mpz_t, bitcnt_t), x, a); x)
-realloc2(a) = realloc2!(BigInt(), a)
+function realloc2!(x, a)
+    ccall((:__gmpz_realloc2, :libgmp), Cvoid, (mpz_t, bitcnt_t), x, a)
+    x
+end
+function realloc2(a)
+    realloc2!(BigInt(), a)
+end
 
-sizeinbase(a::BigInt, b) = Int(ccall((:__gmpz_sizeinbase, :libgmp), Csize_t, (mpz_t, Cint), a, b))
+function sizeinbase(a::BigInt, b)
+    Int(ccall((:__gmpz_sizeinbase, :libgmp), Csize_t, (mpz_t, Cint), a, b))
+end
 
 for op in (:add, :sub, :mul, :fdiv_q, :tdiv_q, :fdiv_r, :tdiv_r, :gcd, :lcm, :and, :ior, :xor)
     op! = Symbol(op, :!)
@@ -154,10 +173,15 @@ for op in (:add, :sub, :mul, :fdiv_q, :tdiv_q, :fdiv_r, :tdiv_r, :gcd, :lcm, :an
     end
 end
 
-invert!(x::BigInt, a::BigInt, b::BigInt) =
+function invert!(x::BigInt, a::BigInt, b::BigInt)
     ccall((:__gmpz_invert, :libgmp), Cint, (mpz_t, mpz_t, mpz_t), x, a, b)
-invert(a::BigInt, b::BigInt) = invert!(BigInt(), a, b)
-invert!(x::BigInt, b::BigInt) = invert!(x, x, b)
+end
+function invert(a::BigInt, b::BigInt)
+    invert!(BigInt(), a, b)
+end
+function invert!(x::BigInt, b::BigInt)
+    invert!(x, x, b)
+end
 
 for op in (:add_ui, :sub_ui, :mul_ui, :mul_2exp, :fdiv_q_2exp, :pow_ui, :bin_ui)
     op! = Symbol(op, :!)
@@ -168,16 +192,28 @@ for op in (:add_ui, :sub_ui, :mul_ui, :mul_2exp, :fdiv_q_2exp, :pow_ui, :bin_ui)
     end
 end
 
-ui_sub!(x::BigInt, a, b::BigInt) = (ccall((:__gmpz_ui_sub, :libgmp), Cvoid, (mpz_t, Culong, mpz_t), x, a, b); x)
-ui_sub(a, b::BigInt) = ui_sub!(BigInt(), a, b)
+function ui_sub!(x::BigInt, a, b::BigInt)
+    ccall((:__gmpz_ui_sub, :libgmp), Cvoid, (mpz_t, Culong, mpz_t), x, a, b)
+    x
+end
+function ui_sub(a, b::BigInt)
+    ui_sub!(BigInt(), a, b)
+end
 
 for op in (:scan1, :scan0)
     @eval $op(a::BigInt, b) = Int(ccall($(gmpz(op)), Culong, (mpz_t, Culong), a, b))
 end
 
-mul_si!(x::BigInt, a::BigInt, b) = (ccall((:__gmpz_mul_si, :libgmp), Cvoid, (mpz_t, mpz_t, Clong), x, a, b); x)
-mul_si(a::BigInt, b) = mul_si!(BigInt(), a, b)
-mul_si!(x::BigInt, b) = mul_si!(x, x, b)
+function mul_si!(x::BigInt, a::BigInt, b)
+    ccall((:__gmpz_mul_si, :libgmp), Cvoid, (mpz_t, mpz_t, Clong), x, a, b)
+    x
+end
+function mul_si(a::BigInt, b)
+    mul_si!(BigInt(), a, b)
+end
+function mul_si!(x::BigInt, b)
+    mul_si!(x, x, b)
+end
 
 for op in (:neg, :com, :sqrt, :set)
     op! = Symbol(op, :!)
@@ -197,47 +233,92 @@ for (op, T) in ((:fac_ui, Culong), (:set_ui, Culong), (:set_si, Clong), (:set_d,
     end
 end
 
-popcount(a::BigInt) = Int(ccall((:__gmpz_popcount, :libgmp), Culong, (mpz_t,), a))
+function popcount(a::BigInt)
+    Int(ccall((:__gmpz_popcount, :libgmp), Culong, (mpz_t,), a))
+end
 
-mpn_popcount(d::Ptr{Limb}, s::Integer) = Int(ccall((:__gmpn_popcount, :libgmp), Culong, (Ptr{Limb}, Csize_t), d, s))
-mpn_popcount(a::BigInt) = mpn_popcount(a.d, abs(a.size))
+function mpn_popcount(d::Ptr{Limb}, s::Integer)
+    Int(ccall((:__gmpn_popcount, :libgmp), Culong, (Ptr{Limb}, Csize_t), d, s))
+end
+function mpn_popcount(a::BigInt)
+    mpn_popcount(a.d, abs(a.size))
+end
 
 function tdiv_qr!(x::BigInt, y::BigInt, a::BigInt, b::BigInt)
     ccall((:__gmpz_tdiv_qr, :libgmp), Cvoid, (mpz_t, mpz_t, mpz_t, mpz_t), x, y, a, b)
     x, y
 end
-tdiv_qr(a::BigInt, b::BigInt) = tdiv_qr!(BigInt(), BigInt(), a, b)
+function tdiv_qr(a::BigInt, b::BigInt)
+    tdiv_qr!(BigInt(), BigInt(), a, b)
+end
 
-powm!(x::BigInt, a::BigInt, b::BigInt, c::BigInt) =
-    (ccall((:__gmpz_powm, :libgmp), Cvoid, (mpz_t, mpz_t, mpz_t, mpz_t), x, a, b, c); x)
-powm(a::BigInt, b::BigInt, c::BigInt) = powm!(BigInt(), a, b, c)
-powm!(x::BigInt, b::BigInt, c::BigInt) = powm!(x, x, b, c)
+function powm!(x::BigInt, a::BigInt, b::BigInt, c::BigInt)
+    ccall((:__gmpz_powm, :libgmp), Cvoid, (mpz_t, mpz_t, mpz_t, mpz_t), x, a, b, c)
+    x
+end
+function powm(a::BigInt, b::BigInt, c::BigInt)
+    powm!(BigInt(), a, b, c)
+end
+function powm!(x::BigInt, b::BigInt, c::BigInt)
+    powm!(x, x, b, c)
+end
 
 function gcdext!(x::BigInt, y::BigInt, z::BigInt, a::BigInt, b::BigInt)
     ccall((:__gmpz_gcdext, :libgmp), Cvoid, (mpz_t, mpz_t, mpz_t, mpz_t, mpz_t), x, y, z, a, b)
     x, y, z
 end
-gcdext(a::BigInt, b::BigInt) = gcdext!(BigInt(), BigInt(), BigInt(), a, b)
+function gcdext(a::BigInt, b::BigInt)
+    gcdext!(BigInt(), BigInt(), BigInt(), a, b)
+end
 
-cmp(a::BigInt, b::BigInt) = Int(ccall((:__gmpz_cmp, :libgmp), Cint, (mpz_t, mpz_t), a, b))
-cmp_si(a::BigInt, b) = Int(ccall((:__gmpz_cmp_si, :libgmp), Cint, (mpz_t, Clong), a, b))
-cmp_ui(a::BigInt, b) = Int(ccall((:__gmpz_cmp_ui, :libgmp), Cint, (mpz_t, Culong), a, b))
-cmp_d(a::BigInt, b) = Int(ccall((:__gmpz_cmp_d, :libgmp), Cint, (mpz_t, Cdouble), a, b))
+function cmp(a::BigInt, b::BigInt)
+    Int(ccall((:__gmpz_cmp, :libgmp), Cint, (mpz_t, mpz_t), a, b))
+end
+function cmp_si(a::BigInt, b)
+    Int(ccall((:__gmpz_cmp_si, :libgmp), Cint, (mpz_t, Clong), a, b))
+end
+function cmp_ui(a::BigInt, b)
+    Int(ccall((:__gmpz_cmp_ui, :libgmp), Cint, (mpz_t, Culong), a, b))
+end
+function cmp_d(a::BigInt, b)
+    Int(ccall((:__gmpz_cmp_d, :libgmp), Cint, (mpz_t, Cdouble), a, b))
+end
 
-mpn_cmp(a::Ptr{Limb}, b::Ptr{Limb}, c) = ccall((:__gmpn_cmp, :libgmp), Cint, (Ptr{Limb}, Ptr{Limb}, Clong), a, b, c)
-mpn_cmp(a::BigInt, b::BigInt, c) = mpn_cmp(a.d, b.d, c)
+function mpn_cmp(a::Ptr{Limb}, b::Ptr{Limb}, c)
+    ccall((:__gmpn_cmp, :libgmp), Cint, (Ptr{Limb}, Ptr{Limb}, Clong), a, b, c)
+end
+function mpn_cmp(a::BigInt, b::BigInt, c)
+    mpn_cmp(a.d, b.d, c)
+end
 
-get_str!(x, a, b::BigInt) = (ccall((:__gmpz_get_str,:libgmp), Ptr{Cchar}, (Ptr{Cchar}, Cint, mpz_t), x, a, b); x)
-set_str!(x::BigInt, a, b) = Int(ccall((:__gmpz_set_str, :libgmp), Cint, (mpz_t, Ptr{UInt8}, Cint), x, a, b))
-get_d(a::BigInt) = ccall((:__gmpz_get_d, :libgmp), Cdouble, (mpz_t,), a)
+function get_str!(x, a, b::BigInt)
+    ccall((:__gmpz_get_str, :libgmp), Ptr{Cchar}, (Ptr{Cchar}, Cint, mpz_t), x, a, b)
+    x
+end
+function set_str!(x::BigInt, a, b)
+    Int(ccall((:__gmpz_set_str, :libgmp), Cint, (mpz_t, Ptr{UInt8}, Cint), x, a, b))
+end
+function get_d(a::BigInt)
+    ccall((:__gmpz_get_d, :libgmp), Cdouble, (mpz_t,), a)
+end
 
-limbs_write!(x::BigInt, a) = ccall((:__gmpz_limbs_write, :libgmp), Ptr{Limb}, (mpz_t, Clong), x, a)
-limbs_finish!(x::BigInt, a) = ccall((:__gmpz_limbs_finish, :libgmp), Cvoid, (mpz_t, Clong), x, a)
-import!(x::BigInt, a, b, c, d, e, f) = ccall((:__gmpz_import, :libgmp), Cvoid,
-    (mpz_t, Csize_t, Cint, Csize_t, Cint, Csize_t, Ptr{Cvoid}), x, a, b, c, d, e, f)
+function limbs_write!(x::BigInt, a)
+    ccall((:__gmpz_limbs_write, :libgmp), Ptr{Limb}, (mpz_t, Clong), x, a)
+end
+function limbs_finish!(x::BigInt, a)
+    ccall((:__gmpz_limbs_finish, :libgmp), Cvoid, (mpz_t, Clong), x, a)
+end
+function import!(x::BigInt, a, b, c, d, e, f)
+    ccall((:__gmpz_import, :libgmp), Cvoid, (mpz_t, Csize_t, Cint, Csize_t, Cint, Csize_t, Ptr{Cvoid}), x, a, b, c, d, e, f)
+end
 
-setbit!(x, a) = (ccall((:__gmpz_setbit, :libgmp), Cvoid, (mpz_t, bitcnt_t), x, a); x)
-tstbit(a::BigInt, b) = ccall((:__gmpz_tstbit, :libgmp), Cint, (mpz_t, bitcnt_t), a, b) % Bool
+function setbit!(x, a)
+    ccall((:__gmpz_setbit, :libgmp), Cvoid, (mpz_t, bitcnt_t), x, a)
+    x
+end
+function tstbit(a::BigInt, b)
+    ccall((:__gmpz_tstbit, :libgmp), Cint, (mpz_t, bitcnt_t), a, b) % Bool
+end
 
 end # module MPZ
 
@@ -245,16 +326,30 @@ const ZERO = BigInt()
 const ONE  = BigInt()
 const _ONE = Limb[1]
 
-widen(::Type{Int128})  = BigInt
-widen(::Type{UInt128}) = BigInt
-widen(::Type{BigInt})  = BigInt
+function widen(::Type{Int128})
+    BigInt
+end
+function widen(::Type{UInt128})
+    BigInt
+end
+function widen(::Type{BigInt})
+    BigInt
+end
 
-signed(x::BigInt) = x
+function signed(x::BigInt)
+    x
+end
 
-BigInt(x::BigInt) = x
-Signed(x::BigInt) = x
+function BigInt(x::BigInt)
+    x
+end
+function Signed(x::BigInt)
+    x
+end
 
-hastypemax(::Type{BigInt}) = false
+function hastypemax(::Type{BigInt})
+    false
+end
 
 function tryparse_internal(::Type{BigInt}, s::AbstractString, startpos::Int, endpos::Int, base_::Integer, raise::Bool)
     # don't make a copy in the common case where we are parsing a whole String
@@ -282,11 +377,19 @@ function tryparse_internal(::Type{BigInt}, s::AbstractString, startpos::Int, end
     flipsign!(z, sgn)
 end
 
-BigInt(x::Union{Clong,Int32}) = MPZ.set_si(x)
-BigInt(x::Union{Culong,UInt32}) = MPZ.set_ui(x)
-BigInt(x::Bool) = BigInt(UInt(x))
+function BigInt(x::Union{Clong, Int32})
+    MPZ.set_si(x)
+end
+function BigInt(x::Union{Culong, UInt32})
+    MPZ.set_ui(x)
+end
+function BigInt(x::Bool)
+    BigInt(UInt(x))
+end
 
-unsafe_trunc(::Type{BigInt}, x::Union{Float32,Float64}) = MPZ.set_d(x)
+function unsafe_trunc(::Type{BigInt}, x::Union{Float32, Float64})
+    MPZ.set_d(x)
+end
 
 function BigInt(x::Union{Float32,Float64})
     isinteger(x) || throw(InexactError(:BigInt, BigInt, x))
@@ -298,8 +401,12 @@ function trunc(::Type{BigInt}, x::Union{Float32,Float64})
     unsafe_trunc(BigInt,x)
 end
 
-BigInt(x::Float16) = BigInt(Float64(x))
-BigInt(x::Float32) = BigInt(Float64(x))
+function BigInt(x::Float16)
+    BigInt(Float64(x))
+end
+function BigInt(x::Float32)
+    BigInt(Float64(x))
+end
 
 function BigInt(x::Integer)
     x == 0 && return BigInt(Culong(0))
@@ -321,10 +428,17 @@ function BigInt(x::Integer)
 end
 
 
-rem(x::BigInt, ::Type{Bool}) = !iszero(x) & unsafe_load(x.d) % Bool # never unsafe here
+function rem(x::BigInt, ::Type{Bool})
+    (!(iszero(x)) & unsafe_load(x.d)) % Bool
+end # never unsafe here
 
-rem(x::BigInt, ::Type{T}) where T<:Union{SLimbMax,ULimbMax} =
-    iszero(x) ? zero(T) : flipsign(unsafe_load(x.d) % T, x.size)
+function rem(x::BigInt, ::Type{T}) where T <: Union{SLimbMax, ULimbMax}
+    if iszero(x)
+        zero(T)
+    else
+        flipsign(unsafe_load(x.d) % T, x.size)
+    end
+end
 
 function rem(x::BigInt, ::Type{T}) where T<:Union{Base.BitUnsigned,Base.BitSigned}
     u = zero(T)
@@ -334,7 +448,9 @@ function rem(x::BigInt, ::Type{T}) where T<:Union{Base.BitUnsigned,Base.BitSigne
     flipsign(u, x.size)
 end
 
-rem(x::Integer, ::Type{BigInt}) = BigInt(x)
+function rem(x::Integer, ::Type{BigInt})
+    BigInt(x)
+end
 
 function (::Type{T})(x::BigInt) where T<:Base.BitUnsigned
     if sizeof(T) < sizeof(Limb)
@@ -359,7 +475,9 @@ function (::Type{T})(x::BigInt) where T<:Base.BitSigned
 end
 
 
-Float64(n::BigInt, ::RoundingMode{:ToZero}) = MPZ.get_d(n)
+function Float64(n::BigInt, ::RoundingMode{:ToZero})
+    MPZ.get_d(n)
+end
 
 function (::Type{T})(n::BigInt, ::RoundingMode{:ToZero}) where T<:Union{Float16,Float32}
     T(Float64(n,RoundToZero),RoundToZero)
@@ -396,11 +514,19 @@ function (::Type{T})(n::BigInt, ::RoundingMode{:Nearest}) where T<:CdoubleMax
     x
 end
 
-Float64(n::BigInt) = Float64(n, RoundNearest)
-Float32(n::BigInt) = Float32(n, RoundNearest)
-Float16(n::BigInt) = Float16(n, RoundNearest)
+function Float64(n::BigInt)
+    Float64(n, RoundNearest)
+end
+function Float32(n::BigInt)
+    Float32(n, RoundNearest)
+end
+function Float16(n::BigInt)
+    Float16(n, RoundNearest)
+end
 
-promote_rule(::Type{BigInt}, ::Type{<:Integer}) = BigInt
+function promote_rule(::Type{BigInt}, ::Type{<:Integer})
+    BigInt
+end
 
 """
     big(x)
@@ -410,10 +536,16 @@ Convert a number to a maximum precision representation (typically [`BigInt`](@re
 """
 function big end
 
-big(::Type{<:Integer})  = BigInt
-big(::Type{<:Rational}) = Rational{BigInt}
+function big(::Type{<:Integer})
+    BigInt
+end
+function big(::Type{<:Rational})
+    Rational{BigInt}
+end
 
-big(n::Integer) = convert(BigInt, n)
+function big(n::Integer)
+    convert(BigInt, n)
+end
 
 # Binary ops
 for (fJ, fC) in ((:+, :add), (:-,:sub), (:*, :mul),
@@ -425,7 +557,9 @@ for (fJ, fC) in ((:+, :add), (:-,:sub), (:*, :mul),
     end
 end
 
-/(x::BigInt, y::BigInt) = float(x)/float(y)
+function /(x::BigInt, y::BigInt)
+    float(x) / float(y)
+end
 
 function invmod(x::BigInt, y::BigInt)
     z = zero(BigInt)
@@ -458,37 +592,105 @@ for (fJ, fC) in ((:+, :add), (:*, :mul), (:&, :and), (:|, :ior), (:xor, :xor))
 end
 
 # Basic arithmetic without promotion
-+(x::BigInt, c::CulongMax) = MPZ.add_ui(x, c)
-+(c::CulongMax, x::BigInt) = x + c
+function +(x::BigInt, c::CulongMax)
+    MPZ.add_ui(x, c)
+end
+function +(c::CulongMax, x::BigInt)
+    x + c
+end
 
--(x::BigInt, c::CulongMax) = MPZ.sub_ui(x, c)
--(c::CulongMax, x::BigInt) = MPZ.ui_sub(c, x)
+function -(x::BigInt, c::CulongMax)
+    MPZ.sub_ui(x, c)
+end
+function -(c::CulongMax, x::BigInt)
+    MPZ.ui_sub(c, x)
+end
 
-+(x::BigInt, c::ClongMax) = c < 0 ? -(x, -(c % Culong)) : x + convert(Culong, c)
-+(c::ClongMax, x::BigInt) = c < 0 ? -(x, -(c % Culong)) : x + convert(Culong, c)
--(x::BigInt, c::ClongMax) = c < 0 ? +(x, -(c % Culong)) : -(x, convert(Culong, c))
--(c::ClongMax, x::BigInt) = c < 0 ? -(x + -(c % Culong)) : -(convert(Culong, c), x)
+function +(x::BigInt, c::ClongMax)
+    if c < 0
+        x - -(c % Culong)
+    else
+        x + convert(Culong, c)
+    end
+end
+function +(c::ClongMax, x::BigInt)
+    if c < 0
+        x - -(c % Culong)
+    else
+        x + convert(Culong, c)
+    end
+end
+function -(x::BigInt, c::ClongMax)
+    if c < 0
+        x + -(c % Culong)
+    else
+        x - convert(Culong, c)
+    end
+end
+function -(c::ClongMax, x::BigInt)
+    if c < 0
+        -((x + -(c % Culong)))
+    else
+        convert(Culong, c) - x
+    end
+end
 
-*(x::BigInt, c::CulongMax) = MPZ.mul_ui(x, c)
-*(c::CulongMax, x::BigInt) = x * c
-*(x::BigInt, c::ClongMax) = MPZ.mul_si(x, c)
-*(c::ClongMax, x::BigInt) = x * c
+function *(x::BigInt, c::CulongMax)
+    MPZ.mul_ui(x, c)
+end
+function *(c::CulongMax, x::BigInt)
+    x * c
+end
+function *(x::BigInt, c::ClongMax)
+    MPZ.mul_si(x, c)
+end
+function *(c::ClongMax, x::BigInt)
+    x * c
+end
 
-/(x::BigInt, y::Union{ClongMax,CulongMax}) = float(x)/y
-/(x::Union{ClongMax,CulongMax}, y::BigInt) = x/float(y)
+function /(x::BigInt, y::Union{ClongMax, CulongMax})
+    float(x) / y
+end
+function /(x::Union{ClongMax, CulongMax}, y::BigInt)
+    x / float(y)
+end
 
 # unary ops
-(-)(x::BigInt) = MPZ.neg(x)
-(~)(x::BigInt) = MPZ.com(x)
+function -(x::BigInt)
+    MPZ.neg(x)
+end
+function ~(x::BigInt)
+    MPZ.com(x)
+end
 
-<<(x::BigInt, c::UInt) = c == 0 ? x : MPZ.mul_2exp(x, c)
->>(x::BigInt, c::UInt) = c == 0 ? x : MPZ.fdiv_q_2exp(x, c)
->>>(x::BigInt, c::UInt) = x >> c
+function <<(x::BigInt, c::UInt)
+    if c == 0
+        x
+    else
+        MPZ.mul_2exp(x, c)
+    end
+end
+function >>(x::BigInt, c::UInt)
+    if c == 0
+        x
+    else
+        MPZ.fdiv_q_2exp(x, c)
+    end
+end
+function >>>(x::BigInt, c::UInt)
+    x >> c
+end
 
-trailing_zeros(x::BigInt) = MPZ.scan1(x, 0)
-trailing_ones(x::BigInt) = MPZ.scan0(x, 0)
+function trailing_zeros(x::BigInt)
+    MPZ.scan1(x, 0)
+end
+function trailing_ones(x::BigInt)
+    MPZ.scan0(x, 0)
+end
 
-count_ones(x::BigInt) = MPZ.popcount(x)
+function count_ones(x::BigInt)
+    MPZ.popcount(x)
+end
 
 """
     count_ones_abs(x::BigInt)
@@ -497,20 +699,44 @@ Number of ones in the binary representation of abs(x).
 """
 count_ones_abs(x::BigInt) = iszero(x) ? 0 : MPZ.mpn_popcount(x)
 
-divrem(x::BigInt, y::BigInt) = MPZ.tdiv_qr(x, y)
+function divrem(x::BigInt, y::BigInt)
+    MPZ.tdiv_qr(x, y)
+end
 
-cmp(x::BigInt, y::BigInt) = sign(MPZ.cmp(x, y))
-cmp(x::BigInt, y::ClongMax) = sign(MPZ.cmp_si(x, y))
-cmp(x::BigInt, y::CulongMax) = sign(MPZ.cmp_ui(x, y))
-cmp(x::BigInt, y::Integer) = cmp(x, big(y))
-cmp(x::Integer, y::BigInt) = -cmp(y, x)
+function cmp(x::BigInt, y::BigInt)
+    sign(MPZ.cmp(x, y))
+end
+function cmp(x::BigInt, y::ClongMax)
+    sign(MPZ.cmp_si(x, y))
+end
+function cmp(x::BigInt, y::CulongMax)
+    sign(MPZ.cmp_ui(x, y))
+end
+function cmp(x::BigInt, y::Integer)
+    cmp(x, big(y))
+end
+function cmp(x::Integer, y::BigInt)
+    -(cmp(y, x))
+end
 
-cmp(x::BigInt, y::CdoubleMax) = isnan(y) ? -1 : sign(MPZ.cmp_d(x, y))
-cmp(x::CdoubleMax, y::BigInt) = -cmp(y, x)
+function cmp(x::BigInt, y::CdoubleMax)
+    if isnan(y)
+        -1
+    else
+        sign(MPZ.cmp_d(x, y))
+    end
+end
+function cmp(x::CdoubleMax, y::BigInt)
+    -(cmp(y, x))
+end
 
-isqrt(x::BigInt) = MPZ.sqrt(x)
+function isqrt(x::BigInt)
+    MPZ.sqrt(x)
+end
 
-^(x::BigInt, y::Culong) = MPZ.pow_ui(x, y)
+function ^(x::BigInt, y::Culong)
+    MPZ.pow_ui(x, y)
+end
 
 function bigint_pow(x::BigInt, y::Integer)
     if y<0; throw(DomainError(y, "`y` cannot be negative.")); end
@@ -534,18 +760,34 @@ function bigint_pow(x::BigInt, y::Integer)
     return x^convert(Culong, y)
 end
 
-^(x::BigInt , y::BigInt ) = bigint_pow(x, y)
-^(x::BigInt , y::Bool   ) = y ? x : one(x)
-^(x::BigInt , y::Integer) = bigint_pow(x, y)
-^(x::Integer, y::BigInt ) = bigint_pow(BigInt(x), y)
-^(x::Bool   , y::BigInt ) = Base.power_by_squaring(x, y)
+function ^(x::BigInt, y::BigInt)
+    bigint_pow(x, y)
+end
+function ^(x::BigInt, y::Bool)
+    if y
+        x
+    else
+        one(x)
+    end
+end
+function ^(x::BigInt, y::Integer)
+    bigint_pow(x, y)
+end
+function ^(x::Integer, y::BigInt)
+    bigint_pow(BigInt(x), y)
+end
+function ^(x::Bool, y::BigInt)
+    Base.power_by_squaring(x, y)
+end
 
 function powermod(x::BigInt, p::BigInt, m::BigInt)
     r = MPZ.powm(x, p, m)
     return m < 0 && r > 0 ? MPZ.add!(r, m) : r # choose sign consistent with mod(x^p, m)
 end
 
-powermod(x::Integer, p::Integer, m::BigInt) = powermod(big(x), big(p), m)
+function powermod(x::Integer, p::Integer, m::BigInt)
+    powermod(big(x), big(p), m)
+end
 
 function gcdx(a::BigInt, b::BigInt)
     if iszero(b) # shortcut this to ensure consistent results with gcdx(a,b)
@@ -565,7 +807,9 @@ function gcdx(a::BigInt, b::BigInt)
     g, s, t
 end
 
-sum(arr::AbstractArray{BigInt}) = foldl(MPZ.add!, arr; init=BigInt(0))
+function sum(arr::AbstractArray{BigInt})
+    foldl(MPZ.add!, arr; init=BigInt(0))
+end
 # note: a similar implementation for `prod` won't be efficient:
 # 1) the time complexity of the allocations is negligible compared to the multiplications
 # 2) assuming arr contains similarly sized BigInts, the multiplications are much more
@@ -573,40 +817,135 @@ sum(arr::AbstractArray{BigInt}) = foldl(MPZ.add!, arr; init=BigInt(0))
 # which is exactly what the default implementation of `prod` does, via mapreduce
 # (which maybe could be slightly optimized for BigInt)
 
-factorial(x::BigInt) = isneg(x) ? BigInt(0) : MPZ.fac_ui(x)
+function factorial(x::BigInt)
+    if isneg(x)
+        BigInt(0)
+    else
+        MPZ.fac_ui(x)
+    end
+end
 
-binomial(n::BigInt, k::UInt) = MPZ.bin_ui(n, k)
-binomial(n::BigInt, k::Integer) = k < 0 ? BigInt(0) : binomial(n, UInt(k))
+function binomial(n::BigInt, k::UInt)
+    MPZ.bin_ui(n, k)
+end
+function binomial(n::BigInt, k::Integer)
+    if k < 0
+        BigInt(0)
+    else
+        binomial(n, UInt(k))
+    end
+end
 
-==(x::BigInt, y::BigInt) = cmp(x,y) == 0
-==(x::BigInt, i::Integer) = cmp(x,i) == 0
-==(i::Integer, x::BigInt) = cmp(x,i) == 0
-==(x::BigInt, f::CdoubleMax) = isnan(f) ? false : cmp(x,f) == 0
-==(f::CdoubleMax, x::BigInt) = isnan(f) ? false : cmp(x,f) == 0
-iszero(x::BigInt) = x.size == 0
-isone(x::BigInt) = x == Culong(1)
+function ==(x::BigInt, y::BigInt)
+    cmp(x, y) == 0
+end
+function ==(x::BigInt, i::Integer)
+    cmp(x, i) == 0
+end
+function ==(i::Integer, x::BigInt)
+    cmp(x, i) == 0
+end
+function ==(x::BigInt, f::CdoubleMax)
+    if isnan(f)
+        false
+    else
+        cmp(x, f) == 0
+    end
+end
+function ==(f::CdoubleMax, x::BigInt)
+    if isnan(f)
+        false
+    else
+        cmp(x, f) == 0
+    end
+end
+function iszero(x::BigInt)
+    x.size == 0
+end
+function isone(x::BigInt)
+    x == Culong(1)
+end
 
-<=(x::BigInt, y::BigInt) = cmp(x,y) <= 0
-<=(x::BigInt, i::Integer) = cmp(x,i) <= 0
-<=(i::Integer, x::BigInt) = cmp(x,i) >= 0
-<=(x::BigInt, f::CdoubleMax) = isnan(f) ? false : cmp(x,f) <= 0
-<=(f::CdoubleMax, x::BigInt) = isnan(f) ? false : cmp(x,f) >= 0
+function <=(x::BigInt, y::BigInt)
+    cmp(x, y) <= 0
+end
+function <=(x::BigInt, i::Integer)
+    cmp(x, i) <= 0
+end
+function <=(i::Integer, x::BigInt)
+    cmp(x, i) >= 0
+end
+function <=(x::BigInt, f::CdoubleMax)
+    if isnan(f)
+        false
+    else
+        cmp(x, f) <= 0
+    end
+end
+function <=(f::CdoubleMax, x::BigInt)
+    if isnan(f)
+        false
+    else
+        cmp(x, f) >= 0
+    end
+end
 
-<(x::BigInt, y::BigInt) = cmp(x,y) < 0
-<(x::BigInt, i::Integer) = cmp(x,i) < 0
-<(i::Integer, x::BigInt) = cmp(x,i) > 0
-<(x::BigInt, f::CdoubleMax) = isnan(f) ? false : cmp(x,f) < 0
-<(f::CdoubleMax, x::BigInt) = isnan(f) ? false : cmp(x,f) > 0
-isneg(x::BigInt) = x.size < 0
-ispos(x::BigInt) = x.size > 0
+function <(x::BigInt, y::BigInt)
+    cmp(x, y) < 0
+end
+function <(x::BigInt, i::Integer)
+    cmp(x, i) < 0
+end
+function <(i::Integer, x::BigInt)
+    cmp(x, i) > 0
+end
+function <(x::BigInt, f::CdoubleMax)
+    if isnan(f)
+        false
+    else
+        cmp(x, f) < 0
+    end
+end
+function <(f::CdoubleMax, x::BigInt)
+    if isnan(f)
+        false
+    else
+        cmp(x, f) > 0
+    end
+end
+function isneg(x::BigInt)
+    x.size < 0
+end
+function ispos(x::BigInt)
+    x.size > 0
+end
 
-signbit(x::BigInt) = isneg(x)
-flipsign!(x::BigInt, y::Integer) = (signbit(y) && (x.size = -x.size); x)
-flipsign( x::BigInt, y::Integer) = signbit(y) ? -x : x
-flipsign( x::BigInt, y::BigInt)  = signbit(y) ? -x : x
+function signbit(x::BigInt)
+    isneg(x)
+end
+function flipsign!(x::BigInt, y::Integer)
+    signbit(y) && (x.size = -(x.size))
+    x
+end
+function flipsign(x::BigInt, y::Integer)
+    if signbit(y)
+        -x
+    else
+        x
+    end
+end
+function flipsign(x::BigInt, y::BigInt)
+    if signbit(y)
+        -x
+    else
+        x
+    end
+end
 # above method to resolving ambiguities with flipsign(::T, ::T) where T<:Signed
 
-show(io::IO, x::BigInt) = print(io, string(x))
+function show(io::IO, x::BigInt)
+    print(io, string(x))
+end
 
 function string(n::BigInt; base::Integer = 10, pad::Integer = 1)
     base < 0 && return Base._base(Int(base), n, pad, (base>0) & (n.size<0))
@@ -649,22 +988,60 @@ end
 # Fast paths for nextpow(2, x::BigInt)
 # below, ONE is always left-shifted by at least one digit, so a new BigInt is
 # allocated, which can be safely mutated
-_prevpow2(x::BigInt) = -2 <= x <= 2 ? x : flipsign!(ONE << (ndigits(x, base=2) - 1), x)
-_nextpow2(x::BigInt) = count_ones_abs(x) <= 1 ? x : flipsign!(ONE << ndigits(x, base=2), x)
+function _prevpow2(x::BigInt)
+    if -2 <= x <= 2
+        x
+    else
+        flipsign!(ONE << (ndigits(x, base=2) - 1), x)
+    end
+end
+function _nextpow2(x::BigInt)
+    if count_ones_abs(x) <= 1
+        x
+    else
+        flipsign!(ONE << ndigits(x, base=2), x)
+    end
+end
 
-Base.checked_abs(x::BigInt) = abs(x)
-Base.checked_neg(x::BigInt) = -x
-Base.checked_add(a::BigInt, b::BigInt) = a + b
-Base.checked_sub(a::BigInt, b::BigInt) = a - b
-Base.checked_mul(a::BigInt, b::BigInt) = a * b
-Base.checked_div(a::BigInt, b::BigInt) = div(a, b)
-Base.checked_rem(a::BigInt, b::BigInt) = rem(a, b)
-Base.checked_fld(a::BigInt, b::BigInt) = fld(a, b)
-Base.checked_mod(a::BigInt, b::BigInt) = mod(a, b)
-Base.checked_cld(a::BigInt, b::BigInt) = cld(a, b)
-Base.add_with_overflow(a::BigInt, b::BigInt) = a + b, false
-Base.sub_with_overflow(a::BigInt, b::BigInt) = a - b, false
-Base.mul_with_overflow(a::BigInt, b::BigInt) = a * b, false
+function Base.checked_abs(x::BigInt)
+    abs(x)
+end
+function Base.checked_neg(x::BigInt)
+    -x
+end
+function Base.checked_add(a::BigInt, b::BigInt)
+    a + b
+end
+function Base.checked_sub(a::BigInt, b::BigInt)
+    a - b
+end
+function Base.checked_mul(a::BigInt, b::BigInt)
+    a * b
+end
+function Base.checked_div(a::BigInt, b::BigInt)
+    div(a, b)
+end
+function Base.checked_rem(a::BigInt, b::BigInt)
+    rem(a, b)
+end
+function Base.checked_fld(a::BigInt, b::BigInt)
+    fld(a, b)
+end
+function Base.checked_mod(a::BigInt, b::BigInt)
+    mod(a, b)
+end
+function Base.checked_cld(a::BigInt, b::BigInt)
+    cld(a, b)
+end
+function Base.add_with_overflow(a::BigInt, b::BigInt)
+    (a + b, false)
+end
+function Base.sub_with_overflow(a::BigInt, b::BigInt)
+    (a - b, false)
+end
+function Base.mul_with_overflow(a::BigInt, b::BigInt)
+    (a * b, false)
+end
 
 function Base.deepcopy_internal(x::BigInt, stackdict::IdDict)
     if haskey(stackdict, x)

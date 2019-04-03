@@ -137,7 +137,9 @@ See also: [`getindex`](@ref), [`checkbounds`](@ref)
 
 ## basic generic definitions ##
 
-eltype(::Type{<:AbstractString}) = Char # some string types may use another AbstractChar
+function eltype(::Type{<:AbstractString})
+    Char
+end # some string types may use another AbstractChar
 
 """
     sizeof(str::AbstractString)
@@ -155,21 +157,33 @@ julia> sizeof("∀")
 ```
 """
 sizeof(s::AbstractString) = ncodeunits(s) * sizeof(codeunit(s))
-firstindex(s::AbstractString) = 1
-lastindex(s::AbstractString) = thisind(s, ncodeunits(s))
+function firstindex(s::AbstractString)
+    1
+end
+function lastindex(s::AbstractString)
+    thisind(s, ncodeunits(s))
+end
 
 function getindex(s::AbstractString, i::Integer)
     @boundscheck checkbounds(s, i)
     @inbounds return isvalid(s, i) ? iterate(s, i)[1] : string_index_err(s, i)
 end
 
-getindex(s::AbstractString, i::Colon) = s
+function getindex(s::AbstractString, i::Colon)
+    s
+end
 # TODO: handle other ranges with stride ±1 specially?
 # TODO: add more @propagate_inbounds annotations?
-getindex(s::AbstractString, v::AbstractVector{<:Integer}) =
-    sprint(io->(for i in v; write(io, s[i]) end), sizehint=length(v))
-getindex(s::AbstractString, v::AbstractVector{Bool}) =
+function getindex(s::AbstractString, v::AbstractVector{<:Integer})
+    sprint((io->begin
+                for i = v
+                    write(io, s[i])
+                end
+            end), sizehint=length(v))
+end
+function getindex(s::AbstractString, v::AbstractVector{Bool})
     throw(ArgumentError("logical indexing not supported for strings"))
+end
 
 function get(s::AbstractString, i::Integer, default)
 # TODO: use ternary once @inbounds is expression-like
@@ -182,31 +196,62 @@ end
 
 ## bounds checking ##
 
-checkbounds(::Type{Bool}, s::AbstractString, i::Integer) =
+function checkbounds(::Type{Bool}, s::AbstractString, i::Integer)
     1 ≤ i ≤ ncodeunits(s)
-checkbounds(::Type{Bool}, s::AbstractString, r::AbstractRange{<:Integer}) =
-    isempty(r) || (1 ≤ minimum(r) && maximum(r) ≤ ncodeunits(s))
-checkbounds(::Type{Bool}, s::AbstractString, I::AbstractArray{<:Real}) =
-    all(i -> checkbounds(Bool, s, i), I)
-checkbounds(::Type{Bool}, s::AbstractString, I::AbstractArray{<:Integer}) =
-    all(i -> checkbounds(Bool, s, i), I)
-checkbounds(s::AbstractString, I::Union{Integer,AbstractArray}) =
-    checkbounds(Bool, s, I) ? nothing : throw(BoundsError(s, I))
+end
+function checkbounds(::Type{Bool}, s::AbstractString, r::AbstractRange{<:Integer})
+    isempty(r) || 1 ≤ minimum(r) && maximum(r) ≤ ncodeunits(s)
+end
+function checkbounds(::Type{Bool}, s::AbstractString, I::AbstractArray{<:Real})
+    all((i->begin
+                checkbounds(Bool, s, i)
+            end), I)
+end
+function checkbounds(::Type{Bool}, s::AbstractString, I::AbstractArray{<:Integer})
+    all((i->begin
+                checkbounds(Bool, s, i)
+            end), I)
+end
+function checkbounds(s::AbstractString, I::Union{Integer, AbstractArray})
+    if checkbounds(Bool, s, I)
+        nothing
+    else
+        throw(BoundsError(s, I))
+    end
+end
 
 ## construction, conversion, promotion ##
 
-string() = ""
-string(s::AbstractString) = s
+function string()
+    ""
+end
+function string(s::AbstractString)
+    s
+end
 
-(::Type{Vector{UInt8}})(s::AbstractString) = unsafe_wrap(Vector{UInt8}, String(s))
-(::Type{Array{UInt8}})(s::AbstractString) = unsafe_wrap(Vector{UInt8}, String(s))
-(::Type{Vector{T}})(s::AbstractString) where {T<:AbstractChar} = collect(T, s)
+function (::Type{Vector{UInt8}})(s::AbstractString)
+    unsafe_wrap(Vector{UInt8}, String(s))
+end
+function (::Type{Array{UInt8}})(s::AbstractString)
+    unsafe_wrap(Vector{UInt8}, String(s))
+end
+function (::Type{Vector{T}})(s::AbstractString) where T <: AbstractChar
+    collect(T, s)
+end
 
-Symbol(s::AbstractString) = Symbol(String(s))
-Symbol(x...) = Symbol(string(x...))
+function Symbol(s::AbstractString)
+    Symbol(String(s))
+end
+function Symbol(x...)
+    Symbol(string(x...))
+end
 
-convert(::Type{T}, s::T) where {T<:AbstractString} = s
-convert(::Type{T}, s::AbstractString) where {T<:AbstractString} = T(s)
+function convert(::Type{T}, s::T) where T <: AbstractString
+    s
+end
+function convert(::Type{T}, s::AbstractString) where T <: AbstractString
+    T(s)
+end
 
 ## string & character concatenation ##
 
@@ -229,7 +274,9 @@ julia> 'j' * "ulia"
 """
 (*)(s1::Union{AbstractChar, AbstractString}, ss::Union{AbstractChar, AbstractString}...) = string(s1, ss...)
 
-one(::Union{T,Type{T}}) where {T<:AbstractString} = convert(T, "")
+function one(::Union{T, Type{T}}) where T <: AbstractString
+    convert(T, "")
+end
 
 ## generic string comparison ##
 
@@ -315,9 +362,13 @@ isless(a::AbstractString, b::AbstractString) = cmp(a, b) < 0
 
 # faster comparisons for symbols
 
-cmp(a::Symbol, b::Symbol) = Int(sign(ccall(:strcmp, Int32, (Cstring, Cstring), a, b)))
+function cmp(a::Symbol, b::Symbol)
+    Int(sign(ccall(:strcmp, Int32, (Cstring, Cstring), a, b)))
+end
 
-isless(a::Symbol, b::Symbol) = cmp(a, b) < 0
+function isless(a::Symbol, b::Symbol)
+    cmp(a, b) < 0
+end
 
 ## character index arithmetic ##
 
@@ -452,8 +503,12 @@ julia> prevind("α", 2, 3)
 ```
 """
 prevind(s::AbstractString, i::Integer, n::Integer) = prevind(s, Int(i), Int(n))
-prevind(s::AbstractString, i::Integer)             = prevind(s, Int(i))
-prevind(s::AbstractString, i::Int)                 = prevind(s, i, 1)
+function prevind(s::AbstractString, i::Integer)
+    prevind(s, Int(i))
+end
+function prevind(s::AbstractString, i::Int)
+    prevind(s, i, 1)
+end
 
 function prevind(s::AbstractString, i::Int, n::Int)
     n < 0 && throw(ArgumentError("n cannot be negative: $n"))
@@ -512,8 +567,12 @@ julia> nextind("α", 1, 2)
 ```
 """
 nextind(s::AbstractString, i::Integer, n::Integer) = nextind(s, Int(i), Int(n))
-nextind(s::AbstractString, i::Integer)             = nextind(s, Int(i))
-nextind(s::AbstractString, i::Int)                 = nextind(s, i, 1)
+function nextind(s::AbstractString, i::Integer)
+    nextind(s, Int(i))
+end
+function nextind(s::AbstractString, i::Int)
+    nextind(s, i, 1)
+end
 
 function nextind(s::AbstractString, i::Int, n::Int)
     n < 0 && throw(ArgumentError("n cannot be negative: $n"))
@@ -531,13 +590,29 @@ end
 struct EachStringIndex{T<:AbstractString}
     s::T
 end
-keys(s::AbstractString) = EachStringIndex(s)
+function keys(s::AbstractString)
+    EachStringIndex(s)
+end
 
-length(e::EachStringIndex) = length(e.s)
-first(::EachStringIndex) = 1
-last(e::EachStringIndex) = lastindex(e.s)
-iterate(e::EachStringIndex, state=firstindex(e.s)) = state > ncodeunits(e.s) ? nothing : (state, nextind(e.s, state))
-eltype(::Type{<:EachStringIndex}) = Int
+function length(e::EachStringIndex)
+    length(e.s)
+end
+function first(::EachStringIndex)
+    1
+end
+function last(e::EachStringIndex)
+    lastindex(e.s)
+end
+function iterate(e::EachStringIndex, state=firstindex(e.s))
+    if state > ncodeunits(e.s)
+        nothing
+    else
+        (state, nextind(e.s, state))
+    end
+end
+function eltype(::Type{<:EachStringIndex})
+    Int
+end
 
 """
     isascii(c::Union{AbstractChar,AbstractString}) -> Bool
@@ -561,8 +636,12 @@ false
 ```
 """
 isascii(c::Char) = bswap(reinterpret(UInt32, c)) < 0x80
-isascii(s::AbstractString) = all(isascii, s)
-isascii(c::AbstractChar) = UInt32(c) < 0x80
+function isascii(s::AbstractString)
+    all(isascii, s)
+end
+function isascii(c::AbstractChar)
+    UInt32(c) < 0x80
+end
 
 ## string map, filter, has ##
 
@@ -674,8 +753,20 @@ julia> "Test "^3
 (^)(s::Union{AbstractString,AbstractChar}, r::Integer) = repeat(s, r)
 
 # reverse-order iteration for strings and indices thereof
-iterate(r::Iterators.Reverse{<:AbstractString}, i=lastindex(r.itr)) = i < firstindex(r.itr) ? nothing : (r.itr[i], prevind(r.itr, i))
-iterate(r::Iterators.Reverse{<:EachStringIndex}, i=lastindex(r.itr.s)) = i < firstindex(r.itr.s) ? nothing : (i, prevind(r.itr.s, i))
+function iterate(r::Iterators.Reverse{<:AbstractString}, i=lastindex(r.itr))
+    if i < firstindex(r.itr)
+        nothing
+    else
+        (r.itr[i], prevind(r.itr, i))
+    end
+end
+function iterate(r::Iterators.Reverse{<:EachStringIndex}, i=lastindex((r.itr).s))
+    if i < firstindex((r.itr).s)
+        nothing
+    else
+        (i, prevind((r.itr).s, i))
+    end
+end
 
 ## code unit access ##
 
@@ -690,18 +781,41 @@ struct CodeUnits{T,S<:AbstractString} <: DenseVector{T}
     CodeUnits(s::S) where {S<:AbstractString} = new{codeunit(s),S}(s)
 end
 
-length(s::CodeUnits) = ncodeunits(s.s)
-sizeof(s::CodeUnits{T}) where {T} = ncodeunits(s.s) * sizeof(T)
-size(s::CodeUnits) = (length(s),)
-elsize(s::CodeUnits{T}) where {T} = sizeof(T)
+function length(s::CodeUnits)
+    ncodeunits(s.s)
+end
+function sizeof(s::CodeUnits{T}) where T
+    ncodeunits(s.s) * sizeof(T)
+end
+function size(s::CodeUnits)
+    (length(s),)
+end
+function elsize(s::CodeUnits{T}) where T
+    sizeof(T)
+end
 @propagate_inbounds getindex(s::CodeUnits, i::Int) = codeunit(s.s, i)
-IndexStyle(::Type{<:CodeUnits}) = IndexLinear()
-iterate(s::CodeUnits, i=1) = (@_propagate_inbounds_meta; i == length(s)+1 ? nothing : (s[i], i+1))
+function IndexStyle(::Type{<:CodeUnits})
+    IndexLinear()
+end
+function iterate(s::CodeUnits, i=1)
+    @_propagate_inbounds_meta
+    if i == length(s) + 1
+        nothing
+    else
+        (s[i], i + 1)
+    end
+end
 
-write(io::IO, s::CodeUnits) = write(io, s.s)
+function write(io::IO, s::CodeUnits)
+    write(io, s.s)
+end
 
-unsafe_convert(::Type{Ptr{T}},    s::CodeUnits{T}) where {T} = unsafe_convert(Ptr{T}, s.s)
-unsafe_convert(::Type{Ptr{Int8}}, s::CodeUnits{UInt8}) = unsafe_convert(Ptr{Int8}, s.s)
+function unsafe_convert(::Type{Ptr{T}}, s::CodeUnits{T}) where T
+    unsafe_convert(Ptr{T}, s.s)
+end
+function unsafe_convert(::Type{Ptr{Int8}}, s::CodeUnits{UInt8})
+    unsafe_convert(Ptr{Int8}, s.s)
+end
 
 """
     codeunits(s::AbstractString)

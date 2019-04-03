@@ -10,15 +10,31 @@ ccall(:jl_set_istopmod, Cvoid, (Any, Bool), Base, is_primary_base_module)
 # Try to help prevent users from shooting them-selves in the foot
 # with ambiguities by defining a few common and critical operations
 # (and these don't need the extra convert code)
-getproperty(x::Module, f::Symbol) = getfield(x, f)
-setproperty!(x::Module, f::Symbol, v) = setfield!(x, f, v)
-getproperty(x::Type, f::Symbol) = getfield(x, f)
-setproperty!(x::Type, f::Symbol, v) = setfield!(x, f, v)
-getproperty(x::Tuple, f::Int) = getfield(x, f)
-setproperty!(x::Tuple, f::Int, v) = setfield!(x, f, v) # to get a decent error
+function getproperty(x::Module, f::Symbol)
+    getfield(x, f)
+end
+function setproperty!(x::Module, f::Symbol, v)
+    setfield!(x, f, v)
+end
+function getproperty(x::Type, f::Symbol)
+    getfield(x, f)
+end
+function setproperty!(x::Type, f::Symbol, v)
+    setfield!(x, f, v)
+end
+function getproperty(x::Tuple, f::Int)
+    getfield(x, f)
+end
+function setproperty!(x::Tuple, f::Int, v)
+    setfield!(x, f, v)
+end # to get a decent error
 
-getproperty(Core.@nospecialize(x), f::Symbol) = getfield(x, f)
-setproperty!(x, f::Symbol, v) = setfield!(x, f, convert(fieldtype(typeof(x), f), v))
+function getproperty(Core.@nospecialize(x), f::Symbol)
+    getfield(x, f)
+end
+function setproperty!(x, f::Symbol, v)
+    setfield!(x, f, convert(fieldtype(typeof(x), f), v))
+end
 
 function include_relative end
 function include(mod::Module, path::AbstractString)
@@ -66,8 +82,12 @@ INCLUDE_STATE = 1 # include = Core.include
 
 include("coreio.jl")
 
-eval(x) = Core.eval(Base, x)
-eval(m::Module, x) = Core.eval(m, x)
+function eval(x)
+    Core.eval(Base, x)
+end
+function eval(m::Module, x)
+    Core.eval(m, x)
+end
 
 # init core docsystem
 import Core: @doc, @__doc__, WrappedException, @int128_str, @uint128_str, @big_str, @cmd

@@ -26,7 +26,9 @@ program completed successfully. In an interactive session, `exit()` can be calle
 the keyboard shortcut `^D`.
 """
 exit(n) = ccall(:jl_exit, Cvoid, (Int32,), n)
-exit() = exit(0)
+function exit()
+    exit(0)
+end
 
 const roottask = current_task()
 
@@ -259,7 +261,9 @@ function load_path_expand(env::AbstractString)::Union{String, Nothing}
     # package dir or path to project file
     return path
 end
-load_path_expand(::Nothing) = nothing
+function load_path_expand(::Nothing)
+    nothing
+end
 
 function active_project(search_load_path::Bool=true)
     for project in (ACTIVE_PROJECT[], HOME_PROJECT[])

@@ -2,7 +2,9 @@
 
 @inline isexpr(@nospecialize(stmt), head::Symbol) = isa(stmt, Expr) && stmt.head === head
 @eval Core.UpsilonNode() = $(Expr(:new, Core.UpsilonNode))
-Core.PhiNode() = Core.PhiNode(Any[], Any[])
+function Core.PhiNode()
+    Core.PhiNode(Any[], Any[])
+end
 
 struct Argument
     n::Int
@@ -29,11 +31,23 @@ struct StmtRange <: AbstractUnitRange{Int}
     start::Int
     stop::Int
 end
-first(r::StmtRange) = r.start
-last(r::StmtRange) = r.stop
-iterate(r::StmtRange, state=0) = (last(r) - first(r) < state) ? nothing : (first(r) + state, state + 1)
+function first(r::StmtRange)
+    r.start
+end
+function last(r::StmtRange)
+    r.stop
+end
+function iterate(r::StmtRange, state=0)
+    if last(r) - first(r) < state
+        nothing
+    else
+        (first(r) + state, state + 1)
+    end
+end
 
-StmtRange(range::UnitRange{Int}) = StmtRange(first(range), last(range))
+function StmtRange(range::UnitRange{Int})
+    StmtRange(first(range), last(range))
+end
 
 struct BasicBlock
     stmts::StmtRange
@@ -46,19 +60,25 @@ end
 function BasicBlock(old_bb, stmts)
     return BasicBlock(stmts, old_bb.preds, old_bb.succs)
 end
-copy(bb::BasicBlock) = BasicBlock(bb.stmts, copy(bb.preds), copy(bb.succs))
+function copy(bb::BasicBlock)
+    BasicBlock(bb.stmts, copy(bb.preds), copy(bb.succs))
+end
 
 struct CFG
     blocks::Vector{BasicBlock}
     index::Vector{Int} # map from instruction => basic-block number
                        # TODO: make this O(1) instead of O(log(n_blocks))?
 end
-copy(c::CFG) = CFG(BasicBlock[copy(b) for b in c.blocks], copy(c.index))
+function copy(c::CFG)
+    CFG(BasicBlock[copy(b) for b = c.blocks], copy(c.index))
+end
 
 function block_for_inst(index::Vector{Int}, inst::Int)
     return searchsortedfirst(index, inst, lt=(<=))
 end
-block_for_inst(cfg::CFG, inst::Int) = block_for_inst(cfg.index, inst)
+function block_for_inst(cfg::CFG, inst::Int)
+    block_for_inst(cfg.index, inst)
+end
 
 function basic_blocks_starts(stmts::Vector{Any})
     jump_dests = BitSet()
@@ -229,8 +249,9 @@ struct IRCode
         return new(stmts, types, lines, flags, ir.argtypes, ir.sptypes, ir.linetable, cfg, new_nodes, ir.meta)
     end
 end
-copy(code::IRCode) = IRCode(code, copy_exprargs(code.stmts), copy(code.types),
-    copy(code.lines), copy(code.flags), copy(code.cfg), copy(code.new_nodes))
+function copy(code::IRCode)
+    IRCode(code, copy_exprargs(code.stmts), copy(code.types), copy(code.lines), copy(code.flags), copy(code.cfg), copy(code.new_nodes))
+end
 
 function getindex(x::IRCode, s::SSAValue)
     if s.id <= length(x.stmts)
@@ -267,7 +288,9 @@ struct UseRefIterator
     relevant::Bool
     UseRefIterator(@nospecialize(a), relevant::Bool) = new((UseRef(a), nothing), relevant)
 end
-getindex(it::UseRefIterator) = it.use[1].stmt
+function getindex(it::UseRefIterator)
+    (it.use[1]).stmt
+end
 
 # TODO: stack-allocation
 #struct UseRef
@@ -382,7 +405,10 @@ function userefs(@nospecialize(x))
     return UseRefIterator(x, relevant)
 end
 
-iterate(it::UseRefIterator) = (it.use[1].op = 0; iterate(it, nothing))
+function iterate(it::UseRefIterator)
+    (it.use[1]).op = 0
+    iterate(it, nothing)
+end
 @noinline function iterate(it::UseRefIterator, ::Nothing)
     it.relevant || return nothing
     use = it.use[1]
@@ -552,7 +578,9 @@ end
 struct TypesView
     ir::Union{IRCode, IncrementalCompact}
 end
-types(ir::Union{IRCode, IncrementalCompact}) = TypesView(ir)
+function types(ir::Union{IRCode, IncrementalCompact})
+    TypesView(ir)
+end
 
 function getindex(compact::IncrementalCompact, idx::Int)
     if idx < compact.result_idx
@@ -1047,7 +1075,13 @@ struct CompactPeekIterator
     start_idx::Int
 end
 
-entry_at_idx(entry, idx) = entry.attach_after ? entry.pos == idx - 1 : entry.pos == idx
+function entry_at_idx(entry, idx)
+    if entry.attach_after
+        entry.pos == idx - 1
+    else
+        entry.pos == idx
+    end
+end
 function iterate(it::CompactPeekIterator, (idx, aidx, bidx)::NTuple{3, Int}=(it.start_idx,it.compact.new_nodes_idx,1))
     # TODO: Take advantage of the fact that these arrays are sorted
     compact = it.compact
@@ -1285,7 +1319,9 @@ struct BBIdxIter
     ir::IRCode
 end
 
-bbidxiter(ir::IRCode) = BBIdxIter(ir)
+function bbidxiter(ir::IRCode)
+    BBIdxIter(ir)
+end
 
 function iterate(x::BBIdxIter, (idx, bb)::Tuple{Int, Int}=(1, 1))
     idx > length(x.ir.stmts) && return nothing

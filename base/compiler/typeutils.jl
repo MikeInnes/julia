@@ -11,11 +11,15 @@ function rewrap(@nospecialize(t), @nospecialize(u))
     return t
 end
 
-isType(@nospecialize t) = isa(t, DataType) && t.name === _TYPE_NAME
+function isType(@nospecialize(t))
+    t isa DataType && t.name === _TYPE_NAME
+end
 
 # true if Type{T} is inlineable as constant T
 # requires that T is a singleton, s.t. T == S implies T === S
-isconstType(@nospecialize t) = isType(t) && issingletontype(t.parameters[1])
+function isconstType(@nospecialize(t))
+    isType(t) && issingletontype(t.parameters[1])
+end
 
 # test whether T is a singleton type, s.t. T == S implies T === S
 function issingletontype(@nospecialize t)
@@ -41,9 +45,13 @@ end
 # some of these queries, this check can be used to somewhat protect against making incorrect
 # decisions based on incorrect subtyping. Note that this check, itself, is broken for
 # certain combinations of `a` and `b` where one/both isa/are `Union`/`UnionAll` type(s)s.
-isnotbrokensubtype(@nospecialize(a), @nospecialize(b)) = (!iskindtype(b) || !isType(a) || issingletontype(a.parameters[1]))
+function isnotbrokensubtype(@nospecialize(a), @nospecialize(b))
+    !(iskindtype(b)) || (!(isType(a)) || issingletontype(a.parameters[1]))
+end
 
-argtypes_to_type(argtypes::Array{Any,1}) = Tuple{anymap(widenconst, argtypes)...}
+function argtypes_to_type(argtypes::Array{Any, 1})
+    Tuple{anymap(widenconst, argtypes)...}
+end
 
 function isknownlength(t::DataType)
     isvatuple(t) || return true
@@ -81,8 +89,12 @@ function tvar_extent(@nospecialize t)
     return t
 end
 
-_typename(@nospecialize a) = Union{}
-_typename(a::TypeVar) = Core.TypeName
+function _typename(@nospecialize(a))
+    Union{}
+end
+function _typename(a::TypeVar)
+    Core.TypeName
+end
 function _typename(a::Union)
     ta = _typename(a.a)
     tb = _typename(a.b)
@@ -91,8 +103,12 @@ function _typename(a::Union)
     (ta isa Const && tb isa Const) && return Union{} # will throw an error (different type-names)
     return Core.TypeName # uncertain result
 end
-_typename(union::UnionAll) = _typename(union.body)
-_typename(a::DataType) = Const(a.name)
+function _typename(union::UnionAll)
+    _typename(union.body)
+end
+function _typename(a::DataType)
+    Const(a.name)
+end
 
 function tuple_tail_elem(@nospecialize(init), ct::Vector{Any})
     # FIXME: this is broken: it violates subtyping relations and creates invalid types with free typevars
@@ -161,8 +177,12 @@ function unioncomplexity(t::DataType)
     end
     return c
 end
-unioncomplexity(u::UnionAll) = max(unioncomplexity(u.body), unioncomplexity(u.var.ub))
-unioncomplexity(@nospecialize(x)) = 0
+function unioncomplexity(u::UnionAll)
+    max(unioncomplexity(u.body), unioncomplexity((u.var).ub))
+end
+function unioncomplexity(@nospecialize(x))
+    0
+end
 
 function improvable_via_constant_propagation(@nospecialize(t))
     if isconcretetype(t) && t <: Tuple

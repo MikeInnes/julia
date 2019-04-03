@@ -194,8 +194,12 @@ function show_method_table(io::IO, ms::MethodList, max::Int=-1, header::Bool=tru
     end
 end
 
-show(io::IO, ms::MethodList) = show_method_table(io, ms)
-show(io::IO, mt::Core.MethodTable) = show_method_table(io, MethodList(mt))
+function show(io::IO, ms::MethodList)
+    show_method_table(io, ms)
+end
+function show(io::IO, mt::Core.MethodTable)
+    show_method_table(io, MethodList(mt))
+end
 
 function inbase(m::Module)
     if m == Base
@@ -205,7 +209,15 @@ function inbase(m::Module)
         parent === m ? false : inbase(parent)
     end
 end
-fileurl(file) = let f = find_source_file(file); f === nothing ? "" : "file://"*f; end
+function fileurl(file)
+    let f = find_source_file(file)
+        if f === nothing
+            ""
+        else
+            "file://" * f
+        end
+    end
+end
 
 function url(m::Method)
     M = m.module
@@ -313,7 +325,9 @@ function show(io::IO, mime::MIME"text/html", ms::MethodList)
     print(io, "</ul>")
 end
 
-show(io::IO, mime::MIME"text/html", mt::Core.MethodTable) = show(io, mime, MethodList(mt))
+function show(io::IO, mime::@MIME_str("text/html"), mt::Core.MethodTable)
+    show(io, mime, MethodList(mt))
+end
 
 # pretty-printing of AbstractVector{Method}
 function show(io::IO, mime::MIME"text/plain", mt::AbstractVector{Method})

@@ -53,7 +53,9 @@ struct InvalidCodeError <: Exception
     kind::AbstractString
     meta::Any
 end
-InvalidCodeError(kind::AbstractString) = InvalidCodeError(kind, nothing)
+function InvalidCodeError(kind::AbstractString)
+    InvalidCodeError(kind, nothing)
+end
 
 function validate_code_in_debug_mode(linfo::MethodInstance, src::CodeInfo, kind::String)
     if JLOptions().debug_level == 2
@@ -207,9 +209,13 @@ function validate_code!(errors::Vector{>:InvalidCodeError}, mi::Core.MethodInsta
     return errors
 end
 
-validate_code(args...) = validate_code!(Vector{InvalidCodeError}(), args...)
+function validate_code(args...)
+    validate_code!(Vector{InvalidCodeError}(), args...)
+end
 
-is_valid_lvalue(@nospecialize(x)) = isa(x, Slot) || isa(x, GlobalRef)
+function is_valid_lvalue(@nospecialize(x))
+    x isa Slot || x isa GlobalRef
+end
 
 function is_valid_argument(@nospecialize(x))
     if isa(x, Slot) || isa(x, SSAValue) || isa(x, GlobalRef) || isa(x, QuoteNode) ||
@@ -231,6 +237,10 @@ function is_valid_rvalue(@nospecialize(x))
     return false
 end
 
-is_valid_return(@nospecialize(x)) = is_valid_argument(x) || (isa(x, Expr) && x.head === :lambda)
+function is_valid_return(@nospecialize(x))
+    is_valid_argument(x) || x isa Expr && x.head === :lambda
+end
 
-is_flag_set(byte::UInt8, flag::UInt8) = (byte & flag) == flag
+function is_flag_set(byte::UInt8, flag::UInt8)
+    byte & flag == flag
+end

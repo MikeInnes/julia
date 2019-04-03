@@ -28,10 +28,16 @@ function IOStream(name::AbstractString, finalize::Bool)
     end
     return x
 end
-IOStream(name::AbstractString) = IOStream(name, true)
+function IOStream(name::AbstractString)
+    IOStream(name, true)
+end
 
-unsafe_convert(T::Type{Ptr{Cvoid}}, s::IOStream) = convert(T, pointer(s.ios))
-show(io::IO, s::IOStream) = print(io, "IOStream(", s.name, ")")
+function unsafe_convert(T::Type{Ptr{Cvoid}}, s::IOStream)
+    convert(T, pointer(s.ios))
+end
+function show(io::IO, s::IOStream)
+    print(io, "IOStream(", s.name, ")")
+end
 
 """
     fd(stream)
@@ -41,17 +47,27 @@ to synchronous `File`'s and `IOStream`'s not to any of the asynchronous streams.
 """
 fd(s::IOStream) = Int(ccall(:jl_ios_fd, Clong, (Ptr{Cvoid},), s.ios))
 
-stat(s::IOStream) = stat(fd(s))
-close(s::IOStream) = ccall(:ios_close, Cvoid, (Ptr{Cvoid},), s.ios)
-isopen(s::IOStream) = ccall(:ios_isopen, Cint, (Ptr{Cvoid},), s.ios)!=0
+function stat(s::IOStream)
+    stat(fd(s))
+end
+function close(s::IOStream)
+    ccall(:ios_close, Cvoid, (Ptr{Cvoid},), s.ios)
+end
+function isopen(s::IOStream)
+    ccall(:ios_isopen, Cint, (Ptr{Cvoid},), s.ios) != 0
+end
 function flush(s::IOStream)
     sigatomic_begin()
     bad = ccall(:ios_flush, Cint, (Ptr{Cvoid},), s.ios) != 0
     sigatomic_end()
     systemerror("flush", bad)
 end
-iswritable(s::IOStream) = ccall(:ios_get_writable, Cint, (Ptr{Cvoid},), s.ios)!=0
-isreadable(s::IOStream) = ccall(:ios_get_readable, Cint, (Ptr{Cvoid},), s.ios)!=0
+function iswritable(s::IOStream)
+    ccall(:ios_get_writable, Cint, (Ptr{Cvoid},), s.ios) != 0
+end
+function isreadable(s::IOStream)
+    ccall(:ios_get_readable, Cint, (Ptr{Cvoid},), s.ios) != 0
+end
 
 """
     truncate(file, n)
@@ -196,7 +212,9 @@ function position(s::IOStream)
     return pos
 end
 
-eof(s::IOStream) = ccall(:ios_eof_blocking, Cint, (Ptr{Cvoid},), s.ios)!=0
+function eof(s::IOStream)
+    ccall(:ios_eof_blocking, Cint, (Ptr{Cvoid},), s.ios) != 0
+end
 
 ## constructing and opening streams ##
 
@@ -215,7 +233,9 @@ function fdio(name::AbstractString, fd::Integer, own::Bool=false)
           s.ios, fd, 0, own)
     return s
 end
-fdio(fd::Integer, own::Bool=false) = fdio(string("<fd ",fd,">"), fd, own)
+function fdio(fd::Integer, own::Bool=false)
+    fdio(string("<fd ", fd, ">"), fd, own)
+end
 
 """
     open_flags(; keywords...) -> NamedTuple
@@ -391,9 +411,13 @@ function unsafe_write(s::IOStream, p::Ptr{UInt8}, nb::UInt)
 end
 
 # num bytes available without blocking
-bytesavailable(s::IOStream) = ccall(:jl_nb_available, Int32, (Ptr{Cvoid},), s.ios)
+function bytesavailable(s::IOStream)
+    ccall(:jl_nb_available, Int32, (Ptr{Cvoid},), s.ios)
+end
 
-readavailable(s::IOStream) = read!(s, Vector{UInt8}(undef, bytesavailable(s)))
+function readavailable(s::IOStream)
+    read!(s, Vector{UInt8}(undef, bytesavailable(s)))
+end
 
 function read(s::IOStream, ::Type{UInt8})
     b = ccall(:ios_getc, Cint, (Ptr{Cvoid},), s.ios)
@@ -423,8 +447,9 @@ end
 
 ## text I/O ##
 
-take!(s::IOStream) =
+function take!(s::IOStream)
     ccall(:jl_take_buffer, Vector{UInt8}, (Ptr{Cvoid},), s.ios)
+end
 
 function readuntil(s::IOStream, delim::UInt8; keep::Bool=false)
     ccall(:jl_readuntil, Array{UInt8,1}, (Ptr{Cvoid}, UInt8, UInt8, UInt8), s.ios, delim, 0, !keep)

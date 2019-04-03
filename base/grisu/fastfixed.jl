@@ -140,9 +140,19 @@ function fillfractionals(fractionals, exponent,
     return len, decimal_point
 end
 
-low(x) = UInt64(x&0xffffffffffffffff)
-high(x) = UInt64(x >>> 64)
-bitat(x::UInt128,y) = y >= 64 ? (Int32(high(x) >> (y-64)) & 1) : (Int32(low(x) >> y) & 1)
+function low(x)
+    UInt64(x & 0xffffffffffffffff)
+end
+function high(x)
+    UInt64(x >>> 64)
+end
+function bitat(x::UInt128, y)
+    if y >= 64
+        Int32(high(x) >> (y - 64)) & 1
+    else
+        Int32(low(x) >> y) & 1
+    end
+end
 function divrem2(x,power)
     h = high(x)
     l = low(x)

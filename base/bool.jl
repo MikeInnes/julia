@@ -1,10 +1,16 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
 # promote Bool to any other numeric type
-promote_rule(::Type{Bool}, ::Type{T}) where {T<:Number} = T
+function promote_rule(::Type{Bool}, ::Type{T}) where T <: Number
+    T
+end
 
-typemin(::Type{Bool}) = false
-typemax(::Type{Bool}) = true
+function typemin(::Type{Bool})
+    false
+end
+function typemax(::Type{Bool})
+    true
+end
 
 ## boolean operations ##
 
@@ -36,9 +42,15 @@ function !(x::Bool)
     return not_int(x)
 end
 
-(~)(x::Bool) = !x
-(&)(x::Bool, y::Bool) = and_int(x, y)
-(|)(x::Bool, y::Bool) = or_int(x, y)
+function ~(x::Bool)
+    !x
+end
+function &(x::Bool, y::Bool)
+    and_int(x, y)
+end
+function |(x::Bool, y::Bool)
+    or_int(x, y)
+end
 
 """
     xor(x, y)
@@ -74,45 +86,103 @@ julia> [true; true; false] .⊻ [true; false; false]
 """
 xor(x::Bool, y::Bool) = (x != y)
 
->>(x::Bool, c::UInt) = Int(x) >> c
-<<(x::Bool, c::UInt) = Int(x) << c
->>>(x::Bool, c::UInt) = Int(x) >>> c
+function >>(x::Bool, c::UInt)
+    Int(x) >> c
+end
+function <<(x::Bool, c::UInt)
+    Int(x) << c
+end
+function >>>(x::Bool, c::UInt)
+    Int(x) >>> c
+end
 
-signbit(x::Bool) = false
-sign(x::Bool) = x
-abs(x::Bool) = x
-abs2(x::Bool) = x
-iszero(x::Bool) = !x
-isone(x::Bool) = x
+function signbit(x::Bool)
+    false
+end
+function sign(x::Bool)
+    x
+end
+function abs(x::Bool)
+    x
+end
+function abs2(x::Bool)
+    x
+end
+function iszero(x::Bool)
+    !x
+end
+function isone(x::Bool)
+    x
+end
 
-<(x::Bool, y::Bool) = y&!x
-<=(x::Bool, y::Bool) = y|!x
+function <(x::Bool, y::Bool)
+    y & !x
+end
+function <=(x::Bool, y::Bool)
+    y | !x
+end
 
 ## do arithmetic as Int ##
 
-+(x::Bool) =  Int(x)
--(x::Bool) = -Int(x)
+function +(x::Bool)
+    Int(x)
+end
+function -(x::Bool)
+    -(Int(x))
+end
 
-+(x::Bool, y::Bool) = Int(x) + Int(y)
--(x::Bool, y::Bool) = Int(x) - Int(y)
-*(x::Bool, y::Bool) = x & y
-^(x::Bool, y::Bool) = x | !y
-^(x::Integer, y::Bool) = ifelse(y, x, one(x))
+function +(x::Bool, y::Bool)
+    Int(x) + Int(y)
+end
+function -(x::Bool, y::Bool)
+    Int(x) - Int(y)
+end
+function *(x::Bool, y::Bool)
+    x & y
+end
+function ^(x::Bool, y::Bool)
+    x | !y
+end
+function ^(x::Integer, y::Bool)
+    ifelse(y, x, one(x))
+end
 
 # preserve -0.0 in `false + -0.0`
 function +(x::Bool, y::T)::promote_type(Bool,T) where T<:AbstractFloat
     return ifelse(x, oneunit(y) + y, y)
 end
-+(y::AbstractFloat, x::Bool) = x + y
+function +(y::AbstractFloat, x::Bool)
+    x + y
+end
 
 # make `false` a "strong zero": false*NaN == 0.0
 function *(x::Bool, y::T)::promote_type(Bool,T) where T<:AbstractFloat
     return ifelse(x, y, copysign(zero(y), y))
 end
-*(y::AbstractFloat, x::Bool) = x * y
+function *(y::AbstractFloat, x::Bool)
+    x * y
+end
 
-div(x::Bool, y::Bool) = y ? x : throw(DivideError())
-fld(x::Bool, y::Bool) = div(x,y)
-cld(x::Bool, y::Bool) = div(x,y)
-rem(x::Bool, y::Bool) = y ? false : throw(DivideError())
-mod(x::Bool, y::Bool) = rem(x,y)
+function div(x::Bool, y::Bool)
+    if y
+        x
+    else
+        throw(DivideError())
+    end
+end
+function fld(x::Bool, y::Bool)
+    div(x, y)
+end
+function cld(x::Bool, y::Bool)
+    div(x, y)
+end
+function rem(x::Bool, y::Bool)
+    if y
+        false
+    else
+        throw(DivideError())
+    end
+end
+function mod(x::Bool, y::Bool)
+    rem(x, y)
+end

@@ -165,7 +165,9 @@ function print_shell_escaped(io::IO, cmd::AbstractString, args::AbstractString..
         print_shell_word(io, arg, special)
     end
 end
-print_shell_escaped(io::IO; special::String="") = nothing
+function print_shell_escaped(io::IO; special::String="")
+    nothing
+end
 
 """
     shell_escape(args::Union{Cmd,AbstractString...}; special::AbstractString="")

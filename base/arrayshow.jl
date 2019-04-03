@@ -301,13 +301,21 @@ end
 # typeinfo agnostic
 
 # 0-dimensional arrays
-print_array(io::IO, X::AbstractArray{T,0} where T) =
-    isassigned(X) ? show(io, X[]) :
-                    print(io, undef_ref_str)
+function print_array(io::IO, X::(AbstractArray{T, 0} where T))
+    if isassigned(X)
+        show(io, X[])
+    else
+        print(io, undef_ref_str)
+    end
+end
 
-print_array(io::IO, X::AbstractVecOrMat) = print_matrix(io, X)
+function print_array(io::IO, X::AbstractVecOrMat)
+    print_matrix(io, X)
+end
 
-print_array(io::IO, X::AbstractArray) = show_nd(io, X, print_matrix, true)
+function print_array(io::IO, X::AbstractArray)
+    show_nd(io, X, print_matrix, true)
+end
 
 # typeinfo aware
 # implements: show(io::IO, ::MIME"text/plain", X::AbstractArray)
@@ -400,18 +408,28 @@ function _show_nonempty(io::IO, X::AbstractMatrix, prefix::String)
 end
 
 
-_show_nonempty(io::IO, X::AbstractArray, prefix::String) =
-    show_nd(io, X, (io, slice) -> _show_nonempty(io, slice, prefix), false)
+function _show_nonempty(io::IO, X::AbstractArray, prefix::String)
+    show_nd(io, X, ((io, slice)->begin
+                _show_nonempty(io, slice, prefix)
+            end), false)
+end
 
 # a specific call path is used to show vectors (show_vector)
-_show_nonempty(::IO, ::AbstractVector, ::String) =
+function _show_nonempty(::IO, ::AbstractVector, ::String)
     error("_show_nonempty(::IO, ::AbstractVector, ::String) is not implemented")
+end
 
-_show_nonempty(io::IO, X::AbstractArray{T,0} where T, prefix::String) = print_array(io, X)
+function _show_nonempty(io::IO, X::(AbstractArray{T, 0} where T), prefix::String)
+    print_array(io, X)
+end
 
 # NOTE: it's not clear how this method could use the :typeinfo attribute
-_show_empty(io::IO, X::Array{T}) where {T} = print(io, "Array{", T, "}(undef,", join(size(X),','), ')')
-_show_empty(io, X) = nothing # by default, we don't know this constructor
+function _show_empty(io::IO, X::Array{T}) where T
+    print(io, "Array{", T, "}(undef,", join(size(X), ','), ')')
+end
+function _show_empty(io, X)
+    nothing
+end # by default, we don't know this constructor
 
 # typeinfo aware (necessarily)
 function show(io::IO, X::AbstractArray)
@@ -451,10 +469,18 @@ end
 # similar to `eltype` (except that we don't want a default fall-back
 # returning Any, as this would cause incorrect printing in e.g. `Vector[Any[1]]`,
 # because eltype(Vector) == Any so `Any` wouldn't be printed in `Any[1]`)
-typeinfo_eltype(typeinfo) = nothing # element type not precisely known
-typeinfo_eltype(typeinfo::Type{<:AbstractArray{T}}) where {T} = eltype(typeinfo)
-typeinfo_eltype(typeinfo::Type{<:AbstractDict{K,V}}) where {K,V} = eltype(typeinfo)
-typeinfo_eltype(typeinfo::Type{<:AbstractSet{T}}) where {T} = eltype(typeinfo)
+function typeinfo_eltype(typeinfo)
+    nothing
+end # element type not precisely known
+function typeinfo_eltype(typeinfo::Type{<:AbstractArray{T}}) where T
+    eltype(typeinfo)
+end
+function typeinfo_eltype(typeinfo::Type{<:AbstractDict{K, V}}) where {K, V}
+    eltype(typeinfo)
+end
+function typeinfo_eltype(typeinfo::Type{<:AbstractSet{T}}) where T
+    eltype(typeinfo)
+end
 
 
 # X not constrained, can be any iterable (cf. show_vector)

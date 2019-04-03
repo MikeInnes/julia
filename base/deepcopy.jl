@@ -27,11 +27,17 @@ updated as appropriate before returning.
 """
 deepcopy(x) = deepcopy_internal(x, IdDict())::typeof(x)
 
-deepcopy_internal(x::Union{Symbol,Core.MethodInstance,Method,GlobalRef,DataType,Union,UnionAll,Task},
-                  stackdict::IdDict) = x
-deepcopy_internal(x::Tuple, stackdict::IdDict) =
-    ntuple(i->deepcopy_internal(x[i], stackdict), length(x))
-deepcopy_internal(x::Module, stackdict::IdDict) = error("deepcopy of Modules not supported")
+function deepcopy_internal(x::Union{Symbol, Core.MethodInstance, Method, GlobalRef, DataType, Union, UnionAll, Task}, stackdict::IdDict)
+    x
+end
+function deepcopy_internal(x::Tuple, stackdict::IdDict)
+    ntuple((i->begin
+                deepcopy_internal(x[i], stackdict)
+            end), length(x))
+end
+function deepcopy_internal(x::Module, stackdict::IdDict)
+    error("deepcopy of Modules not supported")
+end
 
 function deepcopy_internal(x::SimpleVector, stackdict::IdDict)
     if haskey(stackdict, x)

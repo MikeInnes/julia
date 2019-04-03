@@ -8,9 +8,12 @@
 struct UUID
     value::UInt128
 end
-UUID(u::NTuple{2, UInt64}) = UUID((UInt128(u[1]) << 64) | UInt128(u[2]))
-UUID(u::NTuple{4, UInt32}) = UUID((UInt128(u[1]) << 96) | (UInt128(u[2]) << 64) |
-                                  (UInt128(u[3]) << 32) | UInt128(u[4]))
+function UUID(u::NTuple{2, UInt64})
+    UUID(UInt128(u[1]) << 64 | UInt128(u[2]))
+end
+function UUID(u::NTuple{4, UInt32})
+    UUID(((UInt128(u[1]) << 96 | UInt128(u[2]) << 64) | UInt128(u[3]) << 32) | UInt128(u[4]))
+end
 
 function convert(::Type{NTuple{2, UInt64}}, uuid::UUID)
     bytes = uuid.value
@@ -28,7 +31,9 @@ function convert(::Type{NTuple{4, UInt32}}, uuid::UUID)
     return (hh, hl, lh, ll)
 end
 
-UInt128(u::UUID) = u.value
+function UInt128(u::UUID)
+    u.value
+end
 
 let groupings = [1:8; 10:13; 15:18; 20:23; 25:36]
     global UUID
@@ -63,7 +68,13 @@ let groupings = [36:-1:25; 23:-1:20; 18:-1:15; 13:-1:10; 8:-1:1]
     end
 end
 
-print(io::IO, u::UUID) = print(io, string(u))
-show(io::IO, u::UUID) = print(io, "UUID(\"", u, "\")")
+function print(io::IO, u::UUID)
+    print(io, string(u))
+end
+function show(io::IO, u::UUID)
+    print(io, "UUID(\"", u, "\")")
+end
 
-isless(a::UUID, b::UUID) = isless(a.value, b.value)
+function isless(a::UUID, b::UUID)
+    isless(a.value, b.value)
+end

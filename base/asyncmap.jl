@@ -103,7 +103,9 @@ function async_usemap(f, c...; ntasks=0, batch_size=nothing)
     return wrap_n_exec_twice(chnl, worker_tasks, ntasks, exec_func, c...)
 end
 
-batch_size_err_str(batch_size) = string("batch_size must be specified as a positive integer. batch_size=", batch_size)
+function batch_size_err_str(batch_size)
+    string("batch_size must be specified as a positive integer. batch_size=", batch_size)
+end
 function verify_batch_size(batch_size)
     if batch_size === nothing
         return batch_size
@@ -404,10 +406,18 @@ end
 
 # pass-through iterator traits to the iterable
 # on which the mapping function is being applied
-IteratorSize(::Type{AsyncGenerator}) = SizeUnknown()
-IteratorEltype(::Type{AsyncGenerator}) = EltypeUnknown()
-size(itr::AsyncGenerator) = size(itr.collector.enumerator)
-length(itr::AsyncGenerator) = length(itr.collector.enumerator)
+function IteratorSize(::Type{AsyncGenerator})
+    SizeUnknown()
+end
+function IteratorEltype(::Type{AsyncGenerator})
+    EltypeUnknown()
+end
+function size(itr::AsyncGenerator)
+    size((itr.collector).enumerator)
+end
+function length(itr::AsyncGenerator)
+    length((itr.collector).enumerator)
+end
 
 """
     asyncmap!(f, results, c...; ntasks=0, batch_size=nothing)

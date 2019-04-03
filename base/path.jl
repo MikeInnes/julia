@@ -134,7 +134,9 @@ function splitdir(path::String)
 end
 
 # Common splitdir functionality without splitdrive, needed for splitpath.
-_splitdir_nodrive(path::String) = _splitdir_nodrive("", path)
+function _splitdir_nodrive(path::String)
+    _splitdir_nodrive("", path)
+end
 function _splitdir_nodrive(a::String, b::String)
     m = match(path_dir_splitter,b)
     m === nothing && return (a,b)
@@ -245,7 +247,9 @@ function splitpath(p::String)
     return out
 end
 
-joinpath(a::AbstractString) = a
+function joinpath(a::AbstractString)
+    a
+end
 
 """
     joinpath(parts...) -> AbstractString
@@ -272,7 +276,9 @@ function joinpath(a::String, b::String)
     occursin(path_separator_re, a[end:end]) ? string(C,a,b) :
                                               string(C,a,pathsep(a,b),b)
 end
-joinpath(a::AbstractString, b::AbstractString) = joinpath(String(a), String(b))
+function joinpath(a::AbstractString, b::AbstractString)
+    joinpath(String(a), String(b))
+end
 
 """
     normpath(path::AbstractString) -> AbstractString
@@ -318,7 +324,9 @@ function normpath(path::String)
     end
     string(drive,path)
 end
-normpath(a::AbstractString, b::AbstractString...) = normpath(joinpath(a,b...))
+function normpath(a::AbstractString, b::AbstractString...)
+    normpath(joinpath(a, b...))
+end
 
 """
     abspath(path::AbstractString) -> AbstractString
@@ -475,8 +483,9 @@ function relpath(path::String, startpath::String = ".")
     end
     return isempty(relpath_) ? curdir :  relpath_
 end
-relpath(path::AbstractString, startpath::AbstractString) =
+function relpath(path::AbstractString, startpath::AbstractString)
     relpath(String(path), String(startpath))
+end
 
 for f in (:isabspath, :isdirpath, :splitdir, :splitdrive, :splitext, :normpath, :abspath)
     @eval $f(path::AbstractString) = $f(String(path))

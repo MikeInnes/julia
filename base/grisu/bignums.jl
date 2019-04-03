@@ -62,20 +62,40 @@ mutable struct Bignum
     end
 end
 
-==(a::Bignum,b::Bignum) = compare(a,b) == 0
-<(a::Bignum,b::Bignum) = compare(a,b) < 0
+function ==(a::Bignum, b::Bignum)
+    compare(a, b) == 0
+end
+function <(a::Bignum, b::Bignum)
+    compare(a, b) < 0
+end
 
-times10!(x::Bignum) = multiplybyuint32!(x,UInt32(10))
+function times10!(x::Bignum)
+    multiplybyuint32!(x, UInt32(10))
+end
 
-plusequal(a,b,c) = pluscompare(a,b,c) == 0
-pluslessequal(a,b,c) = pluscompare(a,b,c) <= 0
-plusless(a,b,c) = pluscompare(a,b,c) < 0
-lessequal(a::Bignum,b::Bignum) = compare(a,b) <= 0
-less(a::Bignum,b::Bignum) = compare(a,b) < 0
+function plusequal(a, b, c)
+    pluscompare(a, b, c) == 0
+end
+function pluslessequal(a, b, c)
+    pluscompare(a, b, c) <= 0
+end
+function plusless(a, b, c)
+    pluscompare(a, b, c) < 0
+end
+function lessequal(a::Bignum, b::Bignum)
+    compare(a, b) <= 0
+end
+function less(a::Bignum, b::Bignum)
+    compare(a, b) < 0
+end
 
-bigitlength(x::Bignum) = x.used_digits + x.exponent
+function bigitlength(x::Bignum)
+    x.used_digits + x.exponent
+end
 
-bitsize(value) = 8 * sizeof(value)
+function bitsize(value)
+    8 * sizeof(value)
+end
 
 function zero!(x::Bignum)
     for i = 1:x.used_digits
@@ -94,7 +114,9 @@ function clamp!(x::Bignum)
     return
 end
 
-isclamped(x::Bignum) = x.used_digits == 0 || x.bigits[x.used_digits] != 0
+function isclamped(x::Bignum)
+    x.used_digits == 0 || x.bigits[x.used_digits] != 0
+end
 
 function align!(x::Bignum,other::Bignum)
     @inbounds if x.exponent > other.exponent

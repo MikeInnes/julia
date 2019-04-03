@@ -38,7 +38,9 @@ function WeakKeyDict{K,V}(kv) where V where K
     end
     return h
 end
-WeakKeyDict{K,V}(p::Pair) where V where K = setindex!(WeakKeyDict{K,V}(), p.second, p.first)
+function (WeakKeyDict{K, V}(p::Pair) where V) where K
+    setindex!(WeakKeyDict{K, V}(), p.second, p.first)
+end
 function WeakKeyDict{K,V}(ps::Pair...) where V where K
     h = WeakKeyDict{K,V}()
     sizehint!(h, length(ps))
@@ -47,15 +49,29 @@ function WeakKeyDict{K,V}(ps::Pair...) where V where K
     end
     return h
 end
-WeakKeyDict() = WeakKeyDict{Any,Any}()
+function WeakKeyDict()
+    WeakKeyDict{Any, Any}()
+end
 
-WeakKeyDict(kv::Tuple{}) = WeakKeyDict()
-copy(d::WeakKeyDict) = WeakKeyDict(d)
+function WeakKeyDict(kv::Tuple{})
+    WeakKeyDict()
+end
+function copy(d::WeakKeyDict)
+    WeakKeyDict(d)
+end
 
-WeakKeyDict(ps::Pair{K,V}...)           where {K,V} = WeakKeyDict{K,V}(ps)
-WeakKeyDict(ps::Pair{K}...)             where {K}   = WeakKeyDict{K,Any}(ps)
-WeakKeyDict(ps::(Pair{K,V} where K)...) where {V}   = WeakKeyDict{Any,V}(ps)
-WeakKeyDict(ps::Pair...)                            = WeakKeyDict{Any,Any}(ps)
+function WeakKeyDict(ps::Pair{K, V}...) where {K, V}
+    WeakKeyDict{K, V}(ps)
+end
+function WeakKeyDict(ps::Pair{K}...) where K
+    WeakKeyDict{K, Any}(ps)
+end
+function WeakKeyDict(ps::(Pair{K, V} where K)...) where V
+    WeakKeyDict{Any, V}(ps)
+end
+function WeakKeyDict(ps::Pair...)
+    WeakKeyDict{Any, Any}(ps)
+end
 
 function WeakKeyDict(kv)
     try
@@ -69,11 +85,19 @@ function WeakKeyDict(kv)
     end
 end
 
-empty(d::WeakKeyDict, ::Type{K}, ::Type{V}) where {K, V} = WeakKeyDict{K, V}()
+function empty(d::WeakKeyDict, ::Type{K}, ::Type{V}) where {K, V}
+    WeakKeyDict{K, V}()
+end
 
-islocked(wkh::WeakKeyDict) = islocked(wkh.lock)
-lock(f, wkh::WeakKeyDict) = lock(f, wkh.lock)
-trylock(f, wkh::WeakKeyDict) = trylock(f, wkh.lock)
+function islocked(wkh::WeakKeyDict)
+    islocked(wkh.lock)
+end
+function lock(f, wkh::WeakKeyDict)
+    lock(f, wkh.lock)
+end
+function trylock(f, wkh::WeakKeyDict)
+    trylock(f, wkh.lock)
+end
 
 function setindex!(wkh::WeakKeyDict{K}, v, key) where K
     !isa(key, K) && throw(ArgumentError("$(limitrepr(key)) is not a valid key for type $K"))
@@ -92,9 +116,19 @@ function getkey(wkh::WeakKeyDict{K}, kk, default) where K
     end
 end
 
-map!(f,iter::ValueIterator{<:WeakKeyDict})= map!(f, values(iter.dict.ht))
-get(wkh::WeakKeyDict{K}, key, default) where {K} = lock(() -> get(wkh.ht, key, default), wkh)
-get(default::Callable, wkh::WeakKeyDict{K}, key) where {K} = lock(() -> get(default, wkh.ht, key), wkh)
+function map!(f, iter::ValueIterator{<:WeakKeyDict})
+    map!(f, values((iter.dict).ht))
+end
+function get(wkh::WeakKeyDict{K}, key, default) where K
+    lock((()->begin
+                get(wkh.ht, key, default)
+            end), wkh)
+end
+function get(default::Callable, wkh::WeakKeyDict{K}, key) where K
+    lock((()->begin
+                get(default, wkh.ht, key)
+            end), wkh)
+end
 function get!(wkh::WeakKeyDict{K}, key, default) where {K}
     !isa(key, K) && throw(ArgumentError("$(limitrepr(key)) is not a valid key for type $K"))
     lock(() -> get!(wkh.ht, WeakRef(key), default), wkh)
@@ -103,14 +137,43 @@ function get!(default::Callable, wkh::WeakKeyDict{K}, key) where {K}
     !isa(key, K) && throw(ArgumentError("$(limitrepr(key)) is not a valid key for type $K"))
     lock(() -> get!(default, wkh.ht, WeakRef(key)), wkh)
 end
-pop!(wkh::WeakKeyDict{K}, key) where {K} = lock(() -> pop!(wkh.ht, key), wkh)
-pop!(wkh::WeakKeyDict{K}, key, default) where {K} = lock(() -> pop!(wkh.ht, key, default), wkh)
-delete!(wkh::WeakKeyDict, key) = lock(() -> delete!(wkh.ht, key), wkh)
-empty!(wkh::WeakKeyDict) = (lock(() -> empty!(wkh.ht), wkh); wkh)
-haskey(wkh::WeakKeyDict{K}, key) where {K} = lock(() -> haskey(wkh.ht, key), wkh)
-getindex(wkh::WeakKeyDict{K}, key) where {K} = lock(() -> getindex(wkh.ht, key), wkh)
-isempty(wkh::WeakKeyDict) = isempty(wkh.ht)
-length(t::WeakKeyDict) = length(t.ht)
+function pop!(wkh::WeakKeyDict{K}, key) where K
+    lock((()->begin
+                pop!(wkh.ht, key)
+            end), wkh)
+end
+function pop!(wkh::WeakKeyDict{K}, key, default) where K
+    lock((()->begin
+                pop!(wkh.ht, key, default)
+            end), wkh)
+end
+function delete!(wkh::WeakKeyDict, key)
+    lock((()->begin
+                delete!(wkh.ht, key)
+            end), wkh)
+end
+function empty!(wkh::WeakKeyDict)
+    lock((()->begin
+                empty!(wkh.ht)
+            end), wkh)
+    wkh
+end
+function haskey(wkh::WeakKeyDict{K}, key) where K
+    lock((()->begin
+                haskey(wkh.ht, key)
+            end), wkh)
+end
+function getindex(wkh::WeakKeyDict{K}, key) where K
+    lock((()->begin
+                getindex(wkh.ht, key)
+            end), wkh)
+end
+function isempty(wkh::WeakKeyDict)
+    isempty(wkh.ht)
+end
+function length(t::WeakKeyDict)
+    length(t.ht)
+end
 
 function iterate(t::WeakKeyDict{K,V}) where V where K
     gc_token = Ref{Bool}(false) # no keys will be deleted via finalizers until this token is gc'd
@@ -132,4 +195,6 @@ function iterate(t::WeakKeyDict{K,V}, state) where V where K
     return (kv, (gc_token, i))
 end
 
-filter!(f, d::WeakKeyDict) = filter_in_one_pass!(f, d)
+function filter!(f, d::WeakKeyDict)
+    filter_in_one_pass!(f, d)
+end

@@ -91,4 +91,6 @@ function replace_code_newstyle!(ci::CodeInfo, ir::IRCode, nargs::Int)
 end
 
 # used by some tests
-inflate_ir(ci::CodeInfo) = inflate_ir(ci, Any[], Any[ Any for i = 1:length(ci.slotflags) ])
+function inflate_ir(ci::CodeInfo)
+    inflate_ir(ci, Any[], Any[Any for i = 1:length(ci.slotflags)])
+end

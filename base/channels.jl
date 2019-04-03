@@ -47,7 +47,9 @@ function Channel{T}(sz::Float64) where T
     sz = (sz == Inf ? typemax(Int) : convert(Int, sz))
     return Channel{T}(sz)
 end
-Channel(sz) = Channel{Any}(sz)
+function Channel(sz)
+    Channel{Any}(sz)
+end
 
 # special constructors
 """
@@ -107,9 +109,17 @@ function Channel(func::Function; ctype=Any, csize=0, taskref=nothing)
 end
 
 
-closed_exception() = InvalidStateException("Channel is closed.", :closed)
+function closed_exception()
+    InvalidStateException("Channel is closed.", :closed)
+end
 
-isbuffered(c::Channel) = c.sz_max==0 ? false : true
+function isbuffered(c::Channel)
+    if c.sz_max == 0
+        false
+    else
+        true
+    end
+end
 
 function check_channel_state(c::Channel)
     if !isopen(c)
@@ -139,7 +149,9 @@ function close(c::Channel, excp::Exception=closed_exception())
     end
     nothing
 end
-isopen(c::Channel) = (c.state == :open)
+function isopen(c::Channel)
+    c.state == :open
+end
 
 """
     bind(chnl::Channel, task::Task)
@@ -310,7 +322,9 @@ function put_unbuffered(c::Channel, v)
     return v
 end
 
-push!(c::Channel, v) = put!(c, v)
+function push!(c::Channel, v)
+    put!(c, v)
+end
 
 """
     fetch(c::Channel)
@@ -331,7 +345,9 @@ function fetch_buffered(c::Channel)
         unlock(c)
     end
 end
-fetch_unbuffered(c::Channel) = throw(ErrorException("`fetch` is not supported on an unbuffered Channel."))
+function fetch_unbuffered(c::Channel)
+    throw(ErrorException("`fetch` is not supported on an unbuffered Channel."))
+end
 
 
 """
@@ -358,7 +374,9 @@ function take_buffered(c::Channel)
     end
 end
 
-popfirst!(c::Channel) = take!(c)
+function popfirst!(c::Channel)
+    take!(c)
+end
 
 # 0-size channel
 function take_unbuffered(c::Channel{T}) where T
@@ -382,11 +400,23 @@ For unbuffered channels returns `true` if there are tasks waiting
 on a [`put!`](@ref).
 """
 isready(c::Channel) = n_avail(c) > 0
-n_avail(c::Channel) = isbuffered(c) ? length(c.data) : length(c.cond_put.waitq)
+function n_avail(c::Channel)
+    if isbuffered(c)
+        length(c.data)
+    else
+        length((c.cond_put).waitq)
+    end
+end
 
-lock(c::Channel) = lock(c.cond_take)
-unlock(c::Channel) = unlock(c.cond_take)
-trylock(c::Channel) = trylock(c.cond_take)
+function lock(c::Channel)
+    lock(c.cond_take)
+end
+function unlock(c::Channel)
+    unlock(c.cond_take)
+end
+function trylock(c::Channel)
+    trylock(c.cond_take)
+end
 
 function wait(c::Channel)
     isready(c) && return
@@ -402,9 +432,13 @@ function wait(c::Channel)
     nothing
 end
 
-eltype(::Type{Channel{T}}) where {T} = T
+function eltype(::Type{Channel{T}}) where T
+    T
+end
 
-show(io::IO, c::Channel) = print(io, "$(typeof(c))(sz_max:$(c.sz_max),sz_curr:$(n_avail(c)))")
+function show(io::IO, c::Channel)
+    print(io, "$(typeof(c))(sz_max:$(c.sz_max),sz_curr:$(n_avail(c)))")
+end
 
 function iterate(c::Channel, state=nothing)
     try
@@ -418,4 +452,6 @@ function iterate(c::Channel, state=nothing)
     end
 end
 
-IteratorSize(::Type{<:Channel}) = SizeUnknown()
+function IteratorSize(::Type{<:Channel})
+    SizeUnknown()
+end

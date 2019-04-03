@@ -25,13 +25,25 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-modify_highword(x::Float32, hw) = reinterpret(Float32, hw)
-modify_highword(x::Float64, hw) = reinterpret(Float64, (UInt64(hw)<<32)|(reinterpret(UInt64, x)<<32)>>32)
+function modify_highword(x::Float32, hw)
+    reinterpret(Float32, hw)
+end
+function modify_highword(x::Float64, hw)
+    reinterpret(Float64, UInt64(hw) << 32 | (reinterpret(UInt64, x) << 32) >> 32)
+end
 
-exponent_rshift(T::Type{Float32}, hw) = hw >> 23 # this comes from 32 (bits in UInt32) minus 9 bits for the sign and exponent
-exponent_rshift(T::Type{Float64}, hw) = hw >> 20 # this comes from 32 (bits in UInt32) minus 12 bits for the sign and exponent
-exponent_lshift(T::Type{Float32}, hw) = hw << 23 # this comes from 32 (bits in UInt32) minus 9 bits for the sign and exponent
-exponent_lshift(T::Type{Float64}, hw) = hw << 20 # this comes from 32 (bits in UInt32) minus 12 bits for the sign and exponent
+function exponent_rshift(T::Type{Float32}, hw)
+    hw >> 23
+end # this comes from 32 (bits in UInt32) minus 9 bits for the sign and exponent
+function exponent_rshift(T::Type{Float64}, hw)
+    hw >> 20
+end # this comes from 32 (bits in UInt32) minus 12 bits for the sign and exponent
+function exponent_lshift(T::Type{Float32}, hw)
+    hw << 23
+end # this comes from 32 (bits in UInt32) minus 9 bits for the sign and exponent
+function exponent_lshift(T::Type{Float64}, hw)
+    hw << 20
+end # this comes from 32 (bits in UInt32) minus 12 bits for the sign and exponent
 
 function modify_exponent(x::T, expnt_x) where T <: Union{Float32, Float64}
     # mask away exponent; "100...0111..111" with 9 or 12 leading 0's

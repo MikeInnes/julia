@@ -37,10 +37,21 @@ function _ntuple(f, n)
 end
 
 # inferrable ntuple (enough for bootstrapping)
-ntuple(f, ::Val{0}) = ()
-ntuple(f, ::Val{1}) = (@_inline_meta; (f(1),))
-ntuple(f, ::Val{2}) = (@_inline_meta; (f(1), f(2)))
-ntuple(f, ::Val{3}) = (@_inline_meta; (f(1), f(2), f(3)))
+function ntuple(f, ::Val{0})
+    ()
+end
+function ntuple(f, ::Val{1})
+    @_inline_meta
+    (f(1),)
+end
+function ntuple(f, ::Val{2})
+    @_inline_meta
+    (f(1), f(2))
+end
+function ntuple(f, ::Val{3})
+    @_inline_meta
+    (f(1), f(2), f(3))
+end
 
 @inline function ntuple(f::F, ::Val{N}) where {F,N}
     N::Int

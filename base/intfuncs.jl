@@ -72,14 +72,28 @@ function lcm(a::T, b::T) where T<:Integer
     end
 end
 
-gcd(a::Integer) = a
-lcm(a::Integer) = a
-gcd(a::Integer, b::Integer) = gcd(promote(a,b)...)
-lcm(a::Integer, b::Integer) = lcm(promote(a,b)...)
-gcd(a::Integer, b::Integer...) = gcd(a, gcd(b...))
-lcm(a::Integer, b::Integer...) = lcm(a, lcm(b...))
+function gcd(a::Integer)
+    a
+end
+function lcm(a::Integer)
+    a
+end
+function gcd(a::Integer, b::Integer)
+    gcd(promote(a, b)...)
+end
+function lcm(a::Integer, b::Integer)
+    lcm(promote(a, b)...)
+end
+function gcd(a::Integer, b::Integer...)
+    gcd(a, gcd(b...))
+end
+function lcm(a::Integer, b::Integer...)
+    lcm(a, lcm(b...))
+end
 
-lcm(abc::AbstractArray{<:Integer}) = reduce(lcm, abc; init=one(eltype(abc)))
+function lcm(abc::AbstractArray{<:Integer})
+    reduce(lcm, abc; init=one(eltype(abc)))
+end
 
 function gcd(abc::AbstractArray{<:Integer})
     a = zero(eltype(abc))
@@ -133,7 +147,9 @@ function gcdx(a::T, b::T) where T<:Integer
     end
     a < 0 ? (-a, -s0, -t0) : (a, s0, t0)
 end
-gcdx(a::Integer, b::Integer) = gcdx(promote(a,b)...)
+function gcdx(a::Integer, b::Integer)
+    gcdx(promote(a, b)...)
+end
 
 # multiplicative inverse of n mod m, error if none
 
@@ -166,10 +182,14 @@ function invmod(n::T, m::T) where T<:Integer
     # The postcondition is: mod(r * n, m) == mod(T(1), m) && div(r, m) == 0
     r
 end
-invmod(n::Integer, m::Integer) = invmod(promote(n,m)...)
+function invmod(n::Integer, m::Integer)
+    invmod(promote(n, m)...)
+end
 
 # ^ for any x supporting *
-to_power_type(x) = convert(Base._return_type(*, Tuple{typeof(x), typeof(x)}), x)
+function to_power_type(x)
+    convert(Base._return_type(*, Tuple{typeof(x), typeof(x)}), x)
+end
 @noinline throw_domerr_powbysq(::Any, p) = throw(DomainError(p,
     string("Cannot raise an integer x to a negative power ", p, '.',
            "\nConvert input to float.")))
@@ -212,14 +232,20 @@ function power_by_squaring(x_, p::Integer)
     end
     return y
 end
-power_by_squaring(x::Bool, p::Unsigned) = ((p==0) | x)
+function power_by_squaring(x::Bool, p::Unsigned)
+    (p == 0) | x
+end
 function power_by_squaring(x::Bool, p::Integer)
     p < 0 && !x && throw_domerr_powbysq(x, p)
     return (p==0) | x
 end
 
-^(x::T, p::T) where {T<:Integer} = power_by_squaring(x,p)
-^(x::Number, p::Integer)  = power_by_squaring(x,p)
+function (x::T ^ p::T) where T <: Integer
+    power_by_squaring(x, p)
+end
+function ^(x::Number, p::Integer)
+    power_by_squaring(x, p)
+end
 
 # x^p for any literal integer p is lowered to Base.literal_pow(^, x, Val(p))
 # to enable compile-time optimizations specialized to p.
@@ -308,12 +334,30 @@ function powermod(x::Integer, p::Integer, m::T) where T<:Integer
 end
 
 # optimization: promote the modulus m to BigInt only once (cf. widemul in generic powermod above)
-powermod(x::Integer, p::Integer, m::Union{Int128,UInt128}) = oftype(m, powermod(x, p, big(m)))
+function powermod(x::Integer, p::Integer, m::Union{Int128, UInt128})
+    oftype(m, powermod(x, p, big(m)))
+end
 
-_nextpow2(x::Unsigned) = oneunit(x)<<((sizeof(x)<<3)-leading_zeros(x-oneunit(x)))
-_nextpow2(x::Integer) = reinterpret(typeof(x),x < 0 ? -_nextpow2(unsigned(-x)) : _nextpow2(unsigned(x)))
-_prevpow2(x::Unsigned) = one(x) << unsigned((sizeof(x)<<3)-leading_zeros(x)-1)
-_prevpow2(x::Integer) = reinterpret(typeof(x),x < 0 ? -_prevpow2(unsigned(-x)) : _prevpow2(unsigned(x)))
+function _nextpow2(x::Unsigned)
+    oneunit(x) << (sizeof(x) << 3 - leading_zeros(x - oneunit(x)))
+end
+function _nextpow2(x::Integer)
+    reinterpret(typeof(x), if x < 0
+            -(_nextpow2(unsigned(-x)))
+        else
+            _nextpow2(unsigned(x))
+        end)
+end
+function _prevpow2(x::Unsigned)
+    one(x) << unsigned((sizeof(x) << 3 - leading_zeros(x)) - 1)
+end
+function _prevpow2(x::Integer)
+    reinterpret(typeof(x), if x < 0
+            -(_prevpow2(unsigned(-x)))
+        else
+            _prevpow2(unsigned(x))
+        end)
+end
 
 """
     ispow2(n::Integer) -> Bool
@@ -424,9 +468,15 @@ function bit_ndigits0z(x::UInt128)
     return n + ndigits0z(UInt64(x))
 end
 
-ndigits0z(x::BitSigned) = bit_ndigits0z(unsigned(abs(x)))
-ndigits0z(x::BitUnsigned) = bit_ndigits0z(x)
-ndigits0z(x::Integer) = ndigits0zpb(x, 10)
+function ndigits0z(x::BitSigned)
+    bit_ndigits0z(unsigned(abs(x)))
+end
+function ndigits0z(x::BitUnsigned)
+    bit_ndigits0z(x)
+end
+function ndigits0z(x::Integer)
+    ndigits0zpb(x, 10)
+end
 
 ## ndigits with specified base ##
 
@@ -446,7 +496,9 @@ function ndigits0znb(x::Integer, b::Integer)
 end
 
 # do first division before conversion with signed here, which can otherwise overflow
-ndigits0znb(x::Bool, b::Integer) = x % Int
+function ndigits0znb(x::Bool, b::Integer)
+    x % Int
+end
 
 # The suffix "pb" stands for "positive base"
 function ndigits0zpb(x::Integer, b::Integer)
@@ -478,7 +530,9 @@ function ndigits0zpb(x::Integer, b::Integer)
     return d
 end
 
-ndigits0zpb(x::Bool, b::Integer) = x % Int
+function ndigits0zpb(x::Bool, b::Integer)
+    x % Int
+end
 
 # The suffix "0z" means that the output is 0 on input zero (cf. #16841)
 """
@@ -617,8 +671,12 @@ function _base(b::Integer, x::Integer, pad::Integer, neg::Bool)
     String(a)
 end
 
-split_sign(n::Integer) = unsigned(abs(n)), n < 0
-split_sign(n::Unsigned) = n, false
+function split_sign(n::Integer)
+    (unsigned(abs(n)), n < 0)
+end
+function split_sign(n::Unsigned)
+    (n, false)
+end
 
 """
     string(n::Integer; base::Integer = 10, pad::Integer = 1)
@@ -652,7 +710,13 @@ function string(n::Integer; base::Integer = 10, pad::Integer = 1)
     end
 end
 
-string(b::Bool) = b ? "true" : "false"
+function string(b::Bool)
+    if b
+        "true"
+    else
+        "false"
+    end
+end
 
 """
     bitstring(n)
@@ -670,11 +734,21 @@ julia> bitstring(2.2)
 """
 function bitstring end
 
-bitstring(x::Union{Bool,Int8,UInt8})           = string(reinterpret(UInt8,x), pad = 8, base = 2)
-bitstring(x::Union{Int16,UInt16,Float16})      = string(reinterpret(UInt16,x), pad = 16, base = 2)
-bitstring(x::Union{Char,Int32,UInt32,Float32}) = string(reinterpret(UInt32,x), pad = 32, base = 2)
-bitstring(x::Union{Int64,UInt64,Float64})      = string(reinterpret(UInt64,x), pad = 64, base = 2)
-bitstring(x::Union{Int128,UInt128})            = string(reinterpret(UInt128,x), pad = 128, base = 2)
+function bitstring(x::Union{Bool, Int8, UInt8})
+    string(reinterpret(UInt8, x), pad=8, base=2)
+end
+function bitstring(x::Union{Int16, UInt16, Float16})
+    string(reinterpret(UInt16, x), pad=16, base=2)
+end
+function bitstring(x::Union{Char, Int32, UInt32, Float32})
+    string(reinterpret(UInt32, x), pad=32, base=2)
+end
+function bitstring(x::Union{Int64, UInt64, Float64})
+    string(reinterpret(UInt64, x), pad=64, base=2)
+end
+function bitstring(x::Union{Int128, UInt128})
+    string(reinterpret(UInt128, x), pad=128, base=2)
+end
 
 """
     digits([T<:Integer], n::Integer; base::T = 10, pad::Integer = 1)
@@ -720,7 +794,9 @@ end
 Return `true` if and only if `typemax(T)` is defined.
 """
 hastypemax(::Base.BitIntegerType) = true
-hastypemax(::Type{T}) where {T} = applicable(typemax, T)
+function hastypemax(::Type{T}) where T
+    applicable(typemax, T)
+end
 
 """
     digits!(array, n::Integer; base::Integer = 10)

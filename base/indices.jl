@@ -68,19 +68,37 @@ particular, [`eachindex`](@ref) creates an iterator whose type depends
 on the setting of this trait.
 """
 IndexStyle(A::AbstractArray) = IndexStyle(typeof(A))
-IndexStyle(::Type{Union{}}) = IndexLinear()
-IndexStyle(::Type{<:AbstractArray}) = IndexCartesian()
-IndexStyle(::Type{<:Array}) = IndexLinear()
-IndexStyle(::Type{<:AbstractRange}) = IndexLinear()
+function IndexStyle(::Type{Union{}})
+    IndexLinear()
+end
+function IndexStyle(::Type{<:AbstractArray})
+    IndexCartesian()
+end
+function IndexStyle(::Type{<:Array})
+    IndexLinear()
+end
+function IndexStyle(::Type{<:AbstractRange})
+    IndexLinear()
+end
 
-IndexStyle(A::AbstractArray, B::AbstractArray) = IndexStyle(IndexStyle(A), IndexStyle(B))
-IndexStyle(A::AbstractArray, B::AbstractArray...) = IndexStyle(IndexStyle(A), IndexStyle(B...))
-IndexStyle(::IndexLinear, ::IndexLinear) = IndexLinear()
-IndexStyle(::IndexStyle, ::IndexStyle) = IndexCartesian()
+function IndexStyle(A::AbstractArray, B::AbstractArray)
+    IndexStyle(IndexStyle(A), IndexStyle(B))
+end
+function IndexStyle(A::AbstractArray, B::AbstractArray...)
+    IndexStyle(IndexStyle(A), IndexStyle(B...))
+end
+function IndexStyle(::IndexLinear, ::IndexLinear)
+    IndexLinear()
+end
+function IndexStyle(::IndexStyle, ::IndexStyle)
+    IndexCartesian()
+end
 
 # array shape rules
 
-promote_shape(::Tuple{}, ::Tuple{}) = ()
+function promote_shape(::Tuple{}, ::Tuple{})
+    ()
+end
 
 function promote_shape(a::Tuple{Int,}, b::Tuple{Int,})
     if a[1] != b[1]
@@ -96,7 +114,9 @@ function promote_shape(a::Tuple{Int,Int}, b::Tuple{Int,})
     return a
 end
 
-promote_shape(a::Tuple{Int,}, b::Tuple{Int,Int}) = promote_shape(b, a)
+function promote_shape(a::Tuple{Int}, b::Tuple{Int, Int})
+    promote_shape(b, a)
+end
 
 function promote_shape(a::Tuple{Int, Int}, b::Tuple{Int, Int})
     if a[1] != b[1] || a[2] != b[2]
@@ -209,17 +229,21 @@ function setindex_shape_check(X::AbstractArray, I::Integer...)
     end
 end
 
-setindex_shape_check(X::AbstractArray) =
-    (length(X)==1 || throw_setindex_mismatch(X,()))
+function setindex_shape_check(X::AbstractArray)
+    length(X) == 1 || throw_setindex_mismatch(X, ())
+end
 
-setindex_shape_check(X::AbstractArray, i::Integer) =
-    (length(X)==i || throw_setindex_mismatch(X, (i,)))
+function setindex_shape_check(X::AbstractArray, i::Integer)
+    length(X) == i || throw_setindex_mismatch(X, (i,))
+end
 
-setindex_shape_check(X::AbstractArray{<:Any,1}, i::Integer) =
-    (length(X)==i || throw_setindex_mismatch(X, (i,)))
+function setindex_shape_check(X::AbstractArray{<:Any, 1}, i::Integer)
+    length(X) == i || throw_setindex_mismatch(X, (i,))
+end
 
-setindex_shape_check(X::AbstractArray{<:Any,1}, i::Integer, j::Integer) =
-    (length(X)==i*j || throw_setindex_mismatch(X, (i,j)))
+function setindex_shape_check(X::AbstractArray{<:Any, 1}, i::Integer, j::Integer)
+    length(X) == i * j || throw_setindex_mismatch(X, (i, j))
+end
 
 function setindex_shape_check(X::AbstractArray{<:Any,2}, i::Integer, j::Integer)
     if length(X) != i*j
@@ -248,7 +272,9 @@ to_index(A, i) = to_index(i)
 
 # This is ok for Array because values larger than
 # typemax(Int) will BoundsError anyway
-to_index(A::Array, i::UInt) = reinterpret(Int, i)
+function to_index(A::Array, i::UInt)
+    reinterpret(Int, i)
+end
 
 """
     to_index(i)
@@ -260,14 +286,27 @@ indexing behaviors. This must return either an `Int` or an `AbstractArray` of
 `Int`s.
 """
 to_index(i::Integer) = convert(Int,i)::Int
-to_index(i::Bool) = throw(ArgumentError("invalid index: $i of type Bool"))
-to_index(I::AbstractArray{Bool}) = LogicalIndex(I)
-to_index(I::AbstractArray) = I
-to_index(I::AbstractArray{Union{}}) = I
-to_index(I::AbstractArray{<:Union{AbstractArray, Colon}}) =
+function to_index(i::Bool)
+    throw(ArgumentError("invalid index: $(i) of type Bool"))
+end
+function to_index(I::AbstractArray{Bool})
+    LogicalIndex(I)
+end
+function to_index(I::AbstractArray)
+    I
+end
+function to_index(I::AbstractArray{Union{}})
+    I
+end
+function to_index(I::AbstractArray{<:Union{AbstractArray, Colon}})
     throw(ArgumentError("invalid index: $(limitrepr(I)) of type $(typeof(I))"))
-to_index(::Colon) = throw(ArgumentError("colons must be converted by to_indices(...)"))
-to_index(i) = throw(ArgumentError("invalid index: $(limitrepr(i)) of type $(typeof(i))"))
+end
+function to_index(::Colon)
+    throw(ArgumentError("colons must be converted by to_indices(...)"))
+end
+function to_index(i)
+    throw(ArgumentError("invalid index: $(limitrepr(i)) of type $(typeof(i))"))
+end
 
 # The general to_indices is mostly defined in multidimensional.jl, but this
 # definition is required for bootstrap:
@@ -292,13 +331,24 @@ given tuple of indices and the dimensional indices of `A` in tandem. As such,
 not all index types are guaranteed to propagate to `Base.to_index`.
 """
 to_indices(A, I::Tuple) = (@_inline_meta; to_indices(A, axes(A), I))
-to_indices(A, I::Tuple{Any}) = (@_inline_meta; to_indices(A, (eachindex(IndexLinear(), A),), I))
-to_indices(A, inds, ::Tuple{}) = ()
-to_indices(A, inds, I::Tuple{Any, Vararg{Any}}) =
-    (@_inline_meta; (to_index(A, I[1]), to_indices(A, _maybetail(inds), tail(I))...))
+function to_indices(A, I::Tuple{Any})
+    @_inline_meta
+    to_indices(A, (eachindex(IndexLinear(), A),), I)
+end
+function to_indices(A, inds, ::Tuple{})
+    ()
+end
+function to_indices(A, inds, I::Tuple{Any, Vararg{Any}})
+    @_inline_meta
+    (to_index(A, I[1]), to_indices(A, _maybetail(inds), tail(I))...)
+end
 
-_maybetail(::Tuple{}) = ()
-_maybetail(t::Tuple) = tail(t)
+function _maybetail(::Tuple{})
+    ()
+end
+function _maybetail(t::Tuple)
+    tail(t)
+end
 
 """
    Slice(indices)
@@ -315,24 +365,64 @@ iterate over all the wrapped indices, even supporting offset indices.
 struct Slice{T<:AbstractUnitRange} <: AbstractUnitRange{Int}
     indices::T
 end
-Slice(S::Slice) = S
-axes(S::Slice) = (IdentityUnitRange(S.indices),)
-unsafe_indices(S::Slice) = (IdentityUnitRange(S.indices),)
-axes1(S::Slice) = IdentityUnitRange(S.indices)
-axes(S::Slice{<:OneTo}) = (S.indices,)
-unsafe_indices(S::Slice{<:OneTo}) = (S.indices,)
-axes1(S::Slice{<:OneTo}) = S.indices
+function Slice(S::Slice)
+    S
+end
+function axes(S::Slice)
+    (IdentityUnitRange(S.indices),)
+end
+function unsafe_indices(S::Slice)
+    (IdentityUnitRange(S.indices),)
+end
+function axes1(S::Slice)
+    IdentityUnitRange(S.indices)
+end
+function axes(S::Slice{<:OneTo})
+    (S.indices,)
+end
+function unsafe_indices(S::Slice{<:OneTo})
+    (S.indices,)
+end
+function axes1(S::Slice{<:OneTo})
+    S.indices
+end
 
-first(S::Slice) = first(S.indices)
-last(S::Slice) = last(S.indices)
-size(S::Slice) = (length(S.indices),)
-length(S::Slice) = length(S.indices)
-unsafe_length(S::Slice) = unsafe_length(S.indices)
-getindex(S::Slice, i::Int) = (@_inline_meta; @boundscheck checkbounds(S, i); i)
-getindex(S::Slice, i::AbstractUnitRange{<:Integer}) = (@_inline_meta; @boundscheck checkbounds(S, i); i)
-getindex(S::Slice, i::StepRange{<:Integer}) = (@_inline_meta; @boundscheck checkbounds(S, i); i)
-show(io::IO, r::Slice) = print(io, "Base.Slice(", r.indices, ")")
-iterate(S::Slice, s...) = iterate(S.indices, s...)
+function first(S::Slice)
+    first(S.indices)
+end
+function last(S::Slice)
+    last(S.indices)
+end
+function size(S::Slice)
+    (length(S.indices),)
+end
+function length(S::Slice)
+    length(S.indices)
+end
+function unsafe_length(S::Slice)
+    unsafe_length(S.indices)
+end
+function getindex(S::Slice, i::Int)
+    @_inline_meta
+    @boundscheck checkbounds(S, i)
+    i
+end
+function getindex(S::Slice, i::AbstractUnitRange{<:Integer})
+    @_inline_meta
+    @boundscheck checkbounds(S, i)
+    i
+end
+function getindex(S::Slice, i::StepRange{<:Integer})
+    @_inline_meta
+    @boundscheck checkbounds(S, i)
+    i
+end
+function show(io::IO, r::Slice)
+    print(io, "Base.Slice(", r.indices, ")")
+end
+function iterate(S::Slice, s...)
+    iterate(S.indices, s...)
+end
 
 
 """
@@ -345,26 +435,66 @@ Represent an AbstractUnitRange `range` as an offset vector such that `range[i] =
 struct IdentityUnitRange{T<:AbstractUnitRange} <: AbstractUnitRange{Int}
     indices::T
 end
-IdentityUnitRange(S::IdentityUnitRange) = S
+function IdentityUnitRange(S::IdentityUnitRange)
+    S
+end
 # IdentityUnitRanges are offset and thus have offset axes, so they are their own axes... but
 # we need to strip the wholedim marker because we don't know how they'll be used
-axes(S::IdentityUnitRange) = (S,)
-unsafe_indices(S::IdentityUnitRange) = (S,)
-axes1(S::IdentityUnitRange) = S
-axes(S::IdentityUnitRange{<:OneTo}) = (S.indices,)
-unsafe_indices(S::IdentityUnitRange{<:OneTo}) = (S.indices,)
-axes1(S::IdentityUnitRange{<:OneTo}) = S.indices
+function axes(S::IdentityUnitRange)
+    (S,)
+end
+function unsafe_indices(S::IdentityUnitRange)
+    (S,)
+end
+function axes1(S::IdentityUnitRange)
+    S
+end
+function axes(S::IdentityUnitRange{<:OneTo})
+    (S.indices,)
+end
+function unsafe_indices(S::IdentityUnitRange{<:OneTo})
+    (S.indices,)
+end
+function axes1(S::IdentityUnitRange{<:OneTo})
+    S.indices
+end
 
-first(S::IdentityUnitRange) = first(S.indices)
-last(S::IdentityUnitRange) = last(S.indices)
-size(S::IdentityUnitRange) = (length(S.indices),)
-length(S::IdentityUnitRange) = length(S.indices)
-unsafe_length(S::IdentityUnitRange) = unsafe_length(S.indices)
-getindex(S::IdentityUnitRange, i::Int) = (@_inline_meta; @boundscheck checkbounds(S, i); i)
-getindex(S::IdentityUnitRange, i::AbstractUnitRange{<:Integer}) = (@_inline_meta; @boundscheck checkbounds(S, i); i)
-getindex(S::IdentityUnitRange, i::StepRange{<:Integer}) = (@_inline_meta; @boundscheck checkbounds(S, i); i)
-show(io::IO, r::IdentityUnitRange) = print(io, "Base.IdentityUnitRange(", r.indices, ")")
-iterate(S::IdentityUnitRange, s...) = iterate(S.indices, s...)
+function first(S::IdentityUnitRange)
+    first(S.indices)
+end
+function last(S::IdentityUnitRange)
+    last(S.indices)
+end
+function size(S::IdentityUnitRange)
+    (length(S.indices),)
+end
+function length(S::IdentityUnitRange)
+    length(S.indices)
+end
+function unsafe_length(S::IdentityUnitRange)
+    unsafe_length(S.indices)
+end
+function getindex(S::IdentityUnitRange, i::Int)
+    @_inline_meta
+    @boundscheck checkbounds(S, i)
+    i
+end
+function getindex(S::IdentityUnitRange, i::AbstractUnitRange{<:Integer})
+    @_inline_meta
+    @boundscheck checkbounds(S, i)
+    i
+end
+function getindex(S::IdentityUnitRange, i::StepRange{<:Integer})
+    @_inline_meta
+    @boundscheck checkbounds(S, i)
+    i
+end
+function show(io::IO, r::IdentityUnitRange)
+    print(io, "Base.IdentityUnitRange(", r.indices, ")")
+end
+function iterate(S::IdentityUnitRange, s...)
+    iterate(S.indices, s...)
+end
 
 """
     LinearIndices(A::AbstractArray)
@@ -417,29 +547,49 @@ struct LinearIndices{N,R<:NTuple{N,AbstractUnitRange{Int}}} <: AbstractArray{Int
     indices::R
 end
 
-LinearIndices(::Tuple{}) = LinearIndices{0,typeof(())}(())
-LinearIndices(inds::NTuple{N,AbstractUnitRange{<:Integer}}) where {N} =
-    LinearIndices(map(r->convert(AbstractUnitRange{Int}, r), inds))
-LinearIndices(sz::NTuple{N,<:Integer}) where {N} = LinearIndices(map(Base.OneTo, sz))
-LinearIndices(inds::NTuple{N,Union{<:Integer,AbstractUnitRange{<:Integer}}}) where {N} =
-    LinearIndices(map(i->first(i):last(i), inds))
-LinearIndices(A::Union{AbstractArray,SimpleVector}) = LinearIndices(axes(A))
+function LinearIndices(::Tuple{})
+    LinearIndices{0, typeof(())}(())
+end
+function LinearIndices(inds::NTuple{N, AbstractUnitRange{<:Integer}}) where N
+    LinearIndices(map((r->begin
+                    convert(AbstractUnitRange{Int}, r)
+                end), inds))
+end
+function LinearIndices(sz::NTuple{N, <:Integer}) where N
+    LinearIndices(map(Base.OneTo, sz))
+end
+function LinearIndices(inds::NTuple{N, Union{<:Integer, AbstractUnitRange{<:Integer}}}) where N
+    LinearIndices(map((i->begin
+                    first(i):last(i)
+                end), inds))
+end
+function LinearIndices(A::Union{AbstractArray, SimpleVector})
+    LinearIndices(axes(A))
+end
 
-promote_rule(::Type{LinearIndices{N,R1}}, ::Type{LinearIndices{N,R2}}) where {N,R1,R2} =
-    LinearIndices{N,indices_promote_type(R1,R2)}
+function promote_rule(::Type{LinearIndices{N, R1}}, ::Type{LinearIndices{N, R2}}) where {N, R1, R2}
+    LinearIndices{N, indices_promote_type(R1, R2)}
+end
 
 function indices_promote_type(::Type{Tuple{R1,Vararg{R1,N}}}, ::Type{Tuple{R2,Vararg{R2,N}}}) where {R1,R2,N}
     R = promote_type(R1, R2)
     Tuple{R,Vararg{R,N}}
 end
 
-convert(::Type{LinearIndices{N,R}}, inds::LinearIndices{N}) where {N,R} =
+function convert(::Type{LinearIndices{N, R}}, inds::LinearIndices{N}) where {N, R}
     LinearIndices(convert(R, inds.indices))
+end
 
 # AbstractArray implementation
-IndexStyle(::Type{<:LinearIndices}) = IndexLinear()
-axes(iter::LinearIndices) = map(axes1, iter.indices)
-size(iter::LinearIndices) = map(unsafe_length, iter.indices)
+function IndexStyle(::Type{<:LinearIndices})
+    IndexLinear()
+end
+function axes(iter::LinearIndices)
+    map(axes1, iter.indices)
+end
+function size(iter::LinearIndices)
+    map(unsafe_length, iter.indices)
+end
 function getindex(iter::LinearIndices, i::Int)
     @_inline_meta
     @boundscheck checkbounds(iter, i)
@@ -452,11 +602,30 @@ function getindex(iter::LinearIndices, i::AbstractRange{<:Integer})
 end
 # More efficient iteration — predominantly for non-vector LinearIndices
 # but one-dimensional LinearIndices must be special-cased to support OffsetArrays
-iterate(iter::LinearIndices{1}, s...) = iterate(axes1(iter.indices[1]), s...)
-iterate(iter::LinearIndices, i=1) = i > length(iter) ? nothing : (i, i+1)
+function iterate(iter::LinearIndices{1}, s...)
+    iterate(axes1(iter.indices[1]), s...)
+end
+function iterate(iter::LinearIndices, i=1)
+    if i > length(iter)
+        nothing
+    else
+        (i, i + 1)
+    end
+end
 
 # Needed since firstindex and lastindex are defined in terms of LinearIndices
-first(iter::LinearIndices) = 1
-first(iter::LinearIndices{1}) = (@_inline_meta; first(axes1(iter.indices[1])))
-last(iter::LinearIndices) = (@_inline_meta; length(iter))
-last(iter::LinearIndices{1}) = (@_inline_meta; last(axes1(iter.indices[1])))
+function first(iter::LinearIndices)
+    1
+end
+function first(iter::LinearIndices{1})
+    @_inline_meta
+    first(axes1(iter.indices[1]))
+end
+function last(iter::LinearIndices)
+    @_inline_meta
+    length(iter)
+end
+function last(iter::LinearIndices{1})
+    @_inline_meta
+    last(axes1(iter.indices[1]))
+end

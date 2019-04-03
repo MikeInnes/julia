@@ -281,11 +281,15 @@ function tryparse_internal(::Type{Float32}, s::SubString{String}, startpos::Int,
                           (Ptr{UInt8},Csize_t,Csize_t), s.string, s.offset+startpos-1, endpos-startpos+1)
     hasvalue ? val : nothing
 end
-tryparse(::Type{T}, s::AbstractString) where {T<:Union{Float32,Float64}} = tryparse(T, String(s))
-tryparse(::Type{Float16}, s::AbstractString) =
+function tryparse(::Type{T}, s::AbstractString) where T <: Union{Float32, Float64}
+    tryparse(T, String(s))
+end
+function tryparse(::Type{Float16}, s::AbstractString)
     convert(Union{Float16, Nothing}, tryparse(Float32, s))
-tryparse_internal(::Type{Float16}, s::AbstractString, startpos::Int, endpos::Int) =
+end
+function tryparse_internal(::Type{Float16}, s::AbstractString, startpos::Int, endpos::Int)
     convert(Union{Float16, Nothing}, tryparse_internal(Float32, s, startpos, endpos))
+end
 
 ## string to complex functions ##
 
@@ -347,12 +351,18 @@ function tryparse_internal(::Type{Complex{T}}, s::Union{String,SubString{String}
 end
 
 # the ±1 indexing above for ascii chars is specific to String, so convert:
-tryparse_internal(T::Type{Complex{S}}, s::AbstractString, i::Int, e::Int, raise::Bool) where S<:Real =
+function tryparse_internal(T::Type{Complex{S}}, s::AbstractString, i::Int, e::Int, raise::Bool) where S <: Real
     tryparse_internal(T, String(s), i, e, raise)
+end
 
 # fallback methods for tryparse_internal
-tryparse_internal(::Type{T}, s::AbstractString, startpos::Int, endpos::Int) where T<:Real =
-    startpos == firstindex(s) && endpos == lastindex(s) ? tryparse(T, s) : tryparse(T, SubString(s, startpos, endpos))
+function tryparse_internal(::Type{T}, s::AbstractString, startpos::Int, endpos::Int) where T <: Real
+    if startpos == firstindex(s) && endpos == lastindex(s)
+        tryparse(T, s)
+    else
+        tryparse(T, SubString(s, startpos, endpos))
+    end
+end
 function tryparse_internal(::Type{T}, s::AbstractString, startpos::Int, endpos::Int, raise::Bool) where T<:Real
     result = tryparse_internal(T, s, startpos, endpos)
     if raise && result === nothing
@@ -370,13 +380,17 @@ end
 @noinline _parse_failure(T, s::AbstractString, startpos = firstindex(s), endpos = lastindex(s)) =
     throw(ArgumentError("cannot parse $(repr(s[startpos:endpos])) as $T"))
 
-tryparse_internal(::Type{T}, s::AbstractString, startpos::Int, endpos::Int, raise::Bool) where T<:Integer =
+function tryparse_internal(::Type{T}, s::AbstractString, startpos::Int, endpos::Int, raise::Bool) where T <: Integer
     tryparse_internal(T, s, startpos, endpos, 10, raise)
+end
 
-parse(::Type{T}, s::AbstractString; kwargs...) where T<:Real =
+function parse(::Type{T}, s::AbstractString; kwargs...) where T <: Real
     convert(T, tryparse_internal(T, s, true; kwargs...))
-parse(::Type{T}, s::AbstractString) where T<:Complex =
+end
+function parse(::Type{T}, s::AbstractString) where T <: Complex
     convert(T, tryparse_internal(T, s, firstindex(s), lastindex(s), true))
+end
 
-tryparse(T::Type{Complex{S}}, s::AbstractString) where S<:Real =
+function tryparse(T::Type{Complex{S}}, s::AbstractString) where S <: Real
     tryparse_internal(T, s, firstindex(s), lastindex(s), false)
+end

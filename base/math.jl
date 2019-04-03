@@ -177,12 +177,22 @@ julia> deg2rad(90)
 ```
 """
 deg2rad(z::AbstractFloat) = z * (oftype(z, pi) / 180)
-rad2deg(z::Real) = rad2deg(float(z))
-deg2rad(z::Real) = deg2rad(float(z))
-rad2deg(z::Number) = (z/pi)*180
-deg2rad(z::Number) = (z*pi)/180
+function rad2deg(z::Real)
+    rad2deg(float(z))
+end
+function deg2rad(z::Real)
+    deg2rad(float(z))
+end
+function rad2deg(z::Number)
+    (z / pi) * 180
+end
+function deg2rad(z::Number)
+    (z * pi) / 180
+end
 
-log(b::T, x::T) where {T<:Number} = log(x)/log(b)
+function log(b::T, x::T) where T <: Number
+    log(x) / log(b)
+end
 
 """
     log(b,x)
@@ -570,19 +580,25 @@ Compute the hypotenuse ``\\sqrt{\\sum x_i^2}`` avoiding overflow and underflow.
 """
 hypot(x::Number...) = sqrt(sum(abs2(y) for y in x))
 
-atan(y::Real, x::Real) = atan(promote(float(y),float(x))...)
-atan(y::T, x::T) where {T<:AbstractFloat} = Base.no_op_err("atan", T)
+function atan(y::Real, x::Real)
+    atan(promote(float(y), float(x))...)
+end
+function atan(y::T, x::T) where T <: AbstractFloat
+    Base.no_op_err("atan", T)
+end
 
-max(x::T, y::T) where {T<:AbstractFloat} = ifelse((y > x) | (signbit(y) < signbit(x)),
-                                    ifelse(isnan(x), x, y), ifelse(isnan(y), y, x))
+function max(x::T, y::T) where T <: AbstractFloat
+    ifelse((y > x) | (signbit(y) < signbit(x)), ifelse(isnan(x), x, y), ifelse(isnan(y), y, x))
+end
 
 
-min(x::T, y::T) where {T<:AbstractFloat} = ifelse((y < x) | (signbit(y) > signbit(x)),
-                                    ifelse(isnan(x), x, y), ifelse(isnan(y), y, x))
+function min(x::T, y::T) where T <: AbstractFloat
+    ifelse((y < x) | (signbit(y) > signbit(x)), ifelse(isnan(x), x, y), ifelse(isnan(y), y, x))
+end
 
-minmax(x::T, y::T) where {T<:AbstractFloat} =
-    ifelse(isnan(x) | isnan(y), ifelse(isnan(x), (x,x), (y,y)),
-           ifelse((y > x) | (signbit(x) > signbit(y)), (x,y), (y,x)))
+function minmax(x::T, y::T) where T <: AbstractFloat
+    ifelse(isnan(x) | isnan(y), ifelse(isnan(x), (x, x), (y, y)), ifelse((y > x) | (signbit(x) > signbit(y)), (x, y), (y, x)))
+end
 
 
 """
@@ -638,7 +654,9 @@ function ldexp(x::T, e::Integer) where T<:IEEEFloat
         return z*reinterpret(T, xu)
     end
 end
-ldexp(x::Float16, q::Integer) = Float16(ldexp(Float32(x), q))
+function ldexp(x::Float16, q::Integer)
+    Float16(ldexp(Float32(x), q))
+end
 
 """
     exponent(x) -> Int
@@ -738,14 +756,22 @@ without any intermediate rounding.
 
 """
 rem(x, y, ::RoundingMode{:ToZero}) = rem(x,y)
-rem(x, y, ::RoundingMode{:Down}) = mod(x,y)
-rem(x, y, ::RoundingMode{:Up}) = mod(x,-y)
+function rem(x, y, ::RoundingMode{:Down})
+    mod(x, y)
+end
+function rem(x, y, ::RoundingMode{:Up})
+    mod(x, -y)
+end
 
-rem(x::Float64, y::Float64, ::RoundingMode{:Nearest}) =
-    ccall((:remainder, libm),Float64,(Float64,Float64),x,y)
-rem(x::Float32, y::Float32, ::RoundingMode{:Nearest}) =
-    ccall((:remainderf, libm),Float32,(Float32,Float32),x,y)
-rem(x::Float16, y::Float16, r::RoundingMode{:Nearest}) = Float16(rem(Float32(x), Float32(y), r))
+function rem(x::Float64, y::Float64, ::RoundingMode{:Nearest})
+    ccall((:remainder, libm), Float64, (Float64, Float64), x, y)
+end
+function rem(x::Float32, y::Float32, ::RoundingMode{:Nearest})
+    ccall((:remainderf, libm), Float32, (Float32, Float32), x, y)
+end
+function rem(x::Float16, y::Float16, r::RoundingMode{:Nearest})
+    Float16(rem(Float32(x), Float32(y), r))
+end
 
 
 """
@@ -961,9 +987,15 @@ function rem2pi(x::Float64, ::RoundingMode{:Up})
     end
 end
 
-rem2pi(x::Float32, r::RoundingMode) = Float32(rem2pi(Float64(x), r))
-rem2pi(x::Float16, r::RoundingMode) = Float16(rem2pi(Float64(x), r))
-rem2pi(x::Int32, r::RoundingMode) = rem2pi(Float64(x), r)
+function rem2pi(x::Float32, r::RoundingMode)
+    Float32(rem2pi(Float64(x), r))
+end
+function rem2pi(x::Float16, r::RoundingMode)
+    Float16(rem2pi(Float64(x), r))
+end
+function rem2pi(x::Int32, r::RoundingMode)
+    rem2pi(Float64(x), r)
+end
 function rem2pi(x::Int64, r::RoundingMode)
     fx = Float64(x)
     fx == x || throw(ArgumentError("Int64 argument to rem2pi is too large: $x"))
@@ -1027,8 +1059,12 @@ for func in (:atan,:hypot)
     end
 end
 
-cbrt(a::Float16) = Float16(cbrt(Float32(a)))
-sincos(a::Float16) = Float16.(sincos(Float32(a)))
+function cbrt(a::Float16)
+    Float16(cbrt(Float32(a)))
+end
+function sincos(a::Float16)
+    Float16.(sincos(Float32(a)))
+end
 
 # helper functions for Libm functionality
 
