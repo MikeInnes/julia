@@ -12,7 +12,7 @@ function _truncate_at_width_or_chars(str, width, chars="", truncmark="…")
         (wid >= width || c in chars) && break
     end
 
-    lastidx != 0 && str[lastidx] in chars && (lastidx = prevind(str, lastidx))
+    lastidx != 0 && str[lastidx] in chars && (lastidx = lastidx - 1)
     truncidx == 0 && (truncidx = lastidx)
     if lastidx < lastindex(str)
         return String(SubString(str, 1, truncidx) * truncmark)

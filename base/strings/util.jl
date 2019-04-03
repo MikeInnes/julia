@@ -52,7 +52,7 @@ function startswith(a::Union{String, SubString{String}},
         false
     elseif ccall(:memcmp, Int32, (Ptr{UInt8}, Ptr{UInt8}, UInt),
                  pointer(a), pointer(b), sizeof(b)) == 0
-        nextind(a, cub) == cub + 1
+        cub + 1 == cub + 1
     else
         false
     end
@@ -119,18 +119,18 @@ julia> chomp("Hello\\n")
 function chomp(s::AbstractString)
     i = lastindex(s)
     (i < 1 || s[i] != '\n') && (return SubString(s, 1, i))
-    j = prevind(s,i)
+    j = i - 1
     (j < 1 || s[j] != '\r') && (return SubString(s, 1, j))
-    return SubString(s, 1, prevind(s,j))
+    return SubString(s, 1, j - 1)
 end
 function chomp(s::String)
     i = lastindex(s)
     if i < 1 || codeunit(s,i) != 0x0a
         return @inbounds SubString(s, 1, i)
     elseif i < 2 || codeunit(s,i-1) != 0x0d
-        return @inbounds SubString(s, 1, prevind(s, i))
+        return @inbounds SubString(s, 1, i - 1)
     else
-        return @inbounds SubString(s, 1, prevind(s, i-1))
+        return @inbounds SubString(s, 1, (i - 1) - 1)
     end
 end
 
@@ -328,18 +328,18 @@ function _split(str::AbstractString, splitter, limit::Integer, keepempty::Bool, 
     n = lastindex(str)
     r = something(findfirst(splitter,str), 0)
     if r != 0:-1
-        j, k = first(r), nextind(str,last(r))
+        j, k = first(r), last(r) + 1
         while 0 < j <= n && length(strs) != limit-1
             if i < k
                 if keepempty || i < j
-                    push!(strs, @inbounds SubString(str,i,prevind(str,j)))
+                    push!(strs, @inbounds SubString(str,i,j - 1))
                 end
                 i = k
             end
-            (k <= j) && (k = nextind(str,j))
+            (k <= j) && (k = j + 1)
             r = something(findnext(splitter,str,k), 0)
             r == 0:-1 && break
-            j, k = first(r), nextind(str,last(r))
+            j, k = first(r), last(r) + 1
         end
     end
     if keepempty || i <= ncodeunits(str)
@@ -402,8 +402,8 @@ function _rsplit(str::AbstractString, splitter, limit::Integer, keepempty::Bool,
     r = something(findlast(splitter, str), 0)
     j, k = first(r), last(r)
     while j > 0 && k > 0 && length(strs) != limit-1
-        (keepempty || k < n) && pushfirst!(strs, @inbounds SubString(str,nextind(str,k),n))
-        n = prevind(str, j)
+        (keepempty || k < n) && pushfirst!(strs, @inbounds SubString(str,k + 1,n))
+        n = j - 1
         r = something(findprev(splitter,str,n), 0)
         j, k = first(r), last(r)
     end
@@ -446,9 +446,9 @@ function replace(str::String, pat_repl::Pair; count::Integer=typemax(Int))
         if k < j
             i = j
             j > e && break
-            k = nextind(str, j)
+            k = j + 1
         else
-            i = k = nextind(str, k)
+            i = k = k + 1
         end
         r = something(findnext(pattern,str,k), 0)
         r == 0:-1 || n == count && break

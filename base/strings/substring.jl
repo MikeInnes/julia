@@ -31,7 +31,7 @@ struct SubString{T<:AbstractString} <: AbstractString
             @inbounds isvalid(s, i) || string_index_err(s, i)
             @inbounds isvalid(s, j) || string_index_err(s, j)
         end
-        return new(s, i-1, nextind(s,j)-i)
+        return new(s, i-1, (j + 1)-i)
     end
 end
 
@@ -89,7 +89,7 @@ isvalid(::Type{String}, s::SubString{String}) = byte_string_classify(s) ≠ 0
 isvalid(s::SubString{String}) = isvalid(String, s)
 
 thisind(s::SubString{String}, i::Int) = _thisind_str(s, i)
-nextind(s::SubString{String}, i::Int) = _nextind_str(s, i)
+i::Int + 1 = _nextind_str(s, i)
 
 function cmp(a::SubString{String}, b::SubString{String})
     na = sizeof(a)

@@ -1555,7 +1555,7 @@ function allindices!(I, B::BitArray)
     ind = first(keys(B))
     for k = 1:length(B)
         I[k] = ind
-        ind = nextind(B, ind)
+        ind = ind + 1
     end
 end
 

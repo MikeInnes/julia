@@ -536,7 +536,7 @@ keys(s::AbstractString) = EachStringIndex(s)
 length(e::EachStringIndex) = length(e.s)
 first(::EachStringIndex) = 1
 last(e::EachStringIndex) = lastindex(e.s)
-iterate(e::EachStringIndex, state=firstindex(e.s)) = state > ncodeunits(e.s) ? nothing : (state, nextind(e.s, state))
+iterate(e::EachStringIndex, state=firstindex(e.s)) = state > ncodeunits(e.s) ? nothing : (state, state + 1)
 eltype(::Type{<:EachStringIndex}) = Int
 
 """
@@ -674,8 +674,8 @@ julia> "Test "^3
 (^)(s::Union{AbstractString,AbstractChar}, r::Integer) = repeat(s, r)
 
 # reverse-order iteration for strings and indices thereof
-iterate(r::Iterators.Reverse{<:AbstractString}, i=lastindex(r.itr)) = i < firstindex(r.itr) ? nothing : (r.itr[i], prevind(r.itr, i))
-iterate(r::Iterators.Reverse{<:EachStringIndex}, i=lastindex(r.itr.s)) = i < firstindex(r.itr.s) ? nothing : (i, prevind(r.itr.s, i))
+iterate(r::Iterators.Reverse{<:AbstractString}, i=lastindex(r.itr)) = i < firstindex(r.itr) ? nothing : (r.itr[i], i - 1)
+iterate(r::Iterators.Reverse{<:EachStringIndex}, i=lastindex(r.itr.s)) = i < firstindex(r.itr.s) ? nothing : (i, i - 1)
 
 ## code unit access ##
 

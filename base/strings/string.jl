@@ -142,7 +142,7 @@ Base.@propagate_inbounds nextind(s::String, i::Int) = _nextind_str(s, i)
     (l < 0x80) | (0xf8 ≤ l) && return i+1
     if l < 0xc0
         i′ = thisind(s, i)
-        return i′ < i ? nextind(s, i′) : i+1
+        return i′ < i ? i′ + 1 : i+1
     end
     # first continuation byte
     (i += 1) > n && return i
@@ -246,7 +246,7 @@ getindex(s::String, r::UnitRange{<:Integer}) = s[Int(first(r)):Int(last(r))]
         @inbounds isvalid(s, i) || string_index_err(s, i)
         @inbounds isvalid(s, j) || string_index_err(s, j)
     end
-    j = nextind(s, j) - 1
+    j = (j + 1) - 1
     n = j - i + 1
     ss = _string_n(n)
     unsafe_copyto!(pointer(ss), pointer(s, i), n)

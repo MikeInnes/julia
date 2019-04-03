@@ -15,7 +15,7 @@ function findnext(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:AbstractChar}
         i = _search(s, first_utf8_byte(c), i)
         i == 0 && return nothing
         pred(s[i]) && return i
-        i = nextind(s, i)
+        i = i + 1
     end
 end
 
@@ -55,7 +55,7 @@ function findprev(pred::Fix2{<:Union{typeof(isequal),typeof(==)},<:AbstractChar}
         i = _rsearch(s, b, i)
         i == 0 && return nothing
         pred(s[i]) && return i
-        i = prevind(s, i)
+        i = i - 1
     end
 end
 
@@ -123,14 +123,14 @@ function _searchindex(s::Union{AbstractString,ByteArray},
                       t::Union{AbstractString,AbstractChar,Int8,UInt8},
                       i::Integer)
     if isempty(t)
-        return 1 <= i <= nextind(s,lastindex(s)) ? i :
+        return 1 <= i <= lastindex(s) + 1 ? i :
                throw(BoundsError(s, i))
     end
     t1, trest = Iterators.peel(t)
     while true
         i = findnext(isequal(t1),s,i)
         if i === nothing return 0 end
-        ii = nextind(s, i)
+        ii = i + 1
         a = Iterators.Stateful(trest)
         matched = all(splat(==), zip(SubString(s, ii), a))
         (isempty(a) && matched) && return i
@@ -293,21 +293,21 @@ function _rsearchindex(s::AbstractString,
                        t::Union{AbstractString,AbstractChar,Int8,UInt8},
                        i::Integer)
     if isempty(t)
-        return 1 <= i <= nextind(s, lastindex(s)) ? i :
+        return 1 <= i <= lastindex(s) + 1 ? i :
                throw(BoundsError(s, i))
     end
     t1, trest = Iterators.peel(Iterators.reverse(t))
     while true
         i = findprev(isequal(t1), s, i)
         i === nothing && return 0
-        ii = prevind(s, i)
+        ii = i - 1
         a = Iterators.Stateful(trest)
         b = Iterators.Stateful(Iterators.reverse(
             pairs(SubString(s, 1, ii))))
         matched = all(splat(==), zip(a, (x[2] for x in b)))
         if matched && isempty(a)
             isempty(b) && return firstindex(s)
-            return nextind(s, popfirst!(b)[1])
+            return (popfirst!(b))[1] + 1
         end
         i = ii
     end
@@ -318,7 +318,7 @@ function _rsearchindex(s::String, t::String, i::Integer)
     if lastindex(t) == 1
         return something(findprev(isequal(t[1]), s, i), 0)
     elseif lastindex(t) != 0
-        j = i ≤ ncodeunits(s) ? nextind(s, i)-1 : i
+        j = i ≤ ncodeunits(s) ? (i + 1)-1 : i
         return _rsearchindex(unsafe_wrap(Vector{UInt8}, s), unsafe_wrap(Vector{UInt8}, t), j)
     elseif i > sizeof(s)
         return 0

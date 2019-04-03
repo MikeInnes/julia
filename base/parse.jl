@@ -190,10 +190,10 @@ function tryparse_internal(::Type{Bool}, sbuff::Union{String,SubString{String}},
 
     # Ignore leading and trailing whitespace
     while isspace(sbuff[startpos]) && startpos <= endpos
-        startpos = nextind(sbuff, startpos)
+        startpos = startpos + 1
     end
     while isspace(sbuff[endpos]) && endpos >= startpos
-        endpos = prevind(sbuff, endpos)
+        endpos = endpos - 1
     end
 
     len = endpos - startpos + 1
@@ -292,7 +292,7 @@ tryparse_internal(::Type{Float16}, s::AbstractString, startpos::Int, endpos::Int
 function tryparse_internal(::Type{Complex{T}}, s::Union{String,SubString{String}}, i::Int, e::Int, raise::Bool) where {T<:Real}
     # skip initial whitespace
     while i ≤ e && isspace(s[i])
-        i = nextind(s, i)
+        i = i + 1
     end
     if i > e
         raise && throw(ArgumentError("input string is empty or only contains whitespace"))

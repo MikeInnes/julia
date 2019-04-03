@@ -279,10 +279,10 @@ function match(re::Regex, str::Union{SubString{String}, String}, idx::Integer, a
     end
     ovec = re.ovec
     n = div(length(ovec),2) - 1
-    mat = SubString(str, ovec[1]+1, prevind(str, ovec[2]+1))
+    mat = SubString(str, ovec[1]+1, (ovec[2] + 1) - 1)
     cap = Union{Nothing,SubString{String}}[ovec[2i+1] == PCRE.UNSET ? nothing :
                                         SubString(str, ovec[2i+1]+1,
-                                                  prevind(str, ovec[2i+2]+1)) for i=1:n]
+                                                  (ovec[2i + 2] + 1) - 1) for i=1:n]
     off = Int[ ovec[2i+1]+1 for i=1:n ]
     RegexMatch(mat, cap, ovec[1]+1, off, re)
 end
@@ -294,13 +294,13 @@ match(r::Regex, s::AbstractString, i::Integer) = throw(ArgumentError(
 
 # TODO: return only start index and update deprecation
 function findnext(re::Regex, str::Union{String,SubString}, idx::Integer)
-    if idx > nextind(str,lastindex(str))
+    if idx > lastindex(str) + 1
         throw(BoundsError())
     end
     opts = re.match_options
     compile(re)
     if PCRE.exec(re.regex, str, idx-1, opts, re.match_data)
-        (Int(re.ovec[1])+1):prevind(str,Int(re.ovec[2])+1)
+        (Int(re.ovec[1])+1):(Int(re.ovec[2]) + 1) - 1
     else
         nothing
     end
@@ -381,37 +381,37 @@ function _replace(io, repl_s::SubstitutionString, str, r, re)
     e = lastindex(repl)
     while i <= e
         if repl[i] == SUB_CHAR
-            next_i = nextind(repl, i)
+            next_i = i + 1
             next_i > e && replace_err(repl)
             if repl[next_i] == SUB_CHAR
                 write(io, SUB_CHAR)
-                i = nextind(repl, next_i)
+                i = next_i + 1
             elseif isdigit(repl[next_i])
                 group = parse(Int, repl[next_i])
-                i = nextind(repl, next_i)
+                i = next_i + 1
                 while i <= e
                     if isdigit(repl[i])
                         group = 10group + parse(Int, repl[i])
-                        i = nextind(repl, i)
+                        i = i + 1
                     else
                         break
                     end
                 end
                 _write_capture(io, re, group)
             elseif repl[next_i] == GROUP_CHAR
-                i = nextind(repl, next_i)
+                i = next_i + 1
                 if i > e || repl[i] != LBRACKET
                     replace_err(repl)
                 end
-                i = nextind(repl, i)
+                i = i + 1
                 i > e && replace_err(repl)
                 groupstart = i
                 while repl[i] != RBRACKET
-                    i = nextind(repl, i)
+                    i = i + 1
                     i > e && replace_err(repl)
                 end
                 #  TODO: avoid this allocation
-                groupname = SubString(repl, groupstart, prevind(repl, i))
+                groupname = SubString(repl, groupstart, i - 1)
                 if all(isdigit, groupname)
                     _write_capture(io, re, parse(Int, groupname))
                 else
@@ -419,13 +419,13 @@ function _replace(io, repl_s::SubstitutionString, str, r, re)
                     group < 0 && replace_err("Group $groupname not found in regex $re")
                     _write_capture(io, re, group)
                 end
-                i = nextind(repl, i)
+                i = i + 1
             else
                 replace_err(repl)
             end
         else
             write(io, repl[i])
-            i = nextind(repl, i)
+            i = i + 1
         end
     end
 end
@@ -451,7 +451,7 @@ function iterate(itr::RegexMatchIterator, (offset,prevempty)=(1,false))
 
         if mat === nothing
             if prevempty && offset <= sizeof(itr.string)
-                offset = nextind(itr.string, offset)
+                offset = offset + 1
                 prevempty = false
                 continue
             else
@@ -460,7 +460,7 @@ function iterate(itr::RegexMatchIterator, (offset,prevempty)=(1,false))
         else
             if itr.overlap
                 if !isempty(mat.match)
-                    offset = nextind(itr.string, mat.offset)
+                    offset = mat.offset + 1
                 else
                     offset = mat.offset
                 end

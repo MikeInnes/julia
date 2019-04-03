@@ -590,7 +590,7 @@ function uppercasefirst(s::AbstractString)
     c = s[1]
     c′ = titlecase(c)
     c == c′ ? convert(String, s) :
-    string(c′, SubString(s, nextind(s, 1)))
+    string(c′, SubString(s, 1 + 1))
 end
 
 """
@@ -612,7 +612,7 @@ function lowercasefirst(s::AbstractString)
     c = s[1]
     c′ = lowercase(c)
     c == c′ ? convert(String, s) :
-    string(c′, SubString(s, nextind(s, 1)))
+    string(c′, SubString(s, 1 + 1))
 end
 
 ############################################################################

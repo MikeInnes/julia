@@ -277,18 +277,18 @@ function lreplace!(str::AbstractString, r::LReplace)
     local istart::Int
     while i <= ncodeunits(str)
         cstr = str[i]
-        i = nextind(str, i)
+        i = i + 1
         if !matching
             if cstr != '_' || i > ncodeunits(str)
                 continue
             end
             istart = i
             cstr = str[i]
-            i = nextind(str, i)
+            i = i + 1
         end
         if j <= lastindex(pat)
             cr = pat[j]
-            j = nextind(pat, j)
+            j = j + 1
             if cstr == cr
                 matching = true
             else
@@ -301,7 +301,7 @@ function lreplace!(str::AbstractString, r::LReplace)
         if matching && j > lastindex(pat)
             if i > lastindex(str) || str[i] == '_'
                 # We have a match
-                return string(str[1:prevind(str, istart)], r.val, lreplace!(str[i:end], r))
+                return string(str[1:istart - 1], r.val, lreplace!(str[i:end], r))
             end
             matching = false
             j = firstindex(pat)

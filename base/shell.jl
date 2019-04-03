@@ -45,7 +45,7 @@ function shell_parse(str::AbstractString, interpolate::Bool=true;
         end
     end
     function consume_upto(j)
-        update_arg(s[i:prevind(s, j)])
+        update_arg(s[i:j - 1])
         i = something(peek(st), (lastindex(s)+1,'\0'))[1]
     end
     function append_arg()
@@ -71,7 +71,7 @@ function shell_parse(str::AbstractString, interpolate::Bool=true;
             stpos, c = popfirst!(st)
             isspace(c) && error("space not allowed right after \$")
             ex, j = Meta.parse(s,stpos,greedy=false)
-            last_parse = (stpos:prevind(s, j)) .+ s.offset
+            last_parse = (stpos:j - 1) .+ s.offset
             update_arg(ex);
             s = SubString(s, j)
             Iterators.reset!(st, pairs(s))

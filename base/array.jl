@@ -1608,7 +1608,7 @@ function findnext(A, start)
         if A[i]
             return i
         end
-        i = nextind(A, i)
+        i = i + 1
     end
     return nothing
 end
@@ -1689,7 +1689,7 @@ function findnext(testf::Function, A, start)
         if testf(A[i])
             return i
         end
-        i = nextind(A, i)
+        i = i + 1
     end
     return nothing
 end
@@ -1783,7 +1783,7 @@ function findprev(A, start)
     i = start
     while i >= first(keys(A))
         A[i] && return i
-        i = prevind(A, i)
+        i = i - 1
     end
     return nothing
 end
@@ -1870,7 +1870,7 @@ function findprev(testf::Function, A, start)
     i = start
     while i >= first(keys(A))
         testf(A[i]) && return i
-        i = prevind(A, i)
+        i = i - 1
     end
     return nothing
 end

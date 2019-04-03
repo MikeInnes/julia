@@ -667,9 +667,9 @@ end
 
 function _limit(s, prec)
     prec >= sizeof(s) && return s
-    p = prevind(s, prec+1)
-    n = nextind(s, p)-1
-    s[1:(prec>=n ? n : prevind(s,p))]
+    p = (prec + 1) - 1
+    n = (p + 1)-1
+    s[1:(prec>=n ? n : p - 1)]
 end
 
 function gen_s(flags::String, width::Int, precision::Int, c::Char)
